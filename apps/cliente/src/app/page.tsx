@@ -4,52 +4,24 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, ShoppingBag } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
+import { SiteHeader } from "@/components/site-header";
 import {
-  apiGet,
+  fetchDias,
+  fetchMenu,
   formatoMoneda,
   hoyISO,
+  labelDeadline,
   labelFecha,
 } from "@/lib/api";
+import type { MenuDiaResponse } from "@tostal/shared/types";
+import type { PublicDiasResponse } from "@tostal/shared/api-public";
 
-type MenuResponse = {
-  fecha: string;
-  abierto: boolean;
-  deadlinePedido: string;
-  deadlineVigente: boolean;
-  productos: Array<{
-    id: string;
-    nombre: string;
-    descripcion: string | null;
-    precio: number;
-    alergenos: string | null;
-    categoriaId: string | null;
-    categoriaNombre: string | null;
-    disponible: boolean;
-  }>;
-  categorias: Array<{ id: string; nombre: string }>;
-  config: {
-    marca: string;
-    eslogan: string;
-    moneda: string;
-    canalRemotoActivo: boolean;
-    direccionRetiro?: string | null;
-  };
-};
-
-type DiasResponse = {
-  dias: Array<{
-    fecha: string;
-    abierto: boolean;
-    deadlinePedido: string;
-    deadlineVigente: boolean;
-  }>;
-  config: MenuResponse["config"];
-};
+type DiaOpt = PublicDiasResponse["dias"][number];
 
 export default function ClienteHome() {
   const cart = useCart();
-  const [dias, setDias] = useState<DiasResponse["dias"]>([]);
-  const [menu, setMenu] = useState<MenuResponse | null>(null);
+  const [dias, setDias] = useState<DiaOpt[]>([]);
+  const [menu, setMenu] = useState<MenuDiaResponse | null>(null);
   const [categoria, setCategoria] = useState<string>("todas");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,40 +31,58 @@ export default function ClienteHome() {
 
   useEffect(() => {
     if (!cart.fecha) cart.setFecha(hoyISO());
-  }, [cart]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await apiGet<DiasResponse>("/api/public/dias");
-        setDias(data.dias.filter((d) => d.abierto && d.deadlineVigente));
-      } catch (e) {
-        setError(
-          e instanceof Error
-            ? e.message
-            : "No se pudo cargar el calendario. ¿Está corriendo la App Restaurant?"
-        );
-      }
-    })();
+    // Solo al montar: evitar loop por identidad de cart
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const data = await fetchDias();
+        if (!alive) return;
+        const abiertos = data.dias.filter((d) => d.abierto && d.deadlineVigente);
+        setDias(abiertos);
+        if (abiertos.length && !abiertos.some((d) => d.fecha === cart.fecha)) {
+          cart.setFecha(abiertos[0].fecha);
+        }
+      } catch (e) {
+        if (alive) {
+          setError(
+            e instanceof Error
+              ? e.message
+              : "No se pudo cargar el calendario. ¿Está corriendo la App Restaurant?"
+          );
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const data = await apiGet<MenuResponse>(
-          `/api/public/menu?fecha=${fecha}`
-        );
+        const data = await fetchMenu(fecha);
+        if (!alive) return;
         setMenu(data);
         setCategoria("todas");
       } catch (e) {
+        if (!alive) return;
         setError(e instanceof Error ? e.message : "Error al cargar menú");
         setMenu(null);
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
     })();
+    return () => {
+      alive = false;
+    };
   }, [fecha]);
 
   const productosFiltrados = useMemo(() => {
@@ -101,7 +91,7 @@ export default function ClienteHome() {
     return menu.productos.filter((p) => p.categoriaId === categoria);
   }, [menu, categoria]);
 
-  function add(p: MenuResponse["productos"][0]) {
+  function add(p: MenuDiaResponse["productos"][number]) {
     if (!menu?.abierto || !menu.deadlineVigente) return;
     cart.addItem({
       productoId: p.id,
@@ -109,8 +99,23 @@ export default function ClienteHome() {
       precio: p.precio,
     });
     setToast(`${p.nombre} agregado`);
-    setTimeout(() => setToast(null), 1600);
+    window.setTimeout(() => setToast(null), 1600);
   }
+
+  const diasUi: DiaOpt[] =
+    dias.length > 0
+      ? dias
+      : [
+          {
+            id: "fallback",
+            fecha,
+            abierto: true,
+            deadlinePedido: "",
+            cupoMaximo: null,
+            notas: null,
+            deadlineVigente: true,
+          },
+        ];
 
   return (
     <div className="mx-auto min-h-dvh w-full max-w-lg">
@@ -133,40 +138,45 @@ export default function ClienteHome() {
         </div>
       </header>
 
-      <main className="space-y-4 px-4 pb-28 pt-4">
-        <section className="surface rise-in p-4" style={{ animationDelay: "80ms" }}>
+      <div className="px-4 pt-3">
+        <SiteHeader compact />
+      </div>
+
+      <main className="space-y-4 px-4 pb-28 pt-3">
+        <section
+          className="surface rise-in p-4"
+          style={{ animationDelay: "80ms" }}
+        >
           <h2 className="font-semibold">¿Para qué día?</h2>
           <p className="mt-1 text-sm text-muted">
             El menú solo muestra lo disponible ese día.
           </p>
           <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
-            {(dias.length ? dias : [{ fecha, abierto: true, deadlinePedido: "", deadlineVigente: true }]).map(
-              (d) => {
-                const active = d.fecha === fecha;
-                return (
-                  <button
-                    key={d.fecha}
-                    type="button"
-                    onClick={() => cart.setFecha(d.fecha)}
-                    className={`min-w-[4.6rem] rounded-2xl px-3 py-2 text-left text-sm transition ${
-                      active
-                        ? "bg-cacao text-crema"
-                        : "bg-white text-cacao border border-border"
-                    }`}
-                  >
-                    <p className="text-[11px] opacity-80">
-                      {labelFecha(d.fecha)}
-                    </p>
-                    <p className="font-semibold">{d.fecha.slice(8)}</p>
-                  </button>
-                );
-              }
-            )}
+            {diasUi.map((d) => {
+              const active = d.fecha === fecha;
+              return (
+                <button
+                  key={d.fecha}
+                  type="button"
+                  onClick={() => cart.setFecha(d.fecha)}
+                  className={`min-w-[4.6rem] rounded-2xl px-3 py-2 text-left text-sm transition ${
+                    active
+                      ? "bg-cacao text-crema"
+                      : "border border-border bg-white text-cacao"
+                  }`}
+                >
+                  <p className="text-[11px] opacity-80">
+                    {labelFecha(d.fecha)}
+                  </p>
+                  <p className="font-semibold">{d.fecha.slice(8)}</p>
+                </button>
+              );
+            })}
           </div>
           {menu && (
             <p className="mt-3 text-xs text-muted">
               {menu.abierto && menu.deadlineVigente
-                ? `Pedidos abiertos hasta ${new Date(menu.deadlinePedido).toLocaleString("es-MX")}`
+                ? `Pedidos abiertos hasta ${labelDeadline(menu.deadlinePedido)}`
                 : "Ya cerramos pedidos para este día"}
             </p>
           )}
@@ -207,7 +217,7 @@ export default function ClienteHome() {
                 className={`rounded-full px-3 py-1.5 text-sm whitespace-nowrap ${
                   categoria === "todas"
                     ? "bg-miel text-white"
-                    : "bg-white border border-border"
+                    : "border border-border bg-white"
                 }`}
               >
                 Todas
@@ -220,7 +230,7 @@ export default function ClienteHome() {
                   className={`rounded-full px-3 py-1.5 text-sm whitespace-nowrap ${
                     categoria === c.id
                       ? "bg-miel text-white"
-                      : "bg-white border border-border"
+                      : "border border-border bg-white"
                   }`}
                 >
                   {c.nombre}
@@ -251,7 +261,7 @@ export default function ClienteHome() {
                           </p>
                         )}
                       </div>
-                      <p className="font-semibold">
+                      <p className="shrink-0 font-semibold">
                         {formatoMoneda(p.precio, menu.config.moneda)}
                       </p>
                     </div>
@@ -279,6 +289,13 @@ export default function ClienteHome() {
             </ul>
           </>
         )}
+
+        <p className="pb-2 text-center text-sm text-muted">
+          ¿Ya pediste?{" "}
+          <Link href="/seguimiento" className="font-semibold text-miel-dark">
+            Sigue tu pedido
+          </Link>
+        </p>
       </main>
 
       {cart.totalItems > 0 && (

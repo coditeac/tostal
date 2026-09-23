@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@tostal/shared/*": ["../../shared/*"]
     }
   },
   "include": [
