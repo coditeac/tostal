@@ -17,6 +17,12 @@ export function ensureSeed() {
   const hash = bcrypt.hashSync("tostal123", 10);
 
   const run = db.transaction(() => {
+    // Carrera entre workers de build/prerender: solo uno siembra.
+    const again = db
+      .prepare("SELECT valor FROM configuracion WHERE clave = ?")
+      .get(SEED_FLAG) as { valor: string } | undefined;
+    if (again?.valor === SEED_VERSION) return;
+
     db.prepare(
       `INSERT OR IGNORE INTO usuarios (id, email, nombre, rol, password_hash, activo, creado_en)
        VALUES (?, ?, ?, ?, ?, 1, ?)`
@@ -207,11 +213,11 @@ export function ensureSeed() {
 
     const hoy = hoyISO();
     const diaStmt = db.prepare(
-      `INSERT INTO dias_operativos (id, fecha, abierto, deadline_pedido, cupo_maximo, notas)
+      `INSERT OR IGNORE INTO dias_operativos (id, fecha, abierto, deadline_pedido, cupo_maximo, notas)
        VALUES (?, ?, 1, ?, ?, ?)`
     );
     const dispStmt = db.prepare(
-      `INSERT INTO disponibilidad_producto_dia (id, fecha, producto_id, disponible)
+      `INSERT OR IGNORE INTO disponibilidad_producto_dia (id, fecha, producto_id, disponible)
        VALUES (?, ?, ?, ?)`
     );
 

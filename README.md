@@ -217,28 +217,31 @@ NEXT_PUBLIC_TOSTAL_API_URL=http://127.0.0.1:4321
 apps/restaurant   # Next.js — UI operación + Route Handlers + SQLite
 apps/cliente      # Next.js — superficie cliente
 shared/types.ts   # tipos compartidos
-docs/deploy-vercel.md
+docs/deploy-railway.md
+apps/*/railway.toml
 ```
 
 ---
 
-## Deploy (staging / production)
+## Deploy (Railway — staging / production)
 
 | Entorno | Branch | Mecanismo |
 |---|---|---|
-| **Staging** | `main` | Vercel Git (Preview / branch deploy) |
-| **Production** | `production` | Vercel Git (Production Branch) |
+| **Staging** | `main` | Railway Git (environment Staging) |
+| **Production** | `production` | Railway Git (environment Production) |
 
-Dos projects en el mismo monorepo: `tostal-cliente` (`apps/cliente`) y `tostal-restaurant` (`apps/restaurant`).  
-**Sin GitHub Actions** — solo integración nativa Vercel ↔ Git. Detalle: [`docs/deploy-vercel.md`](docs/deploy-vercel.md).
+Dos services en el mismo monorepo: `tostal-cliente` (`apps/cliente`) y `tostal-restaurant` (`apps/restaurant`), cada uno con su `railway.toml`.  
+**Sin GitHub Actions. Sin Vercel.** Solo integración nativa Railway ↔ Git.
+
+Detalle (env vars, volumen SQLite, setup): [`docs/deploy-railway.md`](docs/deploy-railway.md).
 
 **Repos**
 
-- GitHub: https://github.com/coditeac/tostal *(crear si aún no existe — ver bloqueadores abajo)*
+- GitHub: https://github.com/coditeac/tostal *(crear si aún no existe — ver bloqueadores)*
 - Origin: https://cursor.com/codebase/coditeac/tostal
-- Staging / Production URLs Vercel: *pendientes de conectar el repo en Vercel*
+- Staging / Production Railway: *pendientes de `RAILWAY_TOKEN` / `railway login` + link del repo*
 
 **Bloqueadores (VM agent)**
 
 1. PAT `coditeac` → `403` en `createRepository` (no puede crear el repo GitHub).
-2. Vercel CLI `Logged out` (sin `VERCEL_TOKEN`).
+2. Railway CLI `Unauthorized` — no hay `RAILWAY_TOKEN`.

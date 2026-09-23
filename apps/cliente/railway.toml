@@ -1,0 +1,16 @@
+# App Cliente — Railway
+# En el servicio: Root Directory = apps/cliente
+# Entornos: Staging ← branch main · Production ← branch production
+# (configurar en Railway → Service → Settings → Source)
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm ci && npm run build"
+watchPatterns = ["apps/cliente/**", "shared/**"]
+
+[deploy]
+startCommand = "npm run start"
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
