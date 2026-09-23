@@ -174,7 +174,9 @@ function ensureSchema(db: Database.Database) {
       fecha TEXT NOT NULL,
       metodo_pago TEXT,
       notas TEXT,
-      creado_en TEXT NOT NULL
+      creado_en TEXT NOT NULL,
+      comprobante TEXT,
+      compra_id TEXT
     );
 
     CREATE TABLE IF NOT EXISTS vitrina_stock (
@@ -189,7 +191,77 @@ function ensureSchema(db: Database.Database) {
       usuario_id TEXT,
       total_efectivo INTEGER DEFAULT 0,
       total_otros INTEGER DEFAULT 0,
+      notas TEXT,
+      contador_fichas INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS proveedores (
+      id TEXT PRIMARY KEY,
+      nombre TEXT NOT NULL,
+      notas TEXT,
+      preferido INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS listas_compra (
+      id TEXT PRIMARY KEY,
+      estado TEXT NOT NULL DEFAULT 'borrador',
+      creado_en TEXT NOT NULL,
       notas TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS lista_compra_items (
+      id TEXT PRIMARY KEY,
+      lista_id TEXT NOT NULL REFERENCES listas_compra(id) ON DELETE CASCADE,
+      insumo_id TEXT NOT NULL REFERENCES insumos(id),
+      cantidad_sugerida REAL NOT NULL,
+      cantidad REAL NOT NULL,
+      proveedor TEXT,
+      motivo TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS carritos_compra (
+      id TEXT PRIMARY KEY,
+      proveedor TEXT,
+      estado TEXT NOT NULL DEFAULT 'borrador',
+      creado_en TEXT NOT NULL,
+      comprado_en TEXT,
+      notas TEXT,
+      total INTEGER DEFAULT 0,
+      lista_id TEXT REFERENCES listas_compra(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS carrito_compra_lineas (
+      id TEXT PRIMARY KEY,
+      carrito_id TEXT NOT NULL REFERENCES carritos_compra(id) ON DELETE CASCADE,
+      insumo_id TEXT NOT NULL REFERENCES insumos(id),
+      cantidad REAL NOT NULL,
+      costo_unitario INTEGER NOT NULL DEFAULT 0,
+      comprada INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS vitrina_movimientos (
+      id TEXT PRIMARY KEY,
+      producto_id TEXT NOT NULL REFERENCES productos(id),
+      tipo TEXT NOT NULL,
+      cantidad INTEGER NOT NULL,
+      pedido_id TEXT,
+      motivo TEXT,
+      creado_en TEXT NOT NULL
+    );
   `);
+
+  // Migraciones aditivas seguras (DBs ya sembradas)
+  const alters = [
+    `ALTER TABLE gastos ADD COLUMN comprobante TEXT`,
+    `ALTER TABLE gastos ADD COLUMN compra_id TEXT`,
+    `ALTER TABLE turnos_caja ADD COLUMN contador_fichas INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE pedidos ADD COLUMN turno_id TEXT`,
+  ];
+  for (const sql of alters) {
+    try {
+      db.exec(sql);
+    } catch {
+      // columna ya existe
+    }
+  }
 }

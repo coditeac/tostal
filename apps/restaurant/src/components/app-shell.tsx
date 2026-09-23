@@ -3,24 +3,32 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  CalendarDays,
-  ChefHat,
   LayoutDashboard,
   LogOut,
   MessageCircle,
-  ShoppingBag,
-  Wheat,
-  Settings,
+  Package,
+  ShoppingCart,
+  Store,
+  UtensilsCrossed,
+  Wallet,
 } from "lucide-react";
 
 const links = [
   { href: "/panel", label: "Inicio", icon: LayoutDashboard },
-  { href: "/panel/pedidos", label: "Pedidos", icon: ShoppingBag },
-  { href: "/panel/productos", label: "Menú", icon: ChefHat },
-  { href: "/panel/insumos", label: "Insumos", icon: Wheat },
-  { href: "/panel/calendario", label: "Días", icon: CalendarDays },
-  { href: "/panel/whatsapp", label: "Avisos", icon: MessageCircle },
-  { href: "/panel/config", label: "Config", icon: Settings },
+  { href: "/produccion", label: "Cocina", icon: UtensilsCrossed },
+  { href: "/inventario", label: "Stock", icon: Package },
+  { href: "/compras", label: "Compras", icon: ShoppingCart },
+  { href: "/gastos", label: "Gastos", icon: Wallet },
+  { href: "/caja", label: "Caja", icon: Store },
+  { href: "/avisos", label: "Avisos", icon: MessageCircle },
+];
+
+const moreLinks = [
+  { href: "/costos", label: "Costos" },
+  { href: "/panel/pedidos", label: "Pedidos" },
+  { href: "/panel/productos", label: "Menú" },
+  { href: "/panel/calendario", label: "Días" },
+  { href: "/panel/config", label: "Config" },
 ];
 
 export function AppShell({
@@ -59,12 +67,27 @@ export function AppShell({
             Salir
           </button>
         </div>
+        <div className="mt-2 flex gap-2 overflow-x-auto pb-1 text-xs">
+          {moreLinks.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={`shrink-0 rounded-full px-2.5 py-1 ${
+                pathname.startsWith(l.href)
+                  ? "bg-arena text-cacao"
+                  : "text-muted"
+              }`}
+            >
+              {l.label}
+            </Link>
+          ))}
+        </div>
       </header>
 
       <main className="flex-1 px-4 py-4 pb-28">{children}</main>
 
       <nav className="nav-bottom">
-        <div className="mx-auto grid max-w-lg grid-cols-4 gap-1 md:grid-cols-7">
+        <div className="mx-auto grid max-w-lg grid-cols-4 gap-1 sm:grid-cols-7">
           {links.map((l) => {
             const active =
               pathname === l.href ||

@@ -71,23 +71,41 @@ export default async function PanelHome() {
       )}
 
       <section className="grid grid-cols-2 gap-3">
-        <Link href="/panel/pedidos" className="surface p-4">
-          <p className="font-semibold">Pedidos</p>
-          <p className="mt-1 text-sm text-muted">Cola de hoy</p>
+        <Link href="/produccion" className="surface p-4">
+          <p className="font-semibold">Producción</p>
+          <p className="mt-1 text-sm text-muted">Cola y descuento de insumos</p>
         </Link>
-        <Link href="/panel/calendario" className="surface p-4">
-          <p className="font-semibold">Calendario</p>
-          <p className="mt-1 text-sm text-muted">Disponibilidad y deadline</p>
+        <Link href="/inventario" className="surface p-4">
+          <p className="font-semibold">Inventario</p>
+          <p className="mt-1 text-sm text-muted">
+            {bajos.length > 0 ? `${bajos.length} bajo mínimo` : "Movimientos y alertas"}
+          </p>
         </Link>
-        <Link href="/panel/productos" className="surface p-4">
-          <p className="font-semibold">Menú</p>
-          <p className="mt-1 text-sm text-muted">Productos y recetas</p>
+        <Link href="/compras" className="surface p-4">
+          <p className="font-semibold">Compras</p>
+          <p className="mt-1 text-sm text-muted">Lista + carrito proveedor</p>
         </Link>
-        <Link href="/panel/whatsapp" className="surface p-4">
+        <Link href="/gastos" className="surface p-4">
+          <p className="font-semibold">Gastos</p>
+          <p className="mt-1 text-sm text-muted">Registro y resumen</p>
+        </Link>
+        <Link href="/caja" className="surface p-4">
+          <p className="font-semibold">Caja</p>
+          <p className="mt-1 text-sm text-muted">Pedir → pagar → ficha</p>
+        </Link>
+        <Link href="/avisos" className="surface p-4">
           <p className="font-semibold">Avisos WhatsApp</p>
           <p className="mt-1 text-sm text-muted">
             {avisosPendientes} pendientes
           </p>
+        </Link>
+        <Link href="/costos" className="surface p-4">
+          <p className="font-semibold">Costos</p>
+          <p className="mt-1 text-sm text-muted">Márgenes por receta</p>
+        </Link>
+        <Link href="/panel/calendario" className="surface p-4">
+          <p className="font-semibold">Calendario</p>
+          <p className="mt-1 text-sm text-muted">Disponibilidad y deadline</p>
         </Link>
       </section>
 

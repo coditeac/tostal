@@ -163,7 +163,25 @@ Estados pedido: `recibido` → `confirmado` → `en_produccion` → `listo` → 
 | GET/POST/PUT | `/api/insumos` | staff / admin | CRUD insumos |
 | GET/PUT | `/api/calendario` | staff / admin | día, deadline, disponibilidad producto×día; `copiarDesde` |
 | GET/PATCH | `/api/pedidos` | staff | listar / cambiar estado o pago |
-| GET/PATCH | `/api/whatsapp` | staff | cola avisos (base; otro agent puede ampliar UI) |
+| GET/PATCH | `/api/whatsapp` | staff | cola avisos manuales |
+| GET/POST | `/api/inventario` | staff | movimientos, alertas de mínimo |
+| GET/POST/PATCH | `/api/compras` | admin | lista sugerida → carrito → entrada stock |
+| GET/POST/DELETE | `/api/gastos` | admin | gastos + resumen |
+| GET/POST | `/api/produccion` | cocina | cola; **iniciar** descuenta insumos |
+| GET | `/api/costos` | staff | márgenes por receta |
+| GET/POST | `/api/caja` | caja/admin | turno, pedido mostrador, ficha, vitrina |
+
+### Rutas UI de operación (mobile first)
+
+| Ruta | Módulo |
+|---|---|
+| `/inventario` | Movimientos, mínimos, alertas |
+| `/compras` | Lista sugerida + carrito proveedor |
+| `/gastos` | Registro + resumen |
+| `/produccion` | Cola cocina (descuento al iniciar) |
+| `/costos` | Márgenes por receta |
+| `/avisos` | WhatsApp manual (copiar / abrir / marcar) |
+| `/caja` | Pedir → pagar → ficha → entregar + vitrina |
 
 Al pasar un pedido a `en_produccion` se **descuentan insumos** según receta.
 
@@ -171,8 +189,9 @@ Al pasar un pedido a `en_produccion` se **descuentan insumos** según receta.
 
 ## Ownership multiagente (repo)
 
-- **Restaurant/API/DB/auth/catálogo/calendario/seed:** este cimiento (`apps/restaurant`, `shared`, README).
-- **UI App Cliente, Stripe checkout UI, compras/gastos, WhatsApp avanzado, caja/ficha:** otros agents.
+- **Restaurant/API/DB/auth/catálogo/calendario/seed:** cimientos (`apps/restaurant`, `shared`, README).
+- **Operación (inventario/compras/gastos/producción/caja/avisos):** módulos ops en App Restaurant.
+- **UI App Cliente / Stripe checkout UI:** peer agent (`apps/cliente`).
 
 ---
 
