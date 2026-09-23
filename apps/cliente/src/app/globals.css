@@ -1,0 +1,212 @@
+@import "tailwindcss";
+
+:root {
+  --tostal-cacao: #2a1810;
+  --tostal-espresso: #1a100c;
+  --tostal-miel: #c4782b;
+  --tostal-miel-dark: #9a5a1a;
+  --tostal-rosa: #f3d5c8;
+  --tostal-crema: #fff8f3;
+  --tostal-arena: #efe0d4;
+  --tostal-ok: #2f6b4f;
+  --tostal-alerta: #b45309;
+  --tostal-error: #b42318;
+  --background: var(--tostal-crema);
+  --foreground: var(--tostal-cacao);
+  --card: #ffffff;
+  --muted: #7a5c4e;
+  --border: #e8d2c4;
+  --radius: 1rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-cacao: var(--tostal-cacao);
+  --color-espresso: var(--tostal-espresso);
+  --color-miel: var(--tostal-miel);
+  --color-miel-dark: var(--tostal-miel-dark);
+  --color-rosa: var(--tostal-rosa);
+  --color-crema: var(--tostal-crema);
+  --color-arena: var(--tostal-arena);
+  --color-ok: var(--tostal-ok);
+  --color-alerta: var(--tostal-alerta);
+  --color-error: var(--tostal-error);
+  --font-sans: var(--font-outfit);
+  --font-display: var(--font-fraunces);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  max-width: 100vw;
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(1100px 520px at 0% 0%, #f6dcc8 0%, transparent 55%),
+    radial-gradient(800px 420px at 100% 10%, #efc9b2 0%, transparent 45%),
+    linear-gradient(180deg, #fff7f1 0%, #f4e4d8 100%);
+  color: var(--foreground);
+  font-family: var(--font-outfit), system-ui, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
+
+.surface {
+  background: color-mix(in srgb, white 90%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(8px);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--tostal-miel);
+  color: white;
+  padding: 0.9rem 1.3rem;
+}
+
+.btn-primary:hover {
+  background: var(--tostal-miel-dark);
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--tostal-cacao);
+  border: 1px solid var(--border);
+  padding: 0.85rem 1.2rem;
+}
+
+.field {
+  width: 100%;
+  border-radius: 0.9rem;
+  border: 1px solid var(--border);
+  background: white;
+  padding: 0.85rem 1rem;
+  font: inherit;
+  color: inherit;
+}
+
+.field:focus {
+  outline: 2px solid color-mix(in srgb, var(--tostal-miel) 45%, transparent);
+  border-color: var(--tostal-miel);
+}
+
+.label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: var(--muted);
+}
+
+.hero-brand {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0 0 1.75rem 1.75rem;
+  background:
+    linear-gradient(135deg, rgba(42, 24, 16, 0.72), rgba(154, 90, 26, 0.55)),
+    radial-gradient(circle at 20% 30%, #e8b48a, transparent 50%),
+    linear-gradient(160deg, #5c3318, #2a1810);
+  color: #fff8f3;
+  min-height: 42vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 1.5rem 1.25rem 1.75rem;
+}
+
+.hero-brand::after {
+  content: "";
+  position: absolute;
+  inset: auto -20% -30% 20%;
+  height: 70%;
+  background: radial-gradient(circle, rgba(255, 210, 160, 0.35), transparent 60%);
+  pointer-events: none;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rise-in {
+  animation: rise-in 0.5s ease both;
+}
+
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.float-y {
+  animation: float-y 3.2s ease-in-out infinite;
+}
+
+.cart-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 50;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, transparent, #fff8f3 28%);
+}
+
+.loading-pulse {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

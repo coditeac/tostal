@@ -1,0 +1,10 @@
+{
+  "name": "tostal",
+  "private": true,
+  "scripts": {
+    "dev:restaurant": "npm --prefix apps/restaurant run dev",
+    "dev:cliente": "npm --prefix apps/cliente run dev",
+    "build:restaurant": "npm --prefix apps/restaurant run build",
+    "build:cliente": "npm --prefix apps/cliente run build"
+  }
+}
