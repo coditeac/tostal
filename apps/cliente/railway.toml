@@ -1,15 +1,13 @@
-# App Cliente — Railway (documental)
-# Root Directory = apps/cliente
+# Documental — en Railway el root del service es el monorepo (""),
+# build: npm --prefix apps/cliente ci && npm --prefix apps/cliente run build
 # Staging ← main · Production ← production
-# Preferir settings en dashboard/API; buildCommand = npm run build (Nixpacks ya hace npm ci)
-
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm run build"
+buildCommand = "npm --prefix apps/cliente ci && npm --prefix apps/cliente run build"
 watchPatterns = ["apps/cliente/**", "shared/**"]
 
 [deploy]
-startCommand = "npm run start"
+startCommand = "npm --prefix apps/cliente run start"
 healthcheckPath = "/"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"

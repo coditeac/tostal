@@ -1,15 +1,13 @@
-# App Restaurant — Railway (documental)
-# Root Directory = apps/restaurant · Volume /data
-# Staging ← main · Production ← production
-# Preferir settings en dashboard/API; buildCommand = npm run build (Nixpacks ya hace npm ci)
-
+# Documental — root monorepo para incluir shared/
+# build: npm --prefix apps/restaurant ci && npm --prefix apps/restaurant run build
+# Volume /data · Staging ← main · Production ← production
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm run build"
+buildCommand = "npm --prefix apps/restaurant ci && npm --prefix apps/restaurant run build"
 watchPatterns = ["apps/restaurant/**", "shared/**"]
 
 [deploy]
-startCommand = "npm run start"
+startCommand = "npm --prefix apps/restaurant run start"
 healthcheckPath = "/api/public/dias"
 healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"
