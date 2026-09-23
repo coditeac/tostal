@@ -237,11 +237,15 @@ Detalle (env vars, volumen SQLite, setup): [`docs/deploy-railway.md`](docs/deplo
 
 **Repos**
 
-- GitHub: https://github.com/coditeac/tostal *(crear si aún no existe — ver bloqueadores)*
+- GitHub: https://github.com/coditeac/tostal *(repo creado; push pendiente de Contents: Write en el PAT del agent)*
 - Origin: https://cursor.com/codebase/coditeac/tostal
-- Staging / Production Railway: *pendientes de `RAILWAY_TOKEN` / `railway login` + link del repo*
+- Railway proyecto **Tostal**:
+  - Staging cliente: https://tostal-cliente-staging.up.railway.app
+  - Staging restaurant: https://tostal-restaurant-staging.up.railway.app
+  - Production cliente: https://tostal-cliente-production-b06c.up.railway.app
+  - Production restaurant: https://tostal-restaurant-production-566f.up.railway.app
 
 **Bloqueadores (VM agent)**
 
-1. PAT `coditeac` → `403` en `createRepository` (no puede crear el repo GitHub).
-2. Railway CLI `Unauthorized` — no hay `RAILWAY_TOKEN`.
+1. GitHub push: PAT fine-grained → `403` Contents / `X-Accepted-Github-Permissions: metadata=read` (ampliar **Contents: Write** sobre `coditeac/tostal`).
+2. Railway: proyecto + services + envs + dominios + vars + volúmenes listos; `serviceConnect` / deployment triggers pendientes tras rate limit API.
