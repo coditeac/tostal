@@ -3,6 +3,8 @@ import { getSession } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
 import { ensureSeed } from "@/lib/seed";
 
+export const dynamic = "force-dynamic";
+
 /** Layout autenticado para rutas ops (/inventario, /compras, …) */
 export default async function OpsLayout({
   children,

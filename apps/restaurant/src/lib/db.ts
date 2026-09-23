@@ -2,16 +2,28 @@ import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
 
-const dataDir = path.join(process.cwd(), "data");
-const dbPath = process.env.TOSTAL_DB_PATH || path.join(dataDir, "tostal.sqlite");
+function resolveDbPath(): string {
+  const preferred =
+    process.env.TOSTAL_DB_PATH ||
+    path.join(process.cwd(), "data", "tostal.sqlite");
+  const dir = path.dirname(preferred);
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.accessSync(dir, fs.constants.W_OK);
+    return preferred;
+  } catch {
+    // Build/CI o volumen /data aún no montado → /tmp
+    const fallback = path.join("/tmp", "tostal-build.sqlite");
+    fs.mkdirSync(path.dirname(fallback), { recursive: true });
+    return fallback;
+  }
+}
 
 let _db: Database.Database | null = null;
 
 export function getDb(): Database.Database {
   if (_db) return _db;
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
+  const dbPath = resolveDbPath();
   _db = new Database(dbPath);
   _db.pragma("journal_mode = WAL");
   _db.pragma("foreign_keys = ON");
