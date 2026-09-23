@@ -3,9 +3,9 @@ import type {
   CrearPedidoRemotoResponse,
   GetPedidoPublicoResponse,
   PublicDiasResponse,
-} from "../../../../shared/api-public";
-import type { MenuDiaResponse } from "../../../../shared/types";
-import { PUBLIC_API } from "../../../../shared/api-public";
+} from "@tostal/shared/api-public";
+import type { MenuDiaResponse } from "@tostal/shared/types";
+import { PUBLIC_API } from "@tostal/shared/api-public";
 
 /** Preferencia: NEXT_PUBLIC_API_URL; fallback al nombre del cimiento. */
 export function getApiBase() {

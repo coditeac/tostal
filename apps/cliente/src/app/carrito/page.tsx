@@ -12,7 +12,7 @@ import {
   labelFecha,
 } from "@/lib/api";
 import { METODO_PAGO } from "@/lib/labels";
-import type { MenuDiaResponse, MetodoPago, ModoEntrega } from "../../../../shared/types";
+import type { MenuDiaResponse, MetodoPago, ModoEntrega } from "@tostal/shared/types";
 
 export default function CarritoPage() {
   const cart = useCart();

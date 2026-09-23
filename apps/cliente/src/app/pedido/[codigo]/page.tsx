@@ -11,7 +11,7 @@ import {
   MODO_ENTREGA,
   PASOS_PEDIDO,
 } from "@/lib/labels";
-import type { PedidoPublico } from "../../../../../shared/types";
+import type { PedidoPublico } from "@tostal/shared/types";
 
 function PedidoView() {
   const params = useParams<{ codigo: string }>();

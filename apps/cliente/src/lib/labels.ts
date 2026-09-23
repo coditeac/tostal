@@ -3,7 +3,7 @@ import type {
   EstadoPedido,
   MetodoPago,
   ModoEntrega,
-} from "../../../../shared/types";
+} from "@tostal/shared/types";
 
 export const ESTADO_PEDIDO: Record<EstadoPedido, string> = {
   recibido: "Recibido",

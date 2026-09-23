@@ -13,8 +13,8 @@ import {
   labelDeadline,
   labelFecha,
 } from "@/lib/api";
-import type { MenuDiaResponse } from "../../../../shared/types";
-import type { PublicDiasResponse } from "../../../../shared/api-public";
+import type { MenuDiaResponse } from "@tostal/shared/types";
+import type { PublicDiasResponse } from "@tostal/shared/api-public";
 
 type DiaOpt = PublicDiasResponse["dias"][number];
 
