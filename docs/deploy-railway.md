@@ -15,14 +15,15 @@ Flujo: merge → `main` (staging) → cuando esté estable, fast-forward `produc
 
 ## Servicios (proyecto Railway **Tostal**)
 
-| Service | Root Directory | Healthcheck |
+| Service | Build / Start | Healthcheck |
 |---|---|---|
-| `tostal-cliente` | `apps/cliente` | `/` |
-| `tostal-restaurant` | `apps/restaurant` | `/api/public/dias` |
+| `tostal-cliente` | `npm --prefix apps/cliente ci && … build` / `… start` | `/` |
+| `tostal-restaurant` | `npm --prefix apps/restaurant …` | `/api/public/dias` |
 
-- Environments: **Staging**, **Production**
-- Volumen en restaurant: mount `/data` → `TOSTAL_DB_PATH=/data/tostal.sqlite`
-- Next escucha `0.0.0.0:$PORT` (`npm run start`)
+- Root Directory del service: **monorepo** (`""`) para incluir `shared/`
+- Environments: **Staging** ← branch `main` · **Production** ← branch `production`
+- Volumen restaurant: `/data` → `TOSTAL_DB_PATH=/data/tostal.sqlite`
+- Node 22 (`NIXPACKS_NODE_VERSION` / `nixpacks.toml`)
 
 ## Variables de entorno
 
@@ -34,6 +35,7 @@ Flujo: merge → `main` (staging) → cuando esté estable, fast-forward `produc
 | `TOSTAL_CORS_ORIGINS` | URL(s) del cliente del mismo entorno |
 | `TOSTAL_DB_PATH` | `/data/tostal.sqlite` |
 | `STRIPE_SECRET_KEY` | opcional; sin clave = mock |
+| `NIXPACKS_NODE_VERSION` | `22` |
 
 ### `tostal-cliente`
 
@@ -41,8 +43,9 @@ Flujo: merge → `main` (staging) → cuando esté estable, fast-forward `produc
 |---|---|
 | `NEXT_PUBLIC_API_URL` | URL pública del restaurant |
 | `NEXT_PUBLIC_TOSTAL_API_URL` | alias / fallback |
+| `NIXPACKS_NODE_VERSION` | `22` |
 
-## URLs (dominios Railway generados)
+## URLs
 
 | App | Staging | Production |
 |---|---|---|
@@ -51,10 +54,6 @@ Flujo: merge → `main` (staging) → cuando esté estable, fast-forward `produc
 
 Dashboard: https://railway.app/project/6bca767c-9912-4c69-8879-6da93bbfb227
 
-Los deploys arrancan cuando el repo GitHub tenga commits y los **deployment triggers** Staging←`main` / Production←`production` estén conectados.
-
 ## GitHub
 
-Repo: https://github.com/coditeac/tostal
-
-Código integrado (PRs #1+#3+#4) vive en Origin `main`/`production`; el push a GitHub requiere que el PAT del agent tenga **Contents: Write** (hoy solo `metadata=read`).
+Repo: https://github.com/coditeac/tostal — ramas `main` y `production` (mismo tip).

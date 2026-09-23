@@ -237,7 +237,7 @@ Detalle (env vars, volumen SQLite, setup): [`docs/deploy-railway.md`](docs/deplo
 
 **Repos**
 
-- GitHub: https://github.com/coditeac/tostal *(repo creado; push pendiente de Contents: Write en el PAT del agent)*
+- GitHub: https://github.com/coditeac/tostal (`main` + `production`)
 - Origin: https://cursor.com/codebase/coditeac/tostal
 - Railway proyecto **Tostal**:
   - Staging cliente: https://tostal-cliente-staging.up.railway.app
@@ -245,7 +245,4 @@ Detalle (env vars, volumen SQLite, setup): [`docs/deploy-railway.md`](docs/deplo
   - Production cliente: https://tostal-cliente-production-b06c.up.railway.app
   - Production restaurant: https://tostal-restaurant-production-566f.up.railway.app
 
-**Bloqueadores (VM agent)**
-
-1. GitHub push: PAT fine-grained → `403` Contents / `X-Accepted-Github-Permissions: metadata=read` (ampliar **Contents: Write** sobre `coditeac/tostal`).
-2. Railway: proyecto + services + envs + dominios + vars + volúmenes listos; `serviceConnect` / deployment triggers pendientes tras rate limit API.
+Detalle: [`docs/deploy-railway.md`](docs/deploy-railway.md).
