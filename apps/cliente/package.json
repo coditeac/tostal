@@ -2,10 +2,13 @@
   "name": "cliente",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1 --port 4322",
     "build": "next build",
-    "start": "next start --hostname 0.0.0.0 --port ${PORT:-4322}",
+    "start": "next start --hostname 0.0.0.0",
     "lint": "eslint"
   },
   "dependencies": {

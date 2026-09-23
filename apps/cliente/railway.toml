@@ -1,11 +1,11 @@
-# App Cliente — Railway
-# En el servicio: Root Directory = apps/cliente
-# Entornos: Staging ← branch main · Production ← branch production
-# (configurar en Railway → Service → Settings → Source)
+# App Cliente — Railway (documental)
+# Root Directory = apps/cliente
+# Staging ← main · Production ← production
+# Preferir settings en dashboard/API; buildCommand = npm run build (Nixpacks ya hace npm ci)
 
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm ci && npm run build"
+buildCommand = "npm run build"
 watchPatterns = ["apps/cliente/**", "shared/**"]
 
 [deploy]

@@ -1,13 +1,12 @@
-# App Restaurant (API + ops) — Railway
-# En el servicio: Root Directory = apps/restaurant
-# Entornos: Staging ← branch main · Production ← branch production
-# Volumen persistente recomendado en /data → TOSTAL_DB_PATH=/data/tostal.sqlite
+# App Restaurant — Railway (documental)
+# Root Directory = apps/restaurant · Volume /data
+# Staging ← main · Production ← production
+# Preferir settings en dashboard/API; buildCommand = npm run build (Nixpacks ya hace npm ci)
 
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm ci && npm run build"
+buildCommand = "npm run build"
 watchPatterns = ["apps/restaurant/**", "shared/**"]
-# better-sqlite3 necesita toolchain nativo (Nixpacks lo provee por defecto)
 
 [deploy]
 startCommand = "npm run start"
