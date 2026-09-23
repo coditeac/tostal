@@ -5,31 +5,23 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
-import { apiGet, apiPost, formatoMoneda, labelFecha } from "@/lib/api";
-
-type Zona = {
-  id: string;
-  nombre: string;
-  cobertura: string | null;
-  costoEnvio: number;
-  activa: boolean;
-};
-
-type MenuResponse = {
-  abierto: boolean;
-  deadlineVigente: boolean;
-  zonas: Zona[];
-  config: { moneda: string; direccionRetiro?: string | null };
-};
+import {
+  crearPedido,
+  fetchMenu,
+  formatoMoneda,
+  labelFecha,
+} from "@/lib/api";
+import { METODO_PAGO } from "@/lib/labels";
+import type { MenuDiaResponse, MetodoPago, ModoEntrega } from "../../../../shared/types";
 
 export default function CarritoPage() {
   const cart = useCart();
   const router = useRouter();
-  const [menu, setMenu] = useState<MenuResponse | null>(null);
-  const [modo, setModo] = useState<"retiro" | "envio">("retiro");
+  const [menu, setMenu] = useState<MenuDiaResponse | null>(null);
+  const [modo, setModo] = useState<ModoEntrega>("retiro");
   const [zonaId, setZonaId] = useState("");
   const [metodoPago, setMetodoPago] = useState<
-    "transferencia" | "contra_entrega" | "stripe"
+    Extract<MetodoPago, "transferencia" | "contra_entrega" | "stripe">
   >("transferencia");
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -40,12 +32,19 @@ export default function CarritoPage() {
 
   useEffect(() => {
     if (!cart.fecha) return;
-    apiGet<MenuResponse>(`/api/public/menu?fecha=${cart.fecha}`)
+    let alive = true;
+    fetchMenu(cart.fecha)
       .then((m) => {
+        if (!alive) return;
         setMenu(m);
         if (m.zonas[0]) setZonaId(m.zonas[0].id);
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        if (alive) setError(e instanceof Error ? e.message : "Error");
+      });
+    return () => {
+      alive = false;
+    };
   }, [cart.fecha]);
 
   const costoEnvio = useMemo(() => {
@@ -54,31 +53,36 @@ export default function CarritoPage() {
   }, [modo, zonaId, menu]);
 
   const total = cart.subtotal + costoEnvio;
+  const bloqueado =
+    menu?.abierto === false || menu?.deadlineVigente === false;
 
   async function confirmar() {
     if (!cart.fecha || cart.items.length === 0) return;
+    if (bloqueado) {
+      setError("Ya cerramos pedidos para este día.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const data = await apiPost<{ pedido: { codigo: string } }>(
-        "/api/public/pedidos",
-        {
-          fechaEntrega: cart.fecha,
-          modoEntrega: modo,
-          zonaId: modo === "envio" ? zonaId : null,
-          clienteNombre: nombre,
-          clienteTelefono: telefono,
-          direccion: modo === "envio" ? direccion : null,
-          metodoPago,
-          notas: notas || null,
-          lineas: cart.items.map((i) => ({
-            productoId: i.productoId,
-            cantidad: i.cantidad,
-          })),
-        }
-      );
+      const data = await crearPedido({
+        fechaEntrega: cart.fecha,
+        modoEntrega: modo,
+        zonaId: modo === "envio" ? zonaId : null,
+        clienteNombre: nombre.trim(),
+        clienteTelefono: telefono.trim(),
+        direccion: modo === "envio" ? direccion.trim() : null,
+        metodoPago,
+        notas: notas.trim() || null,
+        lineas: cart.items.map((i) => ({
+          productoId: i.productoId,
+          cantidad: i.cantidad,
+        })),
+      });
       cart.clear();
-      router.push(`/pedido/${data.pedido.codigo}`);
+      const qs =
+        metodoPago === "stripe" ? "?pago=stripe" : "";
+      router.push(`/pedido/${data.pedido.codigo}${qs}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo crear el pedido");
     } finally {
@@ -121,6 +125,12 @@ export default function CarritoPage() {
         Entrega/retiro: {labelFecha(cart.fecha)}
       </p>
 
+      {bloqueado && (
+        <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-alerta">
+          Ya cerramos pedidos para este día. Elige otra fecha en el menú.
+        </p>
+      )}
+
       <ul className="mt-4 space-y-3">
         {cart.items.map((item) => (
           <li
@@ -137,9 +147,7 @@ export default function CarritoPage() {
               <button
                 type="button"
                 className="rounded-full border border-border p-1.5"
-                onClick={() =>
-                  cart.setQty(item.productoId, item.cantidad - 1)
-                }
+                onClick={() => cart.setQty(item.productoId, item.cantidad - 1)}
                 aria-label="Quitar uno"
               >
                 {item.cantidad === 1 ? (
@@ -154,9 +162,7 @@ export default function CarritoPage() {
               <button
                 type="button"
                 className="rounded-full border border-border p-1.5"
-                onClick={() =>
-                  cart.setQty(item.productoId, item.cantidad + 1)
-                }
+                onClick={() => cart.setQty(item.productoId, item.cantidad + 1)}
                 aria-label="Agregar uno"
               >
                 <Plus size={16} />
@@ -172,7 +178,9 @@ export default function CarritoPage() {
           <button
             type="button"
             className={`rounded-2xl px-3 py-3 text-sm font-semibold ${
-              modo === "retiro" ? "bg-cacao text-crema" : "bg-white border border-border"
+              modo === "retiro"
+                ? "bg-cacao text-crema"
+                : "border border-border bg-white"
             }`}
             onClick={() => setModo("retiro")}
           >
@@ -181,7 +189,9 @@ export default function CarritoPage() {
           <button
             type="button"
             className={`rounded-2xl px-3 py-3 text-sm font-semibold ${
-              modo === "envio" ? "bg-cacao text-crema" : "bg-white border border-border"
+              modo === "envio"
+                ? "bg-cacao text-crema"
+                : "border border-border bg-white"
             }`}
             onClick={() => setModo("envio")}
           >
@@ -193,29 +203,45 @@ export default function CarritoPage() {
         )}
         {modo === "envio" && (
           <>
-            <div>
-              <label className="label">Zona</label>
-              <select
-                className="field"
-                value={zonaId}
-                onChange={(e) => setZonaId(e.target.value)}
-              >
-                {(menu?.zonas || []).map((z) => (
-                  <option key={z.id} value={z.id}>
-                    {z.nombre} · {formatoMoneda(z.costoEnvio)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">Dirección</label>
-              <input
-                className="field"
-                value={direccion}
-                onChange={(e) => setDireccion(e.target.value)}
-                placeholder="Calle, número, colonia…"
-              />
-            </div>
+            {(menu?.zonas.length ?? 0) === 0 ? (
+              <p className="text-sm text-muted">
+                Por ahora no hay zonas de envío. Puedes retirar en tienda.
+              </p>
+            ) : (
+              <>
+                <div>
+                  <label className="label" htmlFor="zona">
+                    Zona
+                  </label>
+                  <select
+                    id="zona"
+                    className="field"
+                    value={zonaId}
+                    onChange={(e) => setZonaId(e.target.value)}
+                  >
+                    {(menu?.zonas || []).map((z) => (
+                      <option key={z.id} value={z.id}>
+                        {z.nombre} · {formatoMoneda(z.costoEnvio)}
+                        {z.cobertura ? ` — ${z.cobertura}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label" htmlFor="direccion">
+                    Dirección
+                  </label>
+                  <input
+                    id="direccion"
+                    className="field"
+                    value={direccion}
+                    onChange={(e) => setDireccion(e.target.value)}
+                    placeholder="Calle, número, colonia…"
+                    autoComplete="street-address"
+                  />
+                </div>
+              </>
+            )}
           </>
         )}
       </section>
@@ -223,29 +249,42 @@ export default function CarritoPage() {
       <section className="surface mt-4 space-y-3 p-4">
         <h2 className="font-semibold">Tus datos</h2>
         <div>
-          <label className="label">Nombre</label>
+          <label className="label" htmlFor="nombre">
+            Nombre
+          </label>
           <input
+            id="nombre"
             className="field"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
+            autoComplete="name"
             required
           />
         </div>
         <div>
-          <label className="label">WhatsApp / teléfono</label>
+          <label className="label" htmlFor="telefono">
+            WhatsApp / teléfono
+          </label>
           <input
+            id="telefono"
             className="field"
             value={telefono}
             onChange={(e) => setTelefono(e.target.value)}
+            inputMode="tel"
+            autoComplete="tel"
             required
           />
         </div>
         <div>
-          <label className="label">Notas (opcional)</label>
+          <label className="label" htmlFor="notas">
+            Notas (opcional)
+          </label>
           <textarea
+            id="notas"
             className="field min-h-16"
             value={notas}
             onChange={(e) => setNotas(e.target.value)}
+            placeholder="Alergias, detalles de decoración…"
           />
         </div>
       </section>
@@ -254,19 +293,30 @@ export default function CarritoPage() {
         <h2 className="font-semibold">Pago</h2>
         {(
           [
-            ["transferencia", "Transferencia (confirmamos a mano)"],
-            ["contra_entrega", "Pago contra entrega / retiro"],
-            ["stripe", "Tarjeta en línea (Stripe · mock si no hay clave)"],
+            ["transferencia", "Te enviamos los datos; confirmamos a mano"],
+            ["contra_entrega", "Pagas al recibir o retirar"],
+            ["stripe", "Tarjeta en línea (si no hay Stripe, se simula el pago)"],
           ] as const
-        ).map(([value, label]) => (
-          <label key={value} className="flex items-center gap-2 text-sm">
+        ).map(([value, hint]) => (
+          <label
+            key={value}
+            className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 text-sm ${
+              metodoPago === value
+                ? "border-miel bg-rosa/30"
+                : "border-border bg-white"
+            }`}
+          >
             <input
               type="radio"
               name="pago"
+              className="mt-1"
               checked={metodoPago === value}
               onChange={() => setMetodoPago(value)}
             />
-            {label}
+            <span>
+              <span className="font-semibold">{METODO_PAGO[value]}</span>
+              <span className="mt-0.5 block text-muted">{hint}</span>
+            </span>
           </label>
         ))}
         <div className="border-t border-border pt-3 text-sm">
@@ -299,9 +349,9 @@ export default function CarritoPage() {
             loading ||
             !nombre.trim() ||
             !telefono.trim() ||
-            (modo === "envio" && !direccion.trim()) ||
-            menu?.abierto === false ||
-            menu?.deadlineVigente === false
+            (modo === "envio" &&
+              (!(menu?.zonas.length ?? 0) || !direccion.trim() || !zonaId)) ||
+            bloqueado
           }
           onClick={confirmar}
         >
