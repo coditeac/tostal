@@ -16,6 +16,9 @@ function boot() {
   ensureSeed();
 }
 
+/** Filas SQLite traen 0/1 donde el tipo de dominio usa boolean. */
+type SqliteBool<T, K extends keyof T> = Omit<T, K> & { [P in K]: number };
+
 export function listCategorias(): Categoria[] {
   boot();
   return (
@@ -51,10 +54,12 @@ export function listProductos(): Array<
          LEFT JOIN categorias c ON c.id = p.categoria_id
          ORDER BY p.orden, p.nombre`
       )
-      .all() as Array<Producto & { categoriaNombre: string | null; activoCatalogo: number }>
+      .all() as Array<
+        SqliteBool<Producto, "activoCatalogo"> & { categoriaNombre: string | null }
+      >
   ).map((r) => ({
     ...r,
-    activoCatalogo: !!(r as { activoCatalogo: number | boolean }).activoCatalogo,
+    activoCatalogo: !!r.activoCatalogo,
   }));
 }
 
@@ -66,9 +71,7 @@ export function getProducto(idProd: string): Producto | null {
               activo_catalogo as activoCatalogo, foto_url as fotoUrl, alergenos, orden
        FROM productos WHERE id = ?`
     )
-    .get(idProd) as
-    | (Producto & { activoCatalogo: number })
-    | undefined;
+    .get(idProd) as SqliteBool<Producto, "activoCatalogo"> | undefined;
   if (!r) return null;
   return { ...r, activoCatalogo: !!r.activoCatalogo };
 }
@@ -231,8 +234,8 @@ export function listDias(from: string, to: string): DiaOperativo[] {
          WHERE fecha >= ? AND fecha <= ?
          ORDER BY fecha`
       )
-      .all(from, to) as Array<DiaOperativo & { abierto: number }>
-  ).map((d) => ({ ...d, abierto: !!(d as { abierto: number | boolean }).abierto }));
+      .all(from, to) as Array<SqliteBool<DiaOperativo, "abierto">>
+  ).map((d) => ({ ...d, abierto: !!d.abierto }));
 }
 
 export function getDia(fecha: string): DiaOperativo | null {
@@ -243,7 +246,7 @@ export function getDia(fecha: string): DiaOperativo | null {
               cupo_maximo as cupoMaximo, notas
        FROM dias_operativos WHERE fecha = ?`
     )
-    .get(fecha) as (DiaOperativo & { abierto: number }) | undefined;
+    .get(fecha) as SqliteBool<DiaOperativo, "abierto"> | undefined;
   if (!d) return null;
   return { ...d, abierto: !!d.abierto };
 }
@@ -355,7 +358,7 @@ export function listZonas(): ZonaEnvio[] {
         `SELECT id, nombre, cobertura, costo_envio as costoEnvio, activa
          FROM zonas_envio ORDER BY nombre`
       )
-      .all() as Array<ZonaEnvio & { activa: number }>
+      .all() as Array<SqliteBool<ZonaEnvio, "activa">>
   ).map((z) => ({ ...z, activa: !!z.activa }));
 }
 

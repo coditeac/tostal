@@ -215,6 +215,30 @@ NEXT_PUBLIC_TOSTAL_API_URL=http://127.0.0.1:4321
 
 ```
 apps/restaurant   # Next.js — UI operación + Route Handlers + SQLite
-apps/cliente      # Next.js — superficie cliente (peer agent)
+apps/cliente      # Next.js — superficie cliente
 shared/types.ts   # tipos compartidos
+docs/deploy-vercel.md
 ```
+
+---
+
+## Deploy (staging / production)
+
+| Entorno | Branch | Mecanismo |
+|---|---|---|
+| **Staging** | `main` | Vercel Git (Preview / branch deploy) |
+| **Production** | `production` | Vercel Git (Production Branch) |
+
+Dos projects en el mismo monorepo: `tostal-cliente` (`apps/cliente`) y `tostal-restaurant` (`apps/restaurant`).  
+**Sin GitHub Actions** — solo integración nativa Vercel ↔ Git. Detalle: [`docs/deploy-vercel.md`](docs/deploy-vercel.md).
+
+**Repos**
+
+- GitHub: https://github.com/coditeac/tostal *(crear si aún no existe — ver bloqueadores abajo)*
+- Origin: https://cursor.com/codebase/coditeac/tostal
+- Staging / Production URLs Vercel: *pendientes de conectar el repo en Vercel*
+
+**Bloqueadores (VM agent)**
+
+1. PAT `coditeac` → `403` en `createRepository` (no puede crear el repo GitHub).
+2. Vercel CLI `Logged out` (sin `VERCEL_TOKEN`).
