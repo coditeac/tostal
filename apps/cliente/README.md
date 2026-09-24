@@ -2,17 +2,21 @@
 
 Superficie pública de **Tostal** (*Sabores que unen culturas*): menú por día, carrito, checkout y seguimiento de pedido.
 
-Mobile first · UI en español · consume la API de App Restaurant.
+Mobile first · UI en español · consume la **API NestJS** (`apps/api`).
 
 ## Arranque
 
-Necesitas la **App Restaurant** (API) en `http://127.0.0.1:4321`.
+Necesitas la API NestJS en `http://127.0.0.1:4331` (u otra URL vía env).
 
 ```bash
+# Terminal 1 — API
+cd apps/api && npm install && npm run start:dev
+
+# Terminal 2 — Cliente
 cd apps/cliente
 npm install
-# .env.local ya apunta a la API:
-# NEXT_PUBLIC_API_URL=http://127.0.0.1:4321
+# .env.local:
+# NEXT_PUBLIC_API_URL=http://127.0.0.1:4331
 npm run dev
 # → http://127.0.0.1:4322
 ```
@@ -24,7 +28,10 @@ Variables admitidas (en orden): `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_TOSTAL_API_U
 1. Elige **día** de entrega/retiro (solo días abiertos con deadline vigente).
 2. Ve el **menú del día** (productos activos ese día).
 3. Arma el **carrito** → retiro o envío (zona + costo) → datos → pago.
-4. **Pago:** transferencia (confirmación manual), contra entrega, o Stripe (mock si no hay `STRIPE_SECRET_KEY` en restaurant).
+4. **Pago:**
+   - transferencia (confirmación manual en ops),
+   - contra entrega,
+   - Stripe (Checkout `price_data` / PaymentIntent; **mock** si la API no tiene `STRIPE_SECRET_KEY`).
 5. **Seguimiento** en `/pedido/[codigo]` o busca el código en `/seguimiento`.
 
 Si pasó el deadline: no se puede pedir (“Ya cerramos pedidos para este día”).
@@ -35,5 +42,6 @@ Si pasó el deadline: no se puede pedir (“Ya cerramos pedidos para este día�
 |---|---|
 | `/` | Hero + selector de día + menú |
 | `/carrito` | Carrito + checkout |
-| `/pedido/[codigo]` | Seguimiento (auto-refresh) |
+| `/pedido/[codigo]` | Seguimiento (SSE) + pagar Stripe si pendiente |
 | `/seguimiento` | Buscar pedido por código |
+| `/cuenta` | Registro / login cliente (opcional) |
