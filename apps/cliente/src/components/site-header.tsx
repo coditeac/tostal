@@ -26,7 +26,7 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
           />
         )}
         {compact && (
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Menú del día
           </p>
         )}
@@ -48,7 +48,7 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
           {cart.totalItems > 0 ? (
             <span>{formatoMoneda(cart.subtotal)}</span>
           ) : (
-            <span className="text-muted">0</span>
+            <span className="text-muted-foreground">0</span>
           )}
           {cart.totalItems > 0 && (
             <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-miel px-1 text-[11px] font-bold text-[#d6d2c4]">

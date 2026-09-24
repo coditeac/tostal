@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { sqlGet, sqlRun, sqlTransaction } from "./db";
-import { aCentavos, hoyISO, id, sumarDias } from "./utils";
+import { id } from "./id";
+import { aCentavos, hoyISO, sumarDias } from "./utils";
 
 const SEED_FLAG = "seed_version";
 const SEED_VERSION = "1";

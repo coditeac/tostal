@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function SeguimientoPage() {
   const router = useRouter();
@@ -17,9 +20,9 @@ export default function SeguimientoPage() {
 
   return (
     <div className="page-shell px-5 pb-10 pt-[max(1.5rem,env(safe-area-inset-top))]">
-      <Link href="/" className="text-sm font-semibold text-miel">
-        ← Menú
-      </Link>
+      <Button variant="link" asChild className="h-auto px-0 text-miel">
+        <Link href="/">← Menú</Link>
+      </Button>
 
       <div className="mt-8">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -35,18 +38,16 @@ export default function SeguimientoPage() {
         </h1>
       </div>
 
-      <p className="mt-3 text-sm leading-relaxed text-muted">
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
         Escribe el código que te dimos al confirmar (ej. T-0923-1234).
       </p>
 
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
-        <div>
-          <label className="label" htmlFor="codigo">
-            Código
-          </label>
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="codigo">Código</Label>
+          <Input
             id="codigo"
-            className="field uppercase tracking-wide"
+            className="uppercase tracking-wide"
             value={codigo}
             onChange={(e) => setCodigo(e.target.value)}
             placeholder="T-0923-1234"
@@ -54,13 +55,9 @@ export default function SeguimientoPage() {
             autoCapitalize="characters"
           />
         </div>
-        <button
-          type="submit"
-          className="btn btn-primary w-full"
-          disabled={!codigo.trim()}
-        >
+        <Button type="submit" className="w-full" disabled={!codigo.trim()}>
           Ver estado
-        </button>
+        </Button>
       </form>
     </div>
   );

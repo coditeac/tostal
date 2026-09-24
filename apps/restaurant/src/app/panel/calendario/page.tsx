@@ -129,7 +129,7 @@ export default function CalendarioPage() {
     <div className="space-y-4 rise-in">
       <div>
         <h1 className="font-display text-3xl">Calendario</h1>
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted-foreground">
           Disponibilidad por día y deadline de pedido
         </p>
       </div>
@@ -166,7 +166,7 @@ export default function CalendarioPage() {
       )}
 
       {loading ? (
-        <p className="loading-pulse text-muted">Cargando día…</p>
+        <p className="loading-pulse text-muted-foreground">Cargando día…</p>
       ) : (
         <section className="surface space-y-4 p-4">
           <div className="flex items-center justify-between">
@@ -202,7 +202,7 @@ export default function CalendarioPage() {
               value={deadlineLocal}
               onChange={(e) => setDeadlineLocal(e.target.value)}
             />
-            <p className="mt-1 text-xs text-muted">
+            <p className="mt-1 text-xs text-muted-foreground">
               Si ya pasó, el cliente no puede ordenar para este día.
             </p>
           </div>
@@ -235,7 +235,7 @@ export default function CalendarioPage() {
               </button>
             </div>
             {disp.length === 0 ? (
-              <p className="text-sm text-muted">No hay productos en catálogo.</p>
+              <p className="text-sm text-muted-foreground">No hay productos en catálogo.</p>
             ) : (
               <ul className="space-y-2">
                 {disp.map((item) => (

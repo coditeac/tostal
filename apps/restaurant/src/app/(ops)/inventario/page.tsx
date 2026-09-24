@@ -92,7 +92,7 @@ export default function InventarioPage() {
   }
 
   if (loading) {
-    return <p className="loading-pulse text-muted">Cargando inventario…</p>;
+    return <p className="loading-pulse text-muted-foreground">Cargando inventario…</p>;
   }
 
   return (
@@ -100,7 +100,7 @@ export default function InventarioPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl">Inventario</h1>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             Movimientos, mínimos y alertas · un solo almacén
           </p>
         </div>
@@ -212,7 +212,7 @@ export default function InventarioPage() {
                     </span>
                   )}
                 </p>
-                <p className="text-muted">
+                <p className="text-muted-foreground">
                   {formatoMoneda(i.costoUnitario)} / {i.unidad}
                 </p>
               </div>
@@ -227,7 +227,7 @@ export default function InventarioPage() {
       <section className="space-y-2">
         <h2 className="font-semibold">Últimos movimientos</h2>
         {movimientos.length === 0 ? (
-          <p className="text-sm text-muted">Aún no hay movimientos.</p>
+          <p className="text-sm text-muted-foreground">Aún no hay movimientos.</p>
         ) : (
           <ul className="space-y-2">
             {movimientos.map((m) => (
@@ -235,7 +235,7 @@ export default function InventarioPage() {
                 <p className="font-medium">
                   {m.tipo}: {m.cantidad} {m.unidad} · {m.insumoNombre}
                 </p>
-                <p className="text-xs text-muted">
+                <p className="text-xs text-muted-foreground">
                   {m.motivo || "—"} ·{" "}
                   {new Date(m.creadoEn).toLocaleString("es-MX", {
                     dateStyle: "short",

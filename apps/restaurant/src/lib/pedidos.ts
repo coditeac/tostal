@@ -3,7 +3,7 @@ import { ensureSeed } from "./seed";
 import { getConfigPublica } from "./config";
 import { getDia, getDisponibilidad, getProducto, listZonas } from "./catalogo";
 import { publishPedidoEvent } from "./pedido-events";
-import { id } from "./utils";
+import { id } from "./id";
 import type {
   EstadoPedido,
   LineaPedidoInput,

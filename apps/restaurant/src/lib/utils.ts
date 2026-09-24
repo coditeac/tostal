@@ -1,8 +1,4 @@
-import { randomUUID } from "crypto";
-
-export function id(): string {
-  return randomUUID();
-}
+export { cn } from "cn";
 
 export function hoyISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -28,8 +24,4 @@ export function aCentavos(pesos: number): number {
 
 export function deCentavos(centavos: number): number {
   return centavos / 100;
-}
-
-export function cn(...parts: Array<string | false | null | undefined>): string {
-  return parts.filter(Boolean).join(" ");
 }

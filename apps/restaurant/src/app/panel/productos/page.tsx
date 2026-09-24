@@ -140,7 +140,7 @@ export default function ProductosPage() {
   }
 
   if (loading) {
-    return <p className="loading-pulse text-muted">Cargando menú…</p>;
+    return <p className="loading-pulse text-muted-foreground">Cargando menú…</p>;
   }
 
   return (
@@ -148,7 +148,7 @@ export default function ProductosPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl">Menú</h1>
-          <p className="text-sm text-muted">Productos, precios y recetas</p>
+          <p className="text-sm text-muted-foreground">Productos, precios y recetas</p>
         </div>
         <button type="button" className="btn btn-primary" onClick={startNew}>
           Nuevo
@@ -305,7 +305,7 @@ export default function ProductosPage() {
       )}
 
       {productos.length === 0 ? (
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted-foreground">
           No hay productos. Crea el primero para armar el menú.
         </p>
       ) : (
@@ -315,22 +315,22 @@ export default function ProductosPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold">{p.nombre}</p>
-                  <p className="text-xs text-muted">
+                  <p className="text-xs text-muted-foreground">
                     {p.categoriaNombre || "Sin categoría"}
                     {!p.activoCatalogo ? " · oculto" : ""}
                   </p>
                   {p.descripcion && (
-                    <p className="mt-1 text-sm text-muted">{p.descripcion}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{p.descripcion}</p>
                   )}
                 </div>
                 <p className="font-semibold">{formatoMoneda(p.precio)}</p>
               </div>
-              <p className="mt-2 text-xs text-muted">
+              <p className="mt-2 text-xs text-muted-foreground">
                 Costo teórico {formatoMoneda(p.costoTeorico)} · margen{" "}
                 {p.margenPct}%
               </p>
               {p.receta.length > 0 && (
-                <p className="mt-1 text-xs text-muted">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Receta:{" "}
                   {p.receta
                     .map(

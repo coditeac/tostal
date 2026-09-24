@@ -62,13 +62,13 @@ export default function ConfigPage() {
     }
   }
 
-  if (loading) return <p className="loading-pulse text-muted">Cargando…</p>;
+  if (loading) return <p className="loading-pulse text-muted-foreground">Cargando…</p>;
 
   return (
     <div className="space-y-4 rise-in">
       <div>
         <h1 className="font-display text-3xl">Configuración</h1>
-        <p className="text-sm text-muted">Marca, canales y datos de contacto</p>
+        <p className="text-sm text-muted-foreground">Marca, canales y datos de contacto</p>
       </div>
 
       <section className="surface space-y-3 p-4">
@@ -148,7 +148,7 @@ export default function ConfigPage() {
         </button>
       </section>
 
-      <section className="surface p-4 text-sm text-muted">
+      <section className="surface p-4 text-sm text-muted-foreground">
         <p className="font-semibold text-cacao">Pagos Stripe</p>
         <p className="mt-1">
           Sin <code>STRIPE_SECRET_KEY</code> el checkout usa modo mock: los

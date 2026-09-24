@@ -92,14 +92,14 @@ export default function GastosPage() {
   }
 
   if (loading) {
-    return <p className="loading-pulse text-muted">Cargando gastos…</p>;
+    return <p className="loading-pulse text-muted-foreground">Cargando gastos…</p>;
   }
 
   return (
     <div className="space-y-4 rise-in">
       <div>
         <h1 className="font-display text-3xl">Gastos</h1>
-        <p className="text-sm text-muted">Registro y resumen simple</p>
+        <p className="text-sm text-muted-foreground">Registro y resumen simple</p>
       </div>
 
       {error && (
@@ -109,15 +109,15 @@ export default function GastosPage() {
       {resumen && (
         <section className="surface grid grid-cols-2 gap-3 p-4">
           <div>
-            <p className="text-xs text-muted">Gastos (30 días)</p>
+            <p className="text-xs text-muted-foreground">Gastos (30 días)</p>
             <p className="text-xl font-semibold">{formatoMoneda(resumen.total)}</p>
           </div>
           <div>
-            <p className="text-xs text-muted">Ventas del período</p>
+            <p className="text-xs text-muted-foreground">Ventas del período</p>
             <p className="text-xl font-semibold">{formatoMoneda(resumen.ventas)}</p>
           </div>
           {resumen.gastosVsVentas != null && (
-            <p className="col-span-2 text-sm text-muted">
+            <p className="col-span-2 text-sm text-muted-foreground">
               Gastos = {resumen.gastosVsVentas}% de ventas
             </p>
           )}
@@ -206,14 +206,14 @@ export default function GastosPage() {
       <section className="space-y-2">
         <h2 className="font-semibold">Recientes</h2>
         {gastos.length === 0 ? (
-          <p className="text-sm text-muted">Sin gastos registrados.</p>
+          <p className="text-sm text-muted-foreground">Sin gastos registrados.</p>
         ) : (
           <ul className="space-y-2">
             {gastos.slice(0, 30).map((g) => (
               <li key={g.id} className="surface flex items-center justify-between gap-2 p-3 text-sm">
                 <div>
                   <p className="font-medium capitalize">{g.categoria}</p>
-                  <p className="text-xs text-muted">
+                  <p className="text-xs text-muted-foreground">
                     {g.fecha}
                     {g.notas ? ` · ${g.notas}` : ""}
                   </p>
@@ -222,7 +222,7 @@ export default function GastosPage() {
                   <p className="font-semibold">{formatoMoneda(g.monto)}</p>
                   <button
                     type="button"
-                    className="text-xs text-muted"
+                    className="text-xs text-muted-foreground"
                     onClick={() => borrar(g.id)}
                   >
                     Borrar

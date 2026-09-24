@@ -4,6 +4,20 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Minus, Plus, Trash2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useCart } from "@/components/cart-provider";
 import {
   crearPedido,
@@ -93,10 +107,10 @@ export default function CarritoPage() {
   if (!cart.fecha) {
     return (
       <div className="mx-auto max-w-lg px-4 py-10">
-        <p className="text-muted">Elige primero una fecha en el menú.</p>
-        <Link href="/" className="btn btn-primary mt-4 inline-flex">
-          Ir al menú
-        </Link>
+        <p className="text-muted-foreground">Elige primero una fecha en el menú.</p>
+        <Button asChild className="mt-4">
+          <Link href="/">Ir al menú</Link>
+        </Button>
       </div>
     );
   }
@@ -105,10 +119,10 @@ export default function CarritoPage() {
     return (
       <div className="mx-auto max-w-lg px-5 py-10">
         <h1 className="text-3xl font-semibold tracking-tight">Tu carrito</h1>
-        <p className="mt-2 text-muted">Está vacío. Agrega algo del menú.</p>
-        <Link href="/" className="btn btn-primary mt-5 inline-flex">
-          Ver menú
-        </Link>
+        <p className="mt-2 text-muted-foreground">Está vacío. Agrega algo del menú.</p>
+        <Button asChild className="mt-5">
+          <Link href="/">Ver menú</Link>
+        </Button>
       </div>
     );
   }
@@ -121,14 +135,16 @@ export default function CarritoPage() {
           Seguir pidiendo
         </Link>
       </div>
-      <p className="mt-1 text-sm text-muted">
+      <p className="mt-1 text-sm text-muted-foreground">
         Entrega/retiro: {labelFecha(cart.fecha)}
       </p>
 
       {bloqueado && (
-        <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-alerta">
-          Ya cerramos pedidos para este día. Elige otra fecha en el menú.
-        </p>
+        <Alert className="mt-3 border-alerta/40 bg-amber-50 text-alerta">
+          <AlertDescription>
+            Ya cerramos pedidos para este día. Elige otra fecha en el menú.
+          </AlertDescription>
+        </Alert>
       )}
 
       <ul className="mt-4 space-y-3">
@@ -139,14 +155,16 @@ export default function CarritoPage() {
           >
             <div>
               <p className="font-semibold">{item.nombre}</p>
-              <p className="text-sm text-muted">
+              <p className="text-sm text-muted-foreground">
                 {formatoMoneda(item.precio)} c/u
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <button
+            <div className="flex items-center gap-1.5">
+              <Button
                 type="button"
-                className="rounded-full border border-border p-1.5"
+                variant="outline"
+                size="icon-sm"
+                className="rounded-full"
                 onClick={() => cart.setQty(item.productoId, item.cantidad - 1)}
                 aria-label="Quitar uno"
               >
@@ -155,18 +173,20 @@ export default function CarritoPage() {
                 ) : (
                   <Minus size={16} />
                 )}
-              </button>
-              <span className="w-6 text-center font-semibold">
+              </Button>
+              <span className="w-6 text-center font-semibold tabular-nums">
                 {item.cantidad}
               </span>
-              <button
+              <Button
                 type="button"
-                className="rounded-full border border-border p-1.5"
+                variant="outline"
+                size="icon-sm"
+                className="rounded-full"
                 onClick={() => cart.setQty(item.productoId, item.cantidad + 1)}
                 aria-label="Agregar uno"
               >
                 <Plus size={16} />
-              </button>
+              </Button>
             </div>
           </li>
         ))}
@@ -175,65 +195,54 @@ export default function CarritoPage() {
       <section className="surface mt-4 space-y-3 p-4">
         <h2 className="font-semibold">Entrega</h2>
         <div className="grid grid-cols-2 gap-2">
-          <button
+          <Button
             type="button"
-            className={`rounded-2xl px-3 py-3 text-sm font-semibold ${
-              modo === "retiro"
-                ? "bg-cacao text-crema"
-                : "border border-border bg-white"
-            }`}
+            variant={modo === "retiro" ? "default" : "outline"}
+            className={modo === "retiro" ? "bg-cacao text-crema hover:bg-cacao/90" : ""}
             onClick={() => setModo("retiro")}
           >
             Retiro
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={`rounded-2xl px-3 py-3 text-sm font-semibold ${
-              modo === "envio"
-                ? "bg-cacao text-crema"
-                : "border border-border bg-white"
-            }`}
+            variant={modo === "envio" ? "default" : "outline"}
+            className={modo === "envio" ? "bg-cacao text-crema hover:bg-cacao/90" : ""}
             onClick={() => setModo("envio")}
           >
             Envío
-          </button>
+          </Button>
         </div>
         {modo === "retiro" && menu?.config.direccionRetiro && (
-          <p className="text-sm text-muted">{menu.config.direccionRetiro}</p>
+          <p className="text-sm text-muted-foreground">{menu.config.direccionRetiro}</p>
         )}
         {modo === "envio" && (
           <>
             {(menu?.zonas.length ?? 0) === 0 ? (
-              <p className="text-sm text-muted">
+              <p className="text-sm text-muted-foreground">
                 Por ahora no hay zonas de envío. Puedes retirar en tienda.
               </p>
             ) : (
               <>
-                <div>
-                  <label className="label" htmlFor="zona">
-                    Zona
-                  </label>
-                  <select
-                    id="zona"
-                    className="field"
-                    value={zonaId}
-                    onChange={(e) => setZonaId(e.target.value)}
-                  >
-                    {(menu?.zonas || []).map((z) => (
-                      <option key={z.id} value={z.id}>
-                        {z.nombre} · {formatoMoneda(z.costoEnvio)}
-                        {z.cobertura ? ` — ${z.cobertura}` : ""}
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-2">
+                  <Label htmlFor="zona">Zona</Label>
+                  <Select value={zonaId || undefined} onValueChange={setZonaId}>
+                    <SelectTrigger id="zona" className="h-11 w-full min-h-[var(--tap)]">
+                      <SelectValue placeholder="Elige zona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(menu?.zonas || []).map((z) => (
+                        <SelectItem key={z.id} value={z.id}>
+                          {z.nombre} · {formatoMoneda(z.costoEnvio)}
+                          {z.cobertura ? ` — ${z.cobertura}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div>
-                  <label className="label" htmlFor="direccion">
-                    Dirección
-                  </label>
-                  <input
+                <div className="space-y-2">
+                  <Label htmlFor="direccion">Dirección</Label>
+                  <Input
                     id="direccion"
-                    className="field"
                     value={direccion}
                     onChange={(e) => setDireccion(e.target.value)}
                     placeholder="Calle, número, colonia…"
@@ -248,26 +257,20 @@ export default function CarritoPage() {
 
       <section className="surface mt-4 space-y-3 p-4">
         <h2 className="font-semibold">Tus datos</h2>
-        <div>
-          <label className="label" htmlFor="nombre">
-            Nombre
-          </label>
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="nombre">Nombre</Label>
+          <Input
             id="nombre"
-            className="field"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             autoComplete="name"
             required
           />
         </div>
-        <div>
-          <label className="label" htmlFor="telefono">
-            WhatsApp / teléfono
-          </label>
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="telefono">WhatsApp / teléfono</Label>
+          <Input
             id="telefono"
-            className="field"
             value={telefono}
             onChange={(e) => setTelefono(e.target.value)}
             inputMode="tel"
@@ -275,13 +278,11 @@ export default function CarritoPage() {
             required
           />
         </div>
-        <div>
-          <label className="label" htmlFor="notas">
-            Notas (opcional)
-          </label>
-          <textarea
+        <div className="space-y-2">
+          <Label htmlFor="notas">Notas (opcional)</Label>
+          <Textarea
             id="notas"
-            className="field min-h-16"
+            className="min-h-16"
             value={notas}
             onChange={(e) => setNotas(e.target.value)}
             placeholder="Alergias, detalles de decoración…"
@@ -315,11 +316,12 @@ export default function CarritoPage() {
             />
             <span>
               <span className="font-semibold">{METODO_PAGO[value]}</span>
-              <span className="mt-0.5 block text-muted">{hint}</span>
+              <span className="mt-0.5 block text-muted-foreground">{hint}</span>
             </span>
           </label>
         ))}
-        <div className="border-t border-border pt-3 text-sm">
+        <Separator />
+        <div className="pt-1 text-sm">
           <div className="flex justify-between">
             <span>Subtotal</span>
             <span>{formatoMoneda(cart.subtotal)}</span>
@@ -336,15 +338,16 @@ export default function CarritoPage() {
       </section>
 
       {error && (
-        <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-error">
-          {error}
-        </p>
+        <Alert variant="destructive" className="mt-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       <div className="cart-bar">
-        <button
+        <Button
           type="button"
-          className="btn btn-primary w-full shadow-lg"
+          size="lg"
+          className="w-full shadow-lg"
           disabled={
             loading ||
             !nombre.trim() ||
@@ -355,10 +358,15 @@ export default function CarritoPage() {
           }
           onClick={confirmar}
         >
-          {loading
-            ? "Enviando…"
-            : `Confirmar pedido · ${formatoMoneda(total)}`}
-        </button>
+          {loading ? (
+            <>
+              <Spinner />
+              Enviando…
+            </>
+          ) : (
+            `Confirmar pedido · ${formatoMoneda(total)}`
+          )}
+        </Button>
       </div>
     </div>
   );
