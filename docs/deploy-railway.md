@@ -16,8 +16,34 @@ Flujo: integrar en `main` si se usa como rama de trabajo, luego fast-forward / m
 
 | App | Dominio oficial | Fallback temporal Railway |
 |---|---|---|
-| **Cliente** | https://tostal.cafe | https://tostal.up.railway.app |
+| **Cliente** | https://tostal.cafe (+ `www.tostal.cafe` alias) | https://tostal.up.railway.app |
 | **Restaurant / API** | https://app.tostal.cafe | https://app-tostal.up.railway.app |
+
+Custom domains ya adjuntos en Railway Production (`tostal-cliente` / `tostal-restaurant`). SSL queda pendiente hasta que el DNS propague.
+
+### DNS que Coditeac debe crear (registrador `tostal.cafe` — Namecheap)
+
+Borrar / reemplazar el parking de Namecheap en `www` (`parkingpage.namecheap.com`).
+
+#### Tráfico (obligatorio)
+
+| Host / Name | Tipo | Valor | Servicio |
+|---|---|---|---|
+| `@` (apex / root) | **ALIAS** (o CNAME Flattening / ANAME; Namecheap: *ALIAS Record*) | `8m4jomjj.up.railway.app` | `tostal-cliente` → `tostal.cafe` |
+| `www` | **CNAME** | `n2ir1k4a.up.railway.app` | `tostal-cliente` → `www.tostal.cafe` |
+| `app` | **CNAME** | `2kinndxj.up.railway.app` | `tostal-restaurant` → `app.tostal.cafe` |
+
+> Apex: muchos registradores **no** permiten CNAME en `@`. En Namecheap usar **ALIAS** apuntando al mismo target que Railway muestra como CNAME. No uses un registro A inventado.
+
+#### Verificación de propiedad (TXT — obligatorio para emitir certificado)
+
+| Host / Name | Tipo | Valor |
+|---|---|---|
+| `_railway-verify` | **TXT** | `railway-verify=5f4cf1a998201472d9ed48ef44e79902952c22cc95c4e21f81f68618c4f78284` |
+| `_railway-verify.www` | **TXT** | `railway-verify=07f5d695fbd9802cf9a6f5a0dbbc0ba1df3ec89022659cca8110eed4c6c42b18` |
+| `_railway-verify.app` | **TXT** | `railway-verify=f0e2c51ba8de551ddcf8d05954cf74aeb1dec6738cf87c52ecf9d6621665bc34` |
+
+Tras crear los registros: esperar propagación (minutos–horas). Railway marca `verified` + certificado automático. Mientras tanto usar los fallbacks `*.up.railway.app`.
 
 ## Servicios (proyecto Railway **Tostal**)
 
