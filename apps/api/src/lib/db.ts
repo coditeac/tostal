@@ -1,9 +1,8 @@
 /**
  * Capa de datos Tostal.
  * - Producción (Railway): Postgres vía DATABASE_URL (servicio visible).
- * - Local: SQLite (better-sqlite3) en TOSTAL_DB_PATH o ./data/tostal.sqlite.
+ * - Local: SQLite (better-sqlite3 opcional) en TOSTAL_DB_PATH o ./data/tostal.sqlite.
  */
-import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
@@ -18,7 +17,17 @@ export function isPostgres(): boolean {
   return getDialect() === "postgres";
 }
 
-/* ---------- SQLite ---------- */
+/* ---------- SQLite (opcional; no se instala en Railway) ---------- */
+
+type SqliteDb = {
+  prepare: (sql: string) => {
+    all: (...params: unknown[]) => unknown[];
+    get: (...params: unknown[]) => unknown;
+    run: (...params: unknown[]) => { changes: number };
+  };
+  pragma: (s: string) => void;
+  exec: (sql: string) => void;
+};
 
 function resolveDbPath(): string {
   const preferred =
@@ -36,10 +45,13 @@ function resolveDbPath(): string {
   }
 }
 
-let _sqlite: Database.Database | null = null;
+let _sqlite: SqliteDb | null = null;
 
-function getSqlite(): Database.Database {
+function getSqlite(): SqliteDb {
   if (_sqlite) return _sqlite;
+  // require dinámico: better-sqlite3 es optionalDependency
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const Database = require("better-sqlite3") as new (path: string) => SqliteDb;
   _sqlite = new Database(resolveDbPath());
   _sqlite.pragma("journal_mode = WAL");
   _sqlite.pragma("foreign_keys = ON");
@@ -207,7 +219,7 @@ export async function initDb(): Promise<void> {
  * Compat legado: solo SQLite sync.
  * No usar en código nuevo; preferir sqlAll/sqlGet/sqlRun.
  */
-export function getDb(): Database.Database {
+export function getDb(): SqliteDb {
   if (isPostgres()) {
     throw new Error(
       "getDb() sync no disponible con Postgres. Usa sqlAll/sqlGet/sqlRun."
@@ -506,7 +518,7 @@ const SCHEMA_ALTERS_PG = [
     )`,
 ];
 
-function ensureSchemaSqlite(db: Database.Database) {
+function ensureSchemaSqlite(db: SqliteDb) {
   db.exec(SCHEMA_SQLITE);
   for (const sql of SCHEMA_ALTERS_SQLITE) {
     try {
