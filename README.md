@@ -223,26 +223,21 @@ apps/*/railway.toml
 
 ---
 
-## Deploy (Railway — staging / production)
+## Deploy (Railway — solo Production)
 
 | Entorno | Branch | Mecanismo |
 |---|---|---|
-| **Staging** | `main` | Railway Git (environment Staging) |
-| **Production** | `production` | Railway Git (environment Production) |
+| **Production** | `production` | Railway Git (único environment) |
 
-Dos services en el mismo monorepo: `tostal-cliente` (`apps/cliente`) y `tostal-restaurant` (`apps/restaurant`), cada uno con su `railway.toml`.  
-**Sin GitHub Actions. Sin Vercel.** Solo integración nativa Railway ↔ Git.
+Dos services en el monorepo: `tostal-cliente` y `tostal-restaurant`.  
+**Sin staging. Sin GitHub Actions. Sin Vercel.**
 
-Detalle (env vars, volumen SQLite, setup): [`docs/deploy-railway.md`](docs/deploy-railway.md).
+Detalle: [`docs/deploy-railway.md`](docs/deploy-railway.md).
 
 **Repos**
 
-- GitHub: https://github.com/coditeac/tostal (`main` + `production`)
+- GitHub: https://github.com/coditeac/tostal (deploy desde `production`)
 - Origin: https://cursor.com/codebase/coditeac/tostal
-- Railway proyecto **Tostal**:
-  - Staging cliente: https://tostal-cliente-staging.up.railway.app
-  - Staging restaurant: https://tostal-restaurant-staging.up.railway.app
-  - Production cliente: https://tostal-cliente-production-b06c.up.railway.app
-  - Production restaurant: https://tostal-restaurant-production-566f.up.railway.app
-
-Detalle: [`docs/deploy-railway.md`](docs/deploy-railway.md).
+- Railway **Production**:
+  - Cliente: https://tostal-cliente-production.up.railway.app
+  - Restaurant: https://tostal-restaurant-production.up.railway.app

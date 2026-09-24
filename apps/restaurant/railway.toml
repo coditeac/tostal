@@ -1,6 +1,5 @@
-# Documental — root monorepo para incluir shared/
-# build: npm --prefix apps/restaurant ci && npm --prefix apps/restaurant run build
-# Volume /data · Staging ← main · Production ← production
+# Documental — root monorepo para incluir shared/; volume /data
+# Production ← branch production
 [build]
 builder = "NIXPACKS"
 buildCommand = "npm --prefix apps/restaurant ci && npm --prefix apps/restaurant run build"

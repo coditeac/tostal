@@ -1,6 +1,5 @@
-# Documental — en Railway el root del service es el monorepo (""),
-# build: npm --prefix apps/cliente ci && npm --prefix apps/cliente run build
-# Staging ← main · Production ← production
+# Documental — root monorepo (""); build con npm --prefix apps/cliente
+# Production ← branch production
 [build]
 builder = "NIXPACKS"
 buildCommand = "npm --prefix apps/cliente ci && npm --prefix apps/cliente run build"
