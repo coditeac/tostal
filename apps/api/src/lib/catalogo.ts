@@ -40,11 +40,14 @@ export async function listProductos(): Promise<
 > {
   await boot();
   const rows = await sqlAll<
-    SqliteBool<Producto, "activoCatalogo"> & { categoriaNombre: string | null }
+    SqliteBool<Producto, "activoCatalogo"> & {
+      categoriaNombre: string | null;
+      duraciones: string | null;
+    }
   >(
     `SELECT p.id, p.categoria_id as categoriaId, p.nombre, p.descripcion,
             p.precio, p.activo_catalogo as activoCatalogo, p.foto_url as fotoUrl,
-            p.alergenos, p.orden, c.nombre as categoriaNombre
+            p.alergenos, p.orden, p.duraciones, c.nombre as categoriaNombre
      FROM productos p
      LEFT JOIN categorias c ON c.id = p.categoria_id
      ORDER BY p.orden, p.nombre`
@@ -52,19 +55,39 @@ export async function listProductos(): Promise<
   return rows.map((r) => ({
     ...r,
     activoCatalogo: !!r.activoCatalogo,
+    duraciones: parseDuraciones(r.duraciones),
   }));
+}
+
+function parseDuraciones(
+  raw: string | null | undefined
+): Producto["duraciones"] {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getProducto(idProd: string): Promise<Producto | null> {
   await boot();
-  const r = await sqlGet<SqliteBool<Producto, "activoCatalogo">>(
+  const r = await sqlGet<
+    SqliteBool<Producto, "activoCatalogo"> & { duraciones: string | null }
+  >(
     `SELECT id, categoria_id as categoriaId, nombre, descripcion, precio,
-            activo_catalogo as activoCatalogo, foto_url as fotoUrl, alergenos, orden
+            activo_catalogo as activoCatalogo, foto_url as fotoUrl, alergenos, orden,
+            duraciones
      FROM productos WHERE id = ?`,
     idProd
   );
   if (!r) return null;
-  return { ...r, activoCatalogo: !!r.activoCatalogo };
+  return {
+    ...r,
+    activoCatalogo: !!r.activoCatalogo,
+    duraciones: parseDuraciones(r.duraciones),
+  };
 }
 
 export async function upsertProducto(data: {
@@ -76,13 +99,16 @@ export async function upsertProducto(data: {
   activoCatalogo: boolean;
   alergenos: string | null;
   orden?: number;
+  duraciones?: Producto["duraciones"];
 }): Promise<Producto> {
   await boot();
   const pid = data.id || id();
+  const duracionesJson =
+    data.duraciones != null ? JSON.stringify(data.duraciones) : null;
   if (data.id) {
     await sqlRun(
       `UPDATE productos SET categoria_id=?, nombre=?, descripcion=?, precio=?,
-       activo_catalogo=?, alergenos=?, orden=? WHERE id=?`,
+       activo_catalogo=?, alergenos=?, orden=?, duraciones=? WHERE id=?`,
       data.categoriaId,
       data.nombre,
       data.descripcion,
@@ -90,12 +116,13 @@ export async function upsertProducto(data: {
       data.activoCatalogo ? 1 : 0,
       data.alergenos,
       data.orden ?? 0,
+      duracionesJson,
       pid
     );
   } else {
     await sqlRun(
-      `INSERT INTO productos (id, categoria_id, nombre, descripcion, precio, activo_catalogo, foto_url, alergenos, orden)
-       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+      `INSERT INTO productos (id, categoria_id, nombre, descripcion, precio, activo_catalogo, foto_url, alergenos, orden, duraciones)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
       pid,
       data.categoriaId,
       data.nombre,
@@ -103,7 +130,8 @@ export async function upsertProducto(data: {
       data.precio,
       data.activoCatalogo ? 1 : 0,
       data.alergenos,
-      data.orden ?? 0
+      data.orden ?? 0,
+      duracionesJson
     );
   }
   return (await getProducto(pid))!;

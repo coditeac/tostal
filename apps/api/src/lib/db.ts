@@ -488,6 +488,8 @@ const SCHEMA_ALTERS_SQLITE = [
   `ALTER TABLE pedidos ADD COLUMN turno_id TEXT`,
   `ALTER TABLE pedidos ADD COLUMN cuenta_cliente_id TEXT`,
   `ALTER TABLE pedidos ADD COLUMN cliente_email TEXT`,
+  `ALTER TABLE pedidos ADD COLUMN stripe_payment_intent_id TEXT`,
+  `ALTER TABLE productos ADD COLUMN duraciones TEXT`,
 ];
 
 const SCHEMA_ALTERS_PG = [
@@ -497,6 +499,8 @@ const SCHEMA_ALTERS_PG = [
   `ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS turno_id TEXT`,
   `ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cuenta_cliente_id TEXT`,
   `ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cliente_email TEXT`,
+  `ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS stripe_payment_intent_id TEXT`,
+  `ALTER TABLE productos ADD COLUMN IF NOT EXISTS duraciones TEXT`,
   `CREATE TABLE IF NOT EXISTS cuentas_cliente (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,

@@ -16,6 +16,7 @@ type Producto = {
   categoriaNombre: string | null;
   costoTeorico: number;
   margenPct: number;
+  duraciones?: Array<{ id: string; etiqueta: string }> | null;
   receta: Array<{
     id: string;
     insumoId: string;
@@ -42,6 +43,7 @@ export default function ProductosPage() {
     categoriaId: "",
     alergenos: "",
     activoCatalogo: true,
+    duracionesTexto: "",
   });
   const [recetaDraft, setRecetaDraft] = useState<
     Array<{ insumoId: string; cantidad: string }>
@@ -82,6 +84,7 @@ export default function ProductosPage() {
       categoriaId: categorias[0]?.id || "",
       alergenos: "",
       activoCatalogo: true,
+      duracionesTexto: "",
     });
     setRecetaDraft([{ insumoId: insumos[0]?.id || "", cantidad: "" }]);
   }
@@ -95,6 +98,7 @@ export default function ProductosPage() {
       categoriaId: p.categoriaId || "",
       alergenos: p.alergenos || "",
       activoCatalogo: p.activoCatalogo,
+      duracionesTexto: (p.duraciones || []).map((d: { etiqueta: string }) => d.etiqueta).join(", "),
     });
     setRecetaDraft(
       p.receta.length
@@ -118,6 +122,7 @@ export default function ProductosPage() {
         categoriaId: form.categoriaId || null,
         alergenos: form.alergenos || null,
         activoCatalogo: form.activoCatalogo,
+        duracionesTexto: form.duracionesTexto,
         receta: recetaDraft
           .filter((r) => r.insumoId && Number(r.cantidad) > 0)
           .map((r) => ({
@@ -224,6 +229,20 @@ export default function ProductosPage() {
               value={form.alergenos}
               onChange={(e) => setForm({ ...form, alergenos: e.target.value })}
             />
+          </div>
+          <div>
+            <label className="label">Duraciones (admin Tostal, no Stripe)</label>
+            <input
+              className="field"
+              placeholder="mismo día, 2 días, fin de semana…"
+              value={form.duracionesTexto}
+              onChange={(e) =>
+                setForm({ ...form, duracionesTexto: e.target.value })
+              }
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Separadas por coma. Precio y duraciones viven en Postgres vía API.
+            </p>
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input

@@ -222,13 +222,9 @@ export async function crearPedidoRemoto(input: {
   let estadoPago: PedidoPublico["estadoPago"] = "pendiente";
   if (input.metodoPago === "contra_entrega") estadoPago = "contra_entrega";
   if (input.metodoPago === "stripe") {
-    // Mock Stripe: marca pagado si no hay clave real
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
-    if (!stripeKey) {
-      estadoPago = "pagado";
-    } else {
-      estadoPago = "pendiente";
-    }
+    // Stripe: siempre pendiente hasta PaymentIntent/webhook (o mock-confirm).
+    // Sin keys → el cliente usa POST /api/pagos/stripe/mock-confirm.
+    estadoPago = "pendiente";
   }
 
   const now = new Date().toISOString();

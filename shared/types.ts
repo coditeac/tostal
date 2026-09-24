@@ -61,6 +61,12 @@ export interface Producto {
   fotoUrl: string | null;
   alergenos: string | null;
   orden: number;
+  /** Opciones de duración gestionadas en admin Tostal (JSON). No viven en Stripe. */
+  duraciones?: Array<{
+    id: string;
+    etiqueta: string;
+    minutos?: number | null;
+  }> | null;
 }
 
 export interface Insumo {
