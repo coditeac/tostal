@@ -153,10 +153,12 @@ export async function createCheckoutSessionForPedido(
   const stripe = getStripe();
 
   if (!stripe) {
+    const success = urls.successUrl.replace("{CODIGO}", pedido.codigo);
+    const sep = success.includes("?") ? "&" : "?";
     return {
       ok: true,
       mock: true,
-      url: urls.successUrl.replace("{CODIGO}", pedido.codigo) + "?pago=mock",
+      url: `${success}${sep}pago=mock`,
       sessionId: `cs_mock_${id().slice(0, 8)}`,
     };
   }

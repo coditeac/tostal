@@ -16,14 +16,15 @@
 | **Restaurant UI** | https://app.tostal.cafe | https://app-tostal.up.railway.app |
 | **API NestJS** | https://api.tostal.cafe | URL generada de `tostal-api` |
 
-### DNS (Namecheap) — añadir API
+### DNS (Namecheap) — API NestJS
 
 | Host | Tipo | Valor |
 |---|---|---|
-| `api` | **CNAME** | hostname Railway de `tostal-api` (ej. `….up.railway.app`) |
-| `_railway-verify.api` | **TXT** | el que muestre Railway al adjuntar el dominio |
+| `api` | **CNAME** | `p4iapz5p.up.railway.app` |
 
-Los registros de `@`, `www`, `app` siguen vigentes (ver historial de Domains en Railway).
+Dominio ya adjunto en Railway (`tostal-api`). Hasta que Namecheap propague el CNAME, usar el fallback `https://tostal-api-production.up.railway.app`.
+
+Los registros de `@`, `www`, `app` siguen vigentes.
 
 ## Servicios
 
@@ -47,10 +48,17 @@ Root Directory: monorepo `""` (incluye `shared/`).
 | `TOSTAL_CORS_ORIGINS` | `https://tostal.cafe,https://www.tostal.cafe,https://app.tostal.cafe,https://tostal.up.railway.app,https://app-tostal.up.railway.app` |
 | `TOSTAL_COOKIE_DOMAIN` | `.tostal.cafe` |
 | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` / `MAIL_FROM` | email real; sin ellas = mock en logs |
-| `STRIPE_SECRET_KEY` | opcional; sin clave = mock PaymentIntent |
-| `STRIPE_WEBHOOK_SECRET` | firma webhook |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Elements/Checkout cliente |
+| `STRIPE_SECRET_KEY` | opcional; sin clave = **mock** (PaymentIntent/Checkout simulados) |
+| `STRIPE_WEBHOOK_SECRET` | firma webhook → marca `estadoPago=pagado` |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | publishable key (cliente Elements/Checkout) |
 | `STRIPE_CURRENCY` | default `mxn` |
+
+**Stripe = solo procesador.** No crear Products/Prices/Catalog en Stripe.
+Productos, precios y duraciones viven en Postgres (admin Tostal). Al cobrar:
+`POST /api/pagos/stripe/intent` (PaymentIntent amount del pedido) o
+`POST /api/pagos/stripe/checkout` (Checkout Session `line_items[].price_data` ad-hoc).
+Metadata: `pedidoId`, `codigo`. Webhook: `POST /api/pagos/stripe/webhook`.
+Transferencia (confirmación manual staff) y contra entrega siguen activos.
 | `NIXPACKS_NODE_VERSION` | `22` |
 | `PORT` | Railway lo inyecta |
 
