@@ -31,7 +31,7 @@ Flujo: integrar en `main` si se usa como rama de trabajo, luego fast-forward / m
 | Variable | Notas |
 |---|---|
 | `TOSTAL_AUTH_SECRET` | secreto fuerte (JWT) |
-| `TOSTAL_CORS_ORIGINS` | URL del cliente production |
+| `TOSTAL_CORS_ORIGINS` | `https://tostal.up.railway.app` |
 | `TOSTAL_DB_PATH` | `/data/tostal.sqlite` |
 | `STRIPE_SECRET_KEY` | opcional; sin clave = mock |
 | `NIXPACKS_NODE_VERSION` | `22` |
@@ -40,16 +40,16 @@ Flujo: integrar en `main` si se usa como rama de trabajo, luego fast-forward / m
 
 | Variable | Notas |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | URL pública del restaurant |
-| `NEXT_PUBLIC_TOSTAL_API_URL` | alias / fallback |
+| `NEXT_PUBLIC_API_URL` | `https://app-tostal.up.railway.app` |
+| `NEXT_PUBLIC_TOSTAL_API_URL` | mismo (alias / fallback) |
 | `NIXPACKS_NODE_VERSION` | `22` |
 
 ## URLs (Production)
 
 | App | URL |
 |---|---|
-| Cliente | https://tostal-cliente-production.up.railway.app |
-| Restaurant / API | https://tostal-restaurant-production.up.railway.app |
+| Cliente | https://tostal.up.railway.app |
+| Restaurant / API | https://app-tostal.up.railway.app |
 
 Dashboard: https://railway.app/project/6bca767c-9912-4c69-8879-6da93bbfb227
 

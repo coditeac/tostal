@@ -239,5 +239,5 @@ Detalle: [`docs/deploy-railway.md`](docs/deploy-railway.md).
 - GitHub: https://github.com/coditeac/tostal (deploy desde `production`)
 - Origin: https://cursor.com/codebase/coditeac/tostal
 - Railway **Production**:
-  - Cliente: https://tostal-cliente-production.up.railway.app
-  - Restaurant: https://tostal-restaurant-production.up.railway.app
+  - Cliente: https://tostal.up.railway.app
+  - Restaurant: https://app-tostal.up.railway.app
