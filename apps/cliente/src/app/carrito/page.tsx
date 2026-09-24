@@ -103,10 +103,10 @@ export default function CarritoPage() {
 
   if (cart.items.length === 0) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-10">
-        <h1 className="font-display text-3xl">Tu carrito</h1>
+      <div className="mx-auto max-w-lg px-5 py-10">
+        <h1 className="text-3xl font-semibold tracking-tight">Tu carrito</h1>
         <p className="mt-2 text-muted">Está vacío. Agrega algo del menú.</p>
-        <Link href="/" className="btn btn-primary mt-4 inline-flex">
+        <Link href="/" className="btn btn-primary mt-5 inline-flex">
           Ver menú
         </Link>
       </div>
@@ -114,10 +114,10 @@ export default function CarritoPage() {
   }
 
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-lg px-4 pb-28 pt-6">
+    <div className="page-shell px-5 pb-32 pt-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-3xl">Tu carrito</h1>
-        <Link href="/" className="text-sm font-semibold text-miel-dark">
+        <h1 className="text-3xl font-semibold tracking-tight">Tu carrito</h1>
+        <Link href="/" className="text-sm font-semibold text-miel">
           Seguir pidiendo
         </Link>
       </div>

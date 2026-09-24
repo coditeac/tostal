@@ -16,16 +16,35 @@ export default function SeguimientoPage() {
   }
 
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-lg px-4 py-8">
-      <Link href="/" className="text-sm font-semibold text-miel-dark">
+    <div className="page-shell px-5 pb-10 pt-[max(1.5rem,env(safe-area-inset-top))]">
+      <Link href="/" className="text-sm font-semibold text-miel">
         ← Menú
       </Link>
-      <h1 className="font-display mt-4 text-4xl">Sigue tu pedido</h1>
-      <p className="mt-2 text-sm text-muted">
+
+      <div className="mt-8 flex items-start gap-3">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/tostal-logo.png"
+          alt=""
+          width={48}
+          height={48}
+          className="h-12 w-12 rounded-lg object-cover"
+        />
+        <div>
+          <p className="font-brand text-sm tracking-[0.14em] text-miel">
+            Tostal
+          </p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+            Sigue tu pedido
+          </h1>
+        </div>
+      </div>
+
+      <p className="mt-3 text-sm leading-relaxed text-muted">
         Escribe el código que te dimos al confirmar (ej. T-0923-1234).
       </p>
 
-      <form onSubmit={onSubmit} className="surface mt-6 space-y-3 p-4">
+      <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <div>
           <label className="label" htmlFor="codigo">
             Código

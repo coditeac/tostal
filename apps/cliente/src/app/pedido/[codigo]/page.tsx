@@ -56,10 +56,10 @@ function PedidoView() {
 
   if (error || !pedido) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-10">
-        <h1 className="font-display text-3xl">Pedido</h1>
+      <div className="page-shell px-5 py-10">
+        <h1 className="text-3xl font-semibold tracking-tight">Pedido</h1>
         <p className="mt-2 text-error">{error || "No encontrado"}</p>
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-5 flex flex-col gap-2">
           <Link href="/seguimiento" className="btn btn-primary inline-flex">
             Buscar otro código
           </Link>
@@ -75,10 +75,12 @@ function PedidoView() {
   const cancelado = pedido.estado === "cancelado";
 
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-lg px-4 py-8">
-      <p className="text-sm uppercase tracking-[0.15em] text-muted">Tostal</p>
-      <h1 className="font-display mt-1 text-4xl">Pedido {pedido.codigo}</h1>
-      <p className="mt-2 text-sm text-muted">
+    <div className="page-shell px-5 py-8">
+      <p className="font-brand text-sm tracking-[0.14em] text-miel">Tostal</p>
+      <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+        Pedido {pedido.codigo}
+      </h1>
+      <p className="mt-2 text-sm leading-relaxed text-muted">
         Hola {pedido.clienteNombre}. Para {labelFecha(pedido.fechaEntrega)} ·{" "}
         {MODO_ENTREGA[pedido.modoEntrega]}
       </p>
@@ -103,30 +105,49 @@ function PedidoView() {
         {cancelado ? (
           <p className="font-semibold text-error">Pedido cancelado</p>
         ) : (
-          <ol className="space-y-3">
-            {PASOS_PEDIDO.map((paso, i) => {
-              const done = idx >= i;
-              const current = idx === i;
-              return (
-                <li key={paso} className="flex items-center gap-3 text-sm">
-                  <span
-                    className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                      done
-                        ? "bg-miel text-white"
-                        : "bg-arena text-muted"
-                    } ${current ? "ring-2 ring-miel/40 ring-offset-2" : ""}`}
-                  >
-                    {i + 1}
-                  </span>
-                  <span className={done ? "font-semibold" : "text-muted"}>
-                    {ESTADO_PEDIDO[paso]}
-                  </span>
-                </li>
-              );
-            })}
-          </ol>
+          <>
+            <p className="text-2xl font-semibold leading-tight">
+              {ESTADO_PEDIDO[pedido.estado]}
+            </p>
+            <div className="status-track mt-5">
+              {PASOS_PEDIDO.map((paso, i) => {
+                const done = idx > i;
+                const current = idx === i;
+                const last = i === PASOS_PEDIDO.length - 1;
+                return (
+                  <div key={paso} className="status-step">
+                    {!last && (
+                      <span
+                        className={`status-line ${
+                          done || current ? "status-line-done" : ""
+                        }`}
+                      />
+                    )}
+                    <span
+                      className={`status-dot ${
+                        done
+                          ? "status-dot-done"
+                          : current
+                            ? "status-dot-current"
+                            : ""
+                      }`}
+                    />
+                    <span
+                      className={`max-w-[4.5rem] text-[10px] leading-tight ${
+                        current || done
+                          ? "font-semibold text-cacao"
+                          : "text-muted"
+                      }`}
+                    >
+                      {ESTADO_PEDIDO[paso]}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
-        <p className="mt-4 text-sm text-muted">
+        <p className="mt-5 text-sm text-muted">
           {METODO_PAGO[pedido.metodoPago]} · {ESTADO_PAGO[pedido.estadoPago]}
         </p>
       </section>
@@ -165,7 +186,7 @@ function PedidoView() {
         </Link>
         <Link
           href="/seguimiento"
-          className="text-center text-sm font-semibold text-miel-dark"
+          className="text-center text-sm font-semibold text-miel"
         >
           Buscar otro pedido
         </Link>

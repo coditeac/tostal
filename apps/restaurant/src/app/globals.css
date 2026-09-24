@@ -1,22 +1,34 @@
 @import "tailwindcss";
 
 :root {
-  --tostal-cacao: #2a1810;
-  --tostal-espresso: #1a100c;
-  --tostal-miel: #c4782b;
-  --tostal-miel-dark: #9a5a1a;
-  --tostal-rosa: #f3d5c8;
-  --tostal-crema: #fff8f3;
-  --tostal-arena: #efe0d4;
-  --tostal-ok: #2f6b4f;
+  /* Identidad Coditeac — ops densas, misma marca */
+  --tostal-marca: #9a2e25;
+  --tostal-marca-dark: #7a241c;
+  --tostal-marca-deep: #5c1b15;
+  --tostal-ink: #1f1412;
+  --tostal-crema-logo: #d6d2c4;
+  --tostal-papel: #f3f1ec;
+  --tostal-papel-2: #e6e2da;
+  --tostal-marca-soft: #f0e4e1;
+  --tostal-ok: #2d5a45;
   --tostal-alerta: #b45309;
   --tostal-error: #b42318;
-  --background: var(--tostal-crema);
-  --foreground: var(--tostal-cacao);
+
+  --tostal-cacao: var(--tostal-ink);
+  --tostal-espresso: var(--tostal-marca-deep);
+  --tostal-miel: var(--tostal-marca);
+  --tostal-miel-dark: var(--tostal-marca-dark);
+  --tostal-rosa: var(--tostal-marca-soft);
+  --tostal-crema: var(--tostal-papel);
+  --tostal-arena: var(--tostal-papel-2);
+
+  --background: var(--tostal-papel);
+  --foreground: var(--tostal-ink);
   --card: #ffffff;
-  --muted: #7a5c4e;
-  --border: #e8d2c4;
-  --radius: 1rem;
+  --muted: #6b5f58;
+  --border: #ddd8cf;
+  --radius: 0.85rem;
+  --tap: 2.65rem;
 }
 
 @theme inline {
@@ -35,8 +47,8 @@
   --color-ok: var(--tostal-ok);
   --color-alerta: var(--tostal-alerta);
   --color-error: var(--tostal-error);
-  --font-sans: var(--font-outfit);
-  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-manrope);
+  --font-display: var(--font-brand);
 }
 
 * {
@@ -50,12 +62,13 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(1200px 600px at 10% -10%, #f8e4d6 0%, transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, #f0d2c0 0%, transparent 50%),
-    linear-gradient(180deg, #fff8f3 0%, #f7ebe3 100%);
+  background-color: var(--tostal-papel);
+  background-image:
+    linear-gradient(180deg, #f7f5f0 0%, var(--tostal-papel) 42%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E");
   color: var(--foreground);
-  font-family: var(--font-outfit), system-ui, sans-serif;
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
 a {
@@ -63,8 +76,19 @@ a {
   text-decoration: none;
 }
 
-.font-display {
-  font-family: var(--font-fraunces), Georgia, serif;
+.font-display,
+.font-brand {
+  font-family: var(--font-brand), "Arial Narrow", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.brand-tagline {
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
 .toastal-shell {
@@ -74,10 +98,9 @@ a {
 }
 
 .surface {
-  background: color-mix(in srgb, white 88%, transparent);
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  backdrop-filter: blur(8px);
 }
 
 .btn {
@@ -85,8 +108,9 @@ a {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border-radius: 999px;
-  font-weight: 600;
+  min-height: var(--tap);
+  border-radius: 0.75rem;
+  font-weight: 650;
   transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
   border: none;
   cursor: pointer;
@@ -102,31 +126,33 @@ a {
 }
 
 .btn-primary {
-  background: var(--tostal-miel);
-  color: white;
+  background: var(--tostal-marca);
+  color: var(--tostal-crema-logo);
   padding: 0.85rem 1.25rem;
 }
 
 .btn-primary:hover {
-  background: var(--tostal-miel-dark);
+  background: var(--tostal-marca-dark);
 }
 
 .btn-secondary {
   background: white;
-  color: var(--tostal-cacao);
+  color: var(--tostal-ink);
   border: 1px solid var(--border);
   padding: 0.85rem 1.25rem;
 }
 
 .btn-ghost {
   background: transparent;
-  color: var(--tostal-cacao);
-  padding: 0.6rem 0.9rem;
+  color: var(--tostal-ink);
+  padding: 0.55rem 0.85rem;
+  min-height: 2.4rem;
 }
 
 .field {
   width: 100%;
-  border-radius: 0.9rem;
+  min-height: var(--tap);
+  border-radius: 0.75rem;
   border: 1px solid var(--border);
   background: white;
   padding: 0.8rem 1rem;
@@ -135,13 +161,13 @@ a {
 }
 
 .field:focus {
-  outline: 2px solid color-mix(in srgb, var(--tostal-miel) 45%, transparent);
-  border-color: var(--tostal-miel);
+  outline: 2px solid color-mix(in srgb, var(--tostal-marca) 35%, transparent);
+  border-color: var(--tostal-marca);
 }
 
 .label {
   display: block;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
   margin-bottom: 0.35rem;
   color: var(--muted);
@@ -151,16 +177,50 @@ a {
   position: sticky;
   bottom: 0;
   z-index: 40;
-  background: color-mix(in srgb, #fff8f3 92%, transparent);
+  background: color-mix(in srgb, #f7f5f0 94%, transparent);
   border-top: 1px solid var(--border);
-  backdrop-filter: blur(12px);
-  padding: 0.55rem 0.75rem calc(0.55rem + env(safe-area-inset-bottom));
+  backdrop-filter: blur(14px);
+  padding: 0.4rem 0.4rem calc(0.45rem + env(safe-area-inset-bottom));
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--tostal-arena);
+  color: var(--tostal-ink);
+}
+
+.badge-ok {
+  background: color-mix(in srgb, var(--tostal-ok) 14%, white);
+  color: var(--tostal-ok);
+}
+
+.badge-warn {
+  background: color-mix(in srgb, var(--tostal-alerta) 14%, white);
+  color: var(--tostal-alerta);
+}
+
+.badge-accent {
+  background: var(--tostal-marca-soft);
+  color: var(--tostal-marca-dark);
+}
+
+.ops-mark {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.45rem;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 @keyframes rise-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -169,7 +229,7 @@ a {
 }
 
 .rise-in {
-  animation: rise-in 0.45s ease both;
+  animation: rise-in 0.4s ease both;
 }
 
 @keyframes pulse-soft {

@@ -25,37 +25,60 @@ export default async function PanelHome() {
   const totalVentas = activos.reduce((a, p) => a + p.total, 0);
 
   return (
-    <div className="space-y-4 rise-in">
+    <div className="space-y-5 rise-in">
       <section className="surface p-5">
-        <p className="text-sm text-muted">Hoy en Tostal</p>
-        <h1 className="font-display mt-1 text-3xl text-cacao">
-          {config.marca}
-        </h1>
-        <p className="text-sm text-muted">{config.eslogan}</p>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-arena/70 p-3">
-            <p className="text-xs text-muted">Pedidos de hoy</p>
-            <p className="text-2xl font-semibold">{activos.length}</p>
+        <div className="flex items-start gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/tostal-logo.png"
+            alt=""
+            width={44}
+            height={44}
+            className="ops-mark"
+          />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+              Hoy en Tostal
+            </p>
+            <h1 className="font-brand mt-1 text-2xl tracking-[0.06em] text-miel">
+              {config.marca}
+            </h1>
+            <p className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-muted">
+              {config.eslogan}
+            </p>
           </div>
-          <div className="rounded-2xl bg-arena/70 p-3">
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-arena p-3.5">
+            <p className="text-xs text-muted">Pedidos de hoy</p>
+            <p className="text-2xl font-semibold tabular-nums">
+              {activos.length}
+            </p>
+          </div>
+          <div className="rounded-xl bg-arena p-3.5">
             <p className="text-xs text-muted">Ventas del día</p>
-            <p className="text-2xl font-semibold">
+            <p className="text-2xl font-semibold tabular-nums">
               {formatoMoneda(totalVentas, config.moneda)}
             </p>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full bg-white px-3 py-1 border border-border">
+          <span className="badge">
             Remoto: {config.canalRemotoActivo ? "activo" : "apagado"}
           </span>
-          <span className="rounded-full bg-white px-3 py-1 border border-border">
+          <span className="badge">
             Mostrador: {config.canalMostradorActivo ? "activo" : "apagado"}
           </span>
+          {avisosPendientes > 0 && (
+            <span className="badge-accent badge">
+              {avisosPendientes} avisos
+            </span>
+          )}
         </div>
       </section>
 
       {bajos.length > 0 && (
-        <section className="surface border-alerta/30 p-4">
+        <section className="surface border-alerta/40 p-4">
           <h2 className="font-semibold text-alerta">Falta stock</h2>
           <ul className="mt-2 space-y-1 text-sm">
             {bajos.slice(0, 4).map((i) => (
@@ -64,55 +87,66 @@ export default async function PanelHome() {
               </li>
             ))}
           </ul>
-          <Link href="/panel/insumos" className="mt-3 inline-block text-sm font-semibold text-miel-dark">
+          <Link
+            href="/panel/insumos"
+            className="mt-3 inline-block text-sm font-semibold text-miel"
+          >
             Ver insumos →
           </Link>
         </section>
       )}
 
-      <section className="grid grid-cols-2 gap-3">
-        <Link href="/produccion" className="surface p-4">
+      <section className="grid grid-cols-2 gap-2.5">
+        <Link href="/produccion" className="surface p-3.5 active:bg-arena/50">
           <p className="font-semibold">Producción</p>
-          <p className="mt-1 text-sm text-muted">Cola y descuento de insumos</p>
+          <p className="mt-1 text-xs text-muted">Cola y descuento</p>
         </Link>
-        <Link href="/inventario" className="surface p-4">
+        <Link href="/inventario" className="surface p-3.5 active:bg-arena/50">
           <p className="font-semibold">Inventario</p>
-          <p className="mt-1 text-sm text-muted">
-            {bajos.length > 0 ? `${bajos.length} bajo mínimo` : "Movimientos y alertas"}
+          <p className="mt-1 text-xs text-muted">
+            {bajos.length > 0
+              ? `${bajos.length} bajo mínimo`
+              : "Movimientos"}
           </p>
         </Link>
-        <Link href="/compras" className="surface p-4">
+        <Link href="/compras" className="surface p-3.5 active:bg-arena/50">
           <p className="font-semibold">Compras</p>
-          <p className="mt-1 text-sm text-muted">Lista + carrito proveedor</p>
+          <p className="mt-1 text-xs text-muted">Lista + proveedor</p>
         </Link>
-        <Link href="/gastos" className="surface p-4">
+        <Link href="/gastos" className="surface p-3.5 active:bg-arena/50">
           <p className="font-semibold">Gastos</p>
-          <p className="mt-1 text-sm text-muted">Registro y resumen</p>
+          <p className="mt-1 text-xs text-muted">Registro y resumen</p>
         </Link>
-        <Link href="/caja" className="surface p-4">
+        <Link href="/caja" className="surface p-3.5 active:bg-arena/50">
           <p className="font-semibold">Caja</p>
-          <p className="mt-1 text-sm text-muted">Pedir → pagar → ficha</p>
+          <p className="mt-1 text-xs text-muted">Pedir → pagar → ficha</p>
         </Link>
-        <Link href="/avisos" className="surface p-4">
+        <Link href="/avisos" className="surface p-3.5 active:bg-arena/50">
           <p className="font-semibold">Avisos WhatsApp</p>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1 text-xs text-muted">
             {avisosPendientes} pendientes
           </p>
         </Link>
-        <Link href="/costos" className="surface p-4">
+        <Link href="/costos" className="surface p-3.5 active:bg-arena/50">
           <p className="font-semibold">Costos</p>
-          <p className="mt-1 text-sm text-muted">Márgenes por receta</p>
+          <p className="mt-1 text-xs text-muted">Márgenes por receta</p>
         </Link>
-        <Link href="/panel/calendario" className="surface p-4">
+        <Link
+          href="/panel/calendario"
+          className="surface p-3.5 active:bg-arena/50"
+        >
           <p className="font-semibold">Calendario</p>
-          <p className="mt-1 text-sm text-muted">Disponibilidad y deadline</p>
+          <p className="mt-1 text-xs text-muted">Disponibilidad</p>
         </Link>
       </section>
 
       <section className="surface p-4">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">Últimos pedidos de hoy</h2>
-          <Link href="/panel/pedidos" className="text-sm text-miel-dark">
+          <Link
+            href="/panel/pedidos"
+            className="text-sm font-semibold text-miel"
+          >
             Ver todos
           </Link>
         </div>
@@ -121,19 +155,19 @@ export default async function PanelHome() {
             Aún no hay pedidos para hoy. Cuando lleguen, aparecen aquí.
           </p>
         ) : (
-          <ul className="mt-3 space-y-2">
+          <ul className="mt-3 divide-y divide-border">
             {pedidosHoy.slice(0, 5).map((p) => (
               <li
                 key={p.id}
-                className="flex items-center justify-between rounded-xl bg-white/70 px-3 py-2 text-sm"
+                className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0"
               >
-                <div>
+                <div className="min-w-0">
                   <p className="font-medium">{p.codigo}</p>
-                  <p className="text-muted">
+                  <p className="truncate text-muted">
                     {p.clienteNombre} · {p.estado.replace("_", " ")}
                   </p>
                 </div>
-                <p className="font-semibold">
+                <p className="shrink-0 font-semibold tabular-nums">
                   {formatoMoneda(p.total, config.moneda)}
                 </p>
               </li>
