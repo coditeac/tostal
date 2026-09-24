@@ -35,63 +35,82 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="toastal-shell mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-10">
-      <div className="rise-in surface p-6 shadow-sm">
-        <p className="font-display text-4xl text-cacao">Tostal</p>
-        <p className="mt-1 text-sm text-muted">Sabores que unen culturas</p>
-        <h1 className="mt-6 text-xl font-semibold">Entrar a operación</h1>
-        <p className="mt-1 text-sm text-muted">
-          Solo para el equipo (admin, cocina, caja).
-        </p>
+    <div className="toastal-shell mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
+      <div className="rise-in overflow-hidden rounded-[1.1rem] border border-border bg-white">
+        <div className="flex flex-col items-center bg-miel px-6 py-8 text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/tostal-logo.png"
+            alt="Tostal"
+            width={120}
+            height={120}
+            className="h-[7.5rem] w-[7.5rem] rounded-xl object-cover shadow-[0_8px_24px_rgba(0,0,0,0.18)]"
+          />
+          <p className="brand-tagline mt-4 text-[#d6d2c4]">
+            Sabores que unen culturas
+          </p>
+        </div>
 
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          <div>
-            <label className="label" htmlFor="email">
-              Correo
-            </label>
-            <input
-              id="email"
-              className="field"
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="label" htmlFor="password">
-              Contraseña
-            </label>
-            <input
-              id="password"
-              className="field"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
+        <div className="px-6 py-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+            Operación
+          </p>
+          <h1 className="mt-1.5 text-xl font-semibold tracking-tight">
+            Entrar al equipo
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            Solo para admin, cocina y caja.
+          </p>
 
-          {error && (
-            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error">
-              {error}
-            </p>
-          )}
+          <form onSubmit={onSubmit} className="mt-6 space-y-4">
+            <div>
+              <label className="label" htmlFor="email">
+                Correo
+              </label>
+              <input
+                id="email"
+                className="field"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="password">
+                Contraseña
+              </label>
+              <input
+                id="password"
+                className="field"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
 
-          <button
-            type="submit"
-            className="btn btn-primary w-full"
-            disabled={loading}
-          >
-            {loading ? "Entrando…" : "Entrar"}
-          </button>
-        </form>
+            {error && (
+              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error">
+                {error}
+              </p>
+            )}
 
-        <p className="mt-4 text-xs text-muted">
-          Demo: admin@tostal.mx / tostal123
-        </p>
+            <button
+              type="submit"
+              className="btn btn-primary w-full"
+              disabled={loading}
+            >
+              {loading ? "Entrando…" : "Entrar"}
+            </button>
+          </form>
+
+          <p className="mt-4 text-xs text-muted">
+            Demo: admin@tostal.mx / tostal123
+          </p>
+        </div>
       </div>
     </div>
   );

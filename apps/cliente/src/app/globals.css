@@ -1,22 +1,35 @@
 @import "tailwindcss";
 
 :root {
-  --tostal-cacao: #2a1810;
-  --tostal-espresso: #1a100c;
-  --tostal-miel: #c4782b;
-  --tostal-miel-dark: #9a5a1a;
-  --tostal-rosa: #f3d5c8;
-  --tostal-crema: #fff8f3;
-  --tostal-arena: #efe0d4;
-  --tostal-ok: #2f6b4f;
+  /* Identidad Coditeac — docs/ui-redesign-tostal.md */
+  --tostal-marca: #9a2e25;
+  --tostal-marca-dark: #7a241c;
+  --tostal-marca-deep: #5c1b15;
+  --tostal-ink: #1f1412;
+  --tostal-crema-logo: #d6d2c4;
+  --tostal-papel: #f4f2ec;
+  --tostal-papel-2: #e8e4dc;
+  --tostal-marca-soft: #f0e4e1;
+  --tostal-ok: #2d5a45;
   --tostal-alerta: #b45309;
   --tostal-error: #b42318;
-  --background: var(--tostal-crema);
-  --foreground: var(--tostal-cacao);
+
+  /* Aliases usados en JSX (miel/cacao/crema/…) */
+  --tostal-cacao: var(--tostal-ink);
+  --tostal-espresso: var(--tostal-marca-deep);
+  --tostal-miel: var(--tostal-marca);
+  --tostal-miel-dark: var(--tostal-marca-dark);
+  --tostal-rosa: var(--tostal-marca-soft);
+  --tostal-crema: var(--tostal-papel);
+  --tostal-arena: var(--tostal-papel-2);
+
+  --background: var(--tostal-papel);
+  --foreground: var(--tostal-ink);
   --card: #ffffff;
-  --muted: #7a5c4e;
-  --border: #e8d2c4;
+  --muted: #6b5f58;
+  --border: #ddd8cf;
   --radius: 1rem;
+  --tap: 2.75rem;
 }
 
 @theme inline {
@@ -35,8 +48,8 @@
   --color-ok: var(--tostal-ok);
   --color-alerta: var(--tostal-alerta);
   --color-error: var(--tostal-error);
-  --font-sans: var(--font-outfit);
-  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-manrope);
+  --font-display: var(--font-brand);
 }
 
 * {
@@ -50,12 +63,14 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(1100px 520px at 0% 0%, #f6dcc8 0%, transparent 55%),
-    radial-gradient(800px 420px at 100% 10%, #efc9b2 0%, transparent 45%),
-    linear-gradient(180deg, #fff7f1 0%, #f4e4d8 100%);
+  background-color: var(--tostal-papel);
+  background-image:
+    radial-gradient(880px 400px at 100% -8%, rgba(154, 46, 37, 0.07), transparent 55%),
+    radial-gradient(640px 320px at -8% 18%, rgba(31, 20, 18, 0.03), transparent 50%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
   color: var(--foreground);
-  font-family: var(--font-outfit), system-ui, sans-serif;
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
 a {
@@ -64,14 +79,31 @@ a {
 }
 
 .font-display {
-  font-family: var(--font-fraunces), Georgia, serif;
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: none;
+}
+
+.font-brand {
+  font-family: var(--font-brand), "Arial Narrow", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.brand-tagline {
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--tostal-crema-logo);
 }
 
 .surface {
-  background: color-mix(in srgb, white 90%, transparent);
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  backdrop-filter: blur(8px);
 }
 
 .btn {
@@ -79,8 +111,9 @@ a {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border-radius: 999px;
-  font-weight: 600;
+  min-height: var(--tap);
+  border-radius: 0.85rem;
+  font-weight: 650;
   transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
   border: none;
   cursor: pointer;
@@ -96,74 +129,107 @@ a {
 }
 
 .btn-primary {
-  background: var(--tostal-miel);
-  color: white;
-  padding: 0.9rem 1.3rem;
+  background: var(--tostal-marca);
+  color: var(--tostal-crema-logo);
+  padding: 0.95rem 1.35rem;
 }
 
 .btn-primary:hover {
-  background: var(--tostal-miel-dark);
+  background: var(--tostal-marca-dark);
+}
+
+.btn-accent {
+  background: var(--tostal-marca);
+  color: var(--tostal-crema-logo);
+  padding: 0.95rem 1.35rem;
+}
+
+.btn-accent:hover {
+  background: var(--tostal-marca-dark);
 }
 
 .btn-secondary {
   background: white;
-  color: var(--tostal-cacao);
+  color: var(--tostal-ink);
   border: 1px solid var(--border);
-  padding: 0.85rem 1.2rem;
+  padding: 0.9rem 1.2rem;
 }
 
 .field {
   width: 100%;
-  border-radius: 0.9rem;
+  min-height: var(--tap);
+  border-radius: 0.85rem;
   border: 1px solid var(--border);
   background: white;
-  padding: 0.85rem 1rem;
+  padding: 0.9rem 1rem;
   font: inherit;
   color: inherit;
 }
 
 .field:focus {
-  outline: 2px solid color-mix(in srgb, var(--tostal-miel) 45%, transparent);
-  border-color: var(--tostal-miel);
+  outline: 2px solid color-mix(in srgb, var(--tostal-marca) 35%, transparent);
+  border-color: var(--tostal-marca);
 }
 
 .label {
   display: block;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  margin-bottom: 0.35rem;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.4rem;
   color: var(--muted);
 }
 
+/* Hero: full-bleed marca Coditeac */
 .hero-brand {
   position: relative;
   overflow: hidden;
-  border-radius: 0 0 1.75rem 1.75rem;
-  background:
-    linear-gradient(135deg, rgba(42, 24, 16, 0.72), rgba(154, 90, 26, 0.55)),
-    radial-gradient(circle at 20% 30%, #e8b48a, transparent 50%),
-    linear-gradient(160deg, #5c3318, #2a1810);
-  color: #fff8f3;
-  min-height: 42vh;
+  background: var(--tostal-marca);
+  color: var(--tostal-crema-logo);
+  min-height: min(46vh, 22rem);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 1.5rem 1.25rem 1.75rem;
+  align-items: center;
+  text-align: center;
+  padding: 2rem 1.25rem calc(1.75rem + env(safe-area-inset-top) * 0.15);
+  padding-top: calc(2.25rem + env(safe-area-inset-top));
 }
 
-.hero-brand::after {
+.hero-brand::before {
   content: "";
   position: absolute;
-  inset: auto -20% -30% 20%;
-  height: 70%;
-  background: radial-gradient(circle, rgba(255, 210, 160, 0.35), transparent 60%);
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 120%, rgba(214, 210, 196, 0.12) 0%, transparent 55%),
+    radial-gradient(circle at 90% 10%, rgba(0, 0, 0, 0.12) 0%, transparent 40%);
   pointer-events: none;
+}
+
+.hero-logo {
+  position: relative;
+  z-index: 1;
+  width: min(72vw, 15.5rem);
+  height: auto;
+  border-radius: 0.75rem;
+}
+
+.hero-wordmark {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-brand), "Arial Narrow", sans-serif;
+  font-weight: 700;
+  font-size: clamp(3.25rem, 14vw, 4.75rem);
+  line-height: 0.92;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tostal-crema-logo);
 }
 
 @keyframes rise-in {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -175,26 +241,180 @@ a {
   animation: rise-in 0.5s ease both;
 }
 
-@keyframes float-y {
+@keyframes soft-glow {
   0%,
   100% {
-    transform: translateY(0);
+    opacity: 1;
   }
   50% {
-    transform: translateY(-4px);
+    opacity: 0.92;
   }
 }
 
 .float-y {
-  animation: float-y 3.2s ease-in-out infinite;
+  animation: soft-glow 4s ease-in-out infinite;
 }
 
 .cart-bar {
   position: sticky;
   bottom: 0;
   z-index: 50;
-  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, transparent, #fff8f3 28%);
+  padding: 0.85rem 1rem calc(0.85rem + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, transparent, var(--tostal-papel) 36%);
+}
+
+.menu-thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 0.9rem;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, #c45a4e 0%, var(--tostal-marca) 48%, var(--tostal-marca-deep) 100%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0.45rem;
+  color: var(--tostal-crema-logo);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.menu-add {
+  position: absolute;
+  right: 0.35rem;
+  bottom: 0.35rem;
+  display: inline-flex;
+  height: 2rem;
+  width: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: white;
+  color: var(--tostal-marca);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgba(31, 20, 18, 0.14);
+  cursor: pointer;
+}
+
+.menu-add:active {
+  transform: scale(0.95);
+}
+
+.chip-day {
+  min-width: 4.75rem;
+  min-height: var(--tap);
+  border-radius: 0.9rem;
+  padding: 0.55rem 0.8rem;
+  text-align: left;
+  font-size: 0.875rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.chip-day-active {
+  background: var(--tostal-marca);
+  color: var(--tostal-crema-logo);
+}
+
+.chip-day-idle {
+  background: white;
+  color: var(--tostal-ink);
+  border: 1px solid var(--border);
+}
+
+.chip-cat {
+  min-height: 2.35rem;
+  border-radius: 999px;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.chip-cat-active {
+  background: var(--tostal-marca);
+  color: var(--tostal-crema-logo);
+}
+
+.chip-cat-idle {
+  background: white;
+  border: 1px solid var(--border);
+  color: var(--tostal-ink);
+}
+
+.status-track {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  width: 100%;
+}
+
+.status-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.4rem;
+  position: relative;
+}
+
+.status-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  background: var(--border);
+  z-index: 1;
+}
+
+.status-dot-done {
+  background: var(--tostal-ok);
+}
+
+.status-dot-current {
+  background: var(--tostal-marca);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tostal-marca) 22%, transparent);
+}
+
+.status-line {
+  position: absolute;
+  top: 0.3rem;
+  left: calc(50% + 0.4rem);
+  right: calc(-50% + 0.4rem);
+  height: 2px;
+  background: var(--border);
+}
+
+.status-line-done {
+  background: var(--tostal-ok);
+}
+
+.page-shell {
+  margin-inline: auto;
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 28rem;
+}
+
+@media (min-width: 768px) {
+  .page-shell {
+    max-width: 32rem;
+  }
+
+  .hero-brand {
+    min-height: 18rem;
+    border-radius: 0 0 1.25rem 1.25rem;
+    margin-top: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-shell {
+    max-width: 36rem;
+  }
 }
 
 .loading-pulse {

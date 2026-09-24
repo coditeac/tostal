@@ -49,13 +49,25 @@ export function AppShell({
 
   return (
     <div className="toastal-shell mx-auto w-full max-w-lg md:max-w-3xl">
-      <header className="sticky top-0 z-40 border-b border-border bg-[color-mix(in_srgb,#fff8f3_90%,transparent)] px-4 py-3 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-border bg-[color-mix(in_srgb,#f7f5f0_92%,transparent)] px-4 pb-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md">
         <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="font-display text-2xl leading-none text-cacao">
-              Tostal
-            </p>
-            <p className="text-xs text-muted">Operación · {userNombre}</p>
+          <div className="flex min-w-0 items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/tostal-logo.png"
+              alt=""
+              width={38}
+              height={38}
+              className="ops-mark"
+            />
+            <div className="min-w-0">
+              <p className="font-brand text-lg leading-none tracking-[0.06em] text-miel">
+                Tostal
+              </p>
+              <p className="mt-0.5 truncate text-xs text-muted">
+                Operación · {userNombre}
+              </p>
+            </div>
           </div>
           <button
             type="button"
@@ -67,27 +79,30 @@ export function AppShell({
             Salir
           </button>
         </div>
-        <div className="mt-2 flex gap-2 overflow-x-auto pb-1 text-xs">
-          {moreLinks.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={`shrink-0 rounded-full px-2.5 py-1 ${
-                pathname.startsWith(l.href)
-                  ? "bg-arena text-cacao"
-                  : "text-muted"
-              }`}
-            >
-              {l.label}
-            </Link>
-          ))}
+        <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5 text-xs">
+          {moreLinks.map((l) => {
+            const active = pathname.startsWith(l.href);
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`shrink-0 rounded-full px-2.5 py-1.5 font-medium ${
+                  active
+                    ? "bg-miel text-[#d6d2c4]"
+                    : "bg-arena/80 text-muted"
+                }`}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
         </div>
       </header>
 
       <main className="flex-1 px-4 py-4 pb-28">{children}</main>
 
       <nav className="nav-bottom">
-        <div className="mx-auto grid max-w-lg grid-cols-4 gap-1 sm:grid-cols-7">
+        <div className="mx-auto grid max-w-lg grid-cols-4 gap-0.5 sm:grid-cols-7">
           {links.map((l) => {
             const active =
               pathname === l.href ||
@@ -97,11 +112,11 @@ export function AppShell({
               <Link
                 key={l.href}
                 href={l.href}
-                className={`flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] ${
-                  active ? "bg-arena text-cacao" : "text-muted"
+                className={`flex min-h-[3.15rem] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-medium sm:text-[11px] ${
+                  active ? "bg-arena text-miel" : "text-muted"
                 }`}
               >
-                <Icon size={18} />
+                <Icon size={18} strokeWidth={active ? 2.35 : 1.75} />
                 <span>{l.label}</span>
               </Link>
             );

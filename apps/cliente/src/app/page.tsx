@@ -118,40 +118,37 @@ export default function ClienteHome() {
         ];
 
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-lg">
+    <div className="page-shell">
       <header className="hero-brand rise-in">
-        <div className="relative z-10">
-          <p className="text-sm uppercase tracking-[0.2em] text-rosa/90">
-            Pedidos
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/tostal-logo.png"
+          alt="Tostal — Sabores que unen culturas"
+          className="hero-logo float-y"
+          width={248}
+          height={248}
+        />
+        {menu?.config.direccionRetiro && (
+          <p className="relative z-10 mt-5 max-w-[20rem] text-[11px] leading-snug text-[#d6d2c4]/80">
+            Retiro: {menu.config.direccionRetiro}
           </p>
-          <h1 className="font-display float-y mt-2 text-5xl leading-none">
-            Tostal
-          </h1>
-          <p className="mt-2 max-w-[18rem] text-sm text-crema/90">
-            Sabores que unen culturas
-          </p>
-          {menu?.config.direccionRetiro && (
-            <p className="mt-4 text-xs text-crema/75">
-              Retiro: {menu.config.direccionRetiro}
-            </p>
-          )}
-        </div>
+        )}
       </header>
 
-      <div className="px-4 pt-3">
+      <div className="px-5 pt-4">
         <SiteHeader compact />
       </div>
 
-      <main className="space-y-4 px-4 pb-28 pt-3">
+      <main className="space-y-6 px-5 pb-32 pt-4">
         <section
-          className="surface rise-in p-4"
+          className="rise-in"
           style={{ animationDelay: "80ms" }}
         >
-          <h2 className="font-semibold">¿Para qué día?</h2>
-          <p className="mt-1 text-sm text-muted">
+          <h2 className="text-lg font-semibold tracking-tight">¿Para qué día?</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted">
             El menú solo muestra lo disponible ese día.
           </p>
-          <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
+          <div className="-mx-1 mt-4 flex gap-2.5 overflow-x-auto px-1 pb-1">
             {diasUi.map((d) => {
               const active = d.fecha === fecha;
               return (
@@ -159,10 +156,8 @@ export default function ClienteHome() {
                   key={d.fecha}
                   type="button"
                   onClick={() => cart.setFecha(d.fecha)}
-                  className={`min-w-[4.6rem] rounded-2xl px-3 py-2 text-left text-sm transition ${
-                    active
-                      ? "bg-cacao text-crema"
-                      : "border border-border bg-white text-cacao"
+                  className={`chip-day ${
+                    active ? "chip-day-active" : "chip-day-idle"
                   }`}
                 >
                   <p className="text-[11px] opacity-80">
@@ -174,7 +169,7 @@ export default function ClienteHome() {
             })}
           </div>
           {menu && (
-            <p className="mt-3 text-xs text-muted">
+            <p className="mt-3.5 text-xs leading-relaxed text-muted">
               {menu.abierto && menu.deadlineVigente
                 ? `Pedidos abiertos hasta ${labelDeadline(menu.deadlinePedido)}`
                 : "Ya cerramos pedidos para este día"}
@@ -183,7 +178,7 @@ export default function ClienteHome() {
         </section>
 
         {toast && (
-          <div className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-full bg-cacao px-4 py-2 text-sm text-crema shadow-lg">
+          <div className="fixed left-1/2 top-[max(1rem,env(safe-area-inset-top))] z-50 -translate-x-1/2 rounded-full bg-miel px-4 py-2.5 text-sm font-medium text-[#d6d2c4] shadow-lg">
             {toast}
           </div>
         )}
@@ -214,10 +209,8 @@ export default function ClienteHome() {
               <button
                 type="button"
                 onClick={() => setCategoria("todas")}
-                className={`rounded-full px-3 py-1.5 text-sm whitespace-nowrap ${
-                  categoria === "todas"
-                    ? "bg-miel text-white"
-                    : "border border-border bg-white"
+                className={`chip-cat ${
+                  categoria === "todas" ? "chip-cat-active" : "chip-cat-idle"
                 }`}
               >
                 Todas
@@ -227,10 +220,8 @@ export default function ClienteHome() {
                   key={c.id}
                   type="button"
                   onClick={() => setCategoria(c.id)}
-                  className={`rounded-full px-3 py-1.5 text-sm whitespace-nowrap ${
-                    categoria === c.id
-                      ? "bg-miel text-white"
-                      : "border border-border bg-white"
+                  className={`chip-cat ${
+                    categoria === c.id ? "chip-cat-active" : "chip-cat-idle"
                   }`}
                 >
                   {c.nombre}
@@ -238,33 +229,20 @@ export default function ClienteHome() {
               ))}
             </div>
 
-            <ul className="space-y-3">
+            <ul className="divide-y divide-border overflow-hidden rounded-[1rem] border border-border bg-white">
               {productosFiltrados.map((p, idx) => (
                 <li
                   key={p.id}
-                  className="surface rise-in flex gap-3 p-3"
-                  style={{ animationDelay: `${100 + idx * 40}ms` }}
+                  className="rise-in flex gap-3.5 p-3.5"
+                  style={{ animationDelay: `${80 + idx * 35}ms` }}
                 >
-                  <div
-                    className="flex h-20 w-20 shrink-0 items-end justify-center rounded-xl bg-gradient-to-br from-[#e8b48a] to-[#8b4b2a] p-2 text-center text-[10px] font-semibold text-crema"
-                    aria-hidden
-                  >
-                    {p.nombre.split(" ")[0]}
-                  </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold leading-tight">{p.nombre}</p>
-                        {p.categoriaNombre && (
-                          <p className="text-xs text-muted">
-                            {p.categoriaNombre}
-                          </p>
-                        )}
-                      </div>
-                      <p className="shrink-0 font-semibold">
-                        {formatoMoneda(p.precio, menu.config.moneda)}
+                    <p className="font-semibold leading-tight">{p.nombre}</p>
+                    {p.categoriaNombre && (
+                      <p className="mt-0.5 text-xs text-muted">
+                        {p.categoriaNombre}
                       </p>
-                    </div>
+                    )}
                     {p.descripcion && (
                       <p className="mt-1 line-clamp-2 text-sm text-muted">
                         {p.descripcion}
@@ -275,13 +253,19 @@ export default function ClienteHome() {
                         Alérgenos: {p.alergenos}
                       </p>
                     )}
+                    <p className="mt-2 font-semibold">
+                      {formatoMoneda(p.precio, menu.config.moneda)}
+                    </p>
+                  </div>
+                  <div className="menu-thumb" aria-hidden>
+                    <span className="pb-5">{p.nombre.split(" ")[0]}</span>
                     <button
                       type="button"
-                      className="btn btn-primary mt-2 px-3 py-2 text-sm"
+                      className="menu-add"
                       onClick={() => add(p)}
+                      aria-label={`Agregar ${p.nombre}`}
                     >
-                      <Plus size={16} />
-                      Agregar
+                      <Plus size={16} strokeWidth={2.5} />
                     </button>
                   </div>
                 </li>
@@ -290,9 +274,9 @@ export default function ClienteHome() {
           </>
         )}
 
-        <p className="pb-2 text-center text-sm text-muted">
+        <p className="pb-2 pt-2 text-center text-sm text-muted">
           ¿Ya pediste?{" "}
-          <Link href="/seguimiento" className="font-semibold text-miel-dark">
+          <Link href="/seguimiento" className="font-semibold text-miel">
             Sigue tu pedido
           </Link>
         </p>
@@ -302,7 +286,7 @@ export default function ClienteHome() {
         <div className="cart-bar">
           <Link
             href="/carrito"
-            className="btn btn-primary mx-auto flex w-full max-w-lg justify-between shadow-lg"
+            className="btn btn-primary mx-auto flex w-full max-w-lg justify-between shadow-[0_10px_28px_rgba(154,46,37,0.28)]"
           >
             <span className="inline-flex items-center gap-2">
               <ShoppingBag size={18} />

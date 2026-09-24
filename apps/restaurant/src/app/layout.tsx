@@ -1,15 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Outfit } from "next/font/google";
+import { Manrope, Oswald } from "next/font/google";
 import "./globals.css";
 
-const outfit = Outfit({
+const manrope = Manrope({
   subsets: ["latin"],
-  variable: "--font-outfit",
+  variable: "--font-manrope",
 });
 
-const fraunces = Fraunces({
+const oswald = Oswald({
   subsets: ["latin"],
-  variable: "--font-fraunces",
+  weight: ["500", "600", "700"],
+  variable: "--font-brand",
 });
 
 export const metadata: Metadata = {
@@ -20,7 +21,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#c4782b",
+  themeColor: "#9A2E25",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -30,7 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${outfit.variable} ${fraunces.variable} antialiased`}>
+      <body className={`${manrope.variable} ${oswald.variable} antialiased`}>
         {children}
       </body>
     </html>
