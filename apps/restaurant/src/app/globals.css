@@ -218,10 +218,10 @@ a {
 }
 
 .ops-mark {
-  width: 2.35rem;
-  height: 2.35rem;
-  border-radius: 0.45rem;
-  object-fit: cover;
+  width: auto;
+  height: 2.1rem;
+  max-width: 7.5rem;
+  object-fit: contain;
   flex-shrink: 0;
 }
 

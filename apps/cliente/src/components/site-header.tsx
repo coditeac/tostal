@@ -16,24 +16,14 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
     >
       <Link href="/" className="min-w-0">
         {!compact && (
-          <div className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/tostal-logo.png"
-              alt=""
-              width={40}
-              height={40}
-              className="h-10 w-10 rounded-md object-cover"
-            />
-            <div>
-              <p className="font-brand text-xl leading-none text-miel">
-                Tostal
-              </p>
-              <p className="mt-0.5 truncate text-[10px] uppercase tracking-[0.16em] text-muted">
-                Sabores que unen culturas
-              </p>
-            </div>
-          </div>
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src="/tostal-logo-marca.png"
+            alt="Tostal"
+            width={160}
+            height={68}
+            className="h-9 w-auto object-contain"
+          />
         )}
         {compact && (
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">

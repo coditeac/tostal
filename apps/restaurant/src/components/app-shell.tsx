@@ -54,17 +54,14 @@ export function AppShell({
           <div className="flex min-w-0 items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/tostal-logo.png"
-              alt=""
-              width={38}
-              height={38}
+              src="/tostal-logo-marca.png"
+              alt="Tostal"
+              width={140}
+              height={60}
               className="ops-mark"
             />
             <div className="min-w-0">
-              <p className="font-brand text-lg leading-none tracking-[0.06em] text-miel">
-                Tostal
-              </p>
-              <p className="mt-0.5 truncate text-xs text-muted">
+              <p className="truncate text-xs text-muted">
                 Operación · {userNombre}
               </p>
             </div>

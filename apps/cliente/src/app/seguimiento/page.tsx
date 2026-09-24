@@ -21,23 +21,18 @@ export default function SeguimientoPage() {
         ← Menú
       </Link>
 
-      <div className="mt-8 flex items-start gap-3">
+      <div className="mt-8">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/tostal-logo.png"
-          alt=""
-          width={48}
-          height={48}
-          className="h-12 w-12 rounded-lg object-cover"
+          src="/tostal-logo-marca.png"
+          alt="Tostal"
+          width={180}
+          height={76}
+          className="h-11 w-auto object-contain"
         />
-        <div>
-          <p className="font-brand text-sm tracking-[0.14em] text-miel">
-            Tostal
-          </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-            Sigue tu pedido
-          </h1>
-        </div>
+        <h1 className="mt-5 text-3xl font-semibold tracking-tight">
+          Sigue tu pedido
+        </h1>
       </div>
 
       <p className="mt-3 text-sm leading-relaxed text-muted">

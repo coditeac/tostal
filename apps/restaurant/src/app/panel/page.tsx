@@ -30,17 +30,17 @@ export default async function PanelHome() {
         <div className="flex items-start gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/tostal-logo.png"
+            src="/tostal-logo-marca.png"
             alt=""
-            width={44}
-            height={44}
-            className="ops-mark"
+            width={140}
+            height={60}
+            className="ops-mark mt-0.5"
           />
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
               Hoy en Tostal
             </p>
-            <h1 className="font-brand mt-1 text-2xl tracking-[0.06em] text-miel">
+            <h1 className="mt-1 text-xl font-semibold tracking-tight text-cacao">
               {config.marca}
             </h1>
             <p className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-muted">

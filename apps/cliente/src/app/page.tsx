@@ -125,8 +125,8 @@ export default function ClienteHome() {
           src="/tostal-logo.png"
           alt="Tostal — Sabores que unen culturas"
           className="hero-logo float-y"
-          width={248}
-          height={248}
+          width={560}
+          height={240}
         />
         {menu?.config.direccionRetiro && (
           <p className="relative z-10 mt-5 max-w-[20rem] text-[11px] leading-snug text-[#d6d2c4]/80">
