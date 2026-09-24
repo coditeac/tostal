@@ -1,6 +1,7 @@
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import cookieParser from "cookie-parser";
+import type { Request } from "express";
 import { AppModule } from "./app.module";
 import { isOriginAllowed } from "./common/cors";
 import { ApiExceptionFilter } from "./common/http-exception.filter";
@@ -8,7 +9,7 @@ import { initDb } from "./lib/db";
 import { ensureSeed } from "./lib/seed";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.setGlobalPrefix("api", {
     exclude: ["health"],
@@ -37,9 +38,33 @@ async function bootstrap() {
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "Stripe-Signature"],
     exposedHeaders: ["Content-Type"],
   });
+
+  // Exponer rawBody en Request para webhook Stripe
+  app.use(
+    (
+      req: Request & { rawBody?: Buffer },
+      _res: unknown,
+      next: () => void
+    ) => {
+      if (
+        req.readable &&
+        req.url?.includes("/pagos/stripe/webhook") &&
+        !req.rawBody
+      ) {
+        const chunks: Buffer[] = [];
+        req.on("data", (c) => chunks.push(Buffer.from(c)));
+        req.on("end", () => {
+          req.rawBody = Buffer.concat(chunks);
+          next();
+        });
+        return;
+      }
+      next();
+    }
+  );
 
   await initDb();
   await ensureSeed();

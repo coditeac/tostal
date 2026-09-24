@@ -47,6 +47,10 @@ Root Directory: monorepo `""` (incluye `shared/`).
 | `TOSTAL_CORS_ORIGINS` | `https://tostal.cafe,https://www.tostal.cafe,https://app.tostal.cafe,https://tostal.up.railway.app,https://app-tostal.up.railway.app` |
 | `TOSTAL_COOKIE_DOMAIN` | `.tostal.cafe` |
 | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` / `MAIL_FROM` | email real; sin ellas = mock en logs |
+| `STRIPE_SECRET_KEY` | opcional; sin clave = mock PaymentIntent |
+| `STRIPE_WEBHOOK_SECRET` | firma webhook |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Elements/Checkout cliente |
+| `STRIPE_CURRENCY` | default `mxn` |
 | `NIXPACKS_NODE_VERSION` | `22` |
 | `PORT` | Railway lo inyecta |
 

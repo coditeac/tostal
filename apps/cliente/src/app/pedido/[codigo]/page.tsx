@@ -42,7 +42,47 @@ function PedidoView() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
-  const stripeHint = search.get("pago") === "stripe";
+  const [paying, setPaying] = useState(false);
+
+  async function pagarConStripe() {
+    if (!pedido) return;
+    setPaying(true);
+    setError(null);
+    try {
+      const base =
+        process.env.NEXT_PUBLIC_API_URL ||
+        process.env.NEXT_PUBLIC_TOSTAL_API_URL ||
+        "http://127.0.0.1:4331";
+      const res = await fetch(`${base.replace(/\/$/, "")}/api/pagos/stripe/checkout`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codigo: pedido.codigo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo iniciar el pago");
+      if (data.mock) {
+        const conf = await fetch(
+          `${base.replace(/\/$/, "")}/api/pagos/stripe/mock-confirm`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ codigo: pedido.codigo }),
+          }
+        );
+        const confData = await conf.json();
+        if (!conf.ok) throw new Error(confData.error || "Mock falló");
+        setPedido(confData.pedido);
+      } else if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error de pago");
+    } finally {
+      setPaying(false);
+    }
+  }
 
   useEffect(() => {
     let alive = true;
@@ -129,12 +169,27 @@ function PedidoView() {
         </Badge>
       )}
 
-      {stripeHint && pedido.metodoPago === "stripe" && (
+      {pedido.metodoPago === "stripe" && pedido.estadoPago === "pendiente" && (
+        <div className="mt-4 space-y-2 rounded-[1rem] border border-border bg-white p-4">
+          <p className="text-sm text-muted-foreground">
+            Paga con tarjeta. El monto sale del pedido Tostal (centavos); no hay
+            catálogo en Stripe.
+          </p>
+          <Button
+            type="button"
+            className="w-full bg-cacao text-crema hover:bg-cacao/90"
+            disabled={paying}
+            onClick={() => void pagarConStripe()}
+          >
+            {paying ? "Abriendo pago…" : "Pagar con Stripe"}
+          </Button>
+        </div>
+      )}
+
+      {pedido.metodoPago === "stripe" && pedido.estadoPago === "pagado" && (
         <Alert className="mt-4 border-ok/30 bg-emerald-50">
           <AlertDescription className="text-ok">
-            {pedido.estadoPago === "pagado"
-              ? "Pago con tarjeta simulado correctamente (modo demo sin clave Stripe)."
-              : "Pago con tarjeta registrado; pendiente de confirmación."}
+            Pago con tarjeta confirmado.
           </AlertDescription>
         </Alert>
       )}

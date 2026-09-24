@@ -19,6 +19,23 @@ import {
 } from "../../lib/catalogo";
 import { requireUser } from "../../common/session.decorator";
 import { aCentavos } from "../../lib/utils";
+import type { Producto } from "../../../../../shared/types";
+
+function parseDuracionesBody(
+  body: Record<string, unknown>
+): Producto["duraciones"] | undefined {
+  if (Array.isArray(body.duraciones)) {
+    return body.duraciones as Producto["duraciones"];
+  }
+  if (body.duracionesTexto != null) {
+    return String(body.duracionesTexto)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((etiqueta, i) => ({ id: `d${i + 1}`, etiqueta }));
+  }
+  return undefined;
+}
 
 @Controller("productos")
 export class ProductosController {
@@ -63,6 +80,7 @@ export class ProductosController {
       activoCatalogo: body.activoCatalogo !== false,
       alergenos: (body.alergenos as string) || null,
       orden: (body.orden as number) ?? 0,
+      duraciones: parseDuracionesBody(body),
     });
 
     if (Array.isArray(body.receta)) {
@@ -98,6 +116,7 @@ export class ProductosController {
       activoCatalogo: body.activoCatalogo !== false,
       alergenos: (body.alergenos as string) ?? null,
       orden: (body.orden as number) ?? 0,
+      duraciones: parseDuracionesBody(body),
     });
 
     if (Array.isArray(body.receta)) {
