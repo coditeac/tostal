@@ -202,19 +202,21 @@ Al pasar un pedido a `en_produccion` se **descuentan insumos** según receta.
 ```bash
 TOSTAL_AUTH_SECRET=cambia-en-prod
 TOSTAL_CORS_ORIGINS=http://127.0.0.1:4322,http://localhost:4322
+# DATABASE_URL=postgresql://…   # prod Railway; sin esto = SQLite local
 # STRIPE_SECRET_KEY=sk_test_…   # opcional; sin clave = mock
 ```
 
 `apps/cliente/.env.local`:
 
 ```bash
-NEXT_PUBLIC_TOSTAL_API_URL=http://127.0.0.1:4321
+NEXT_PUBLIC_API_URL=http://127.0.0.1:4321
+# NEXT_PUBLIC_TOSTAL_API_URL=http://127.0.0.1:4321
 ```
 
 ## Estructura
 
 ```
-apps/restaurant   # Next.js — UI operación + Route Handlers + SQLite
+apps/restaurant   # Next.js — UI operación + Route Handlers + Postgres/SQLite
 apps/cliente      # Next.js — superficie cliente
 shared/types.ts   # tipos compartidos
 docs/deploy-railway.md
@@ -239,5 +241,5 @@ Detalle: [`docs/deploy-railway.md`](docs/deploy-railway.md).
 - GitHub: https://github.com/coditeac/tostal (deploy desde `production`)
 - Origin: https://cursor.com/codebase/coditeac/tostal
 - Railway **Production**:
-  - Cliente: https://tostal.up.railway.app
-  - Restaurant: https://app-tostal.up.railway.app
+  - Cliente: https://tostal.cafe (fallback: https://tostal.up.railway.app)
+  - Restaurant: https://app.tostal.cafe (fallback: https://app-tostal.up.railway.app)

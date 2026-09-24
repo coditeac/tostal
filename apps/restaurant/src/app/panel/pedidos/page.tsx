@@ -1,22 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { formatoMoneda, hoyISO } from "@/lib/format";
+import { useRestaurantPedidoEvents } from "@/lib/use-pedido-events";
+import type { PedidoPublico } from "../../../../../../shared/types";
 
-type Pedido = {
-  id: string;
-  codigo: string;
-  canal: string;
-  estado: string;
-  estadoPago: string;
-  metodoPago: string;
-  modoEntrega: string;
-  fechaEntrega: string;
-  clienteNombre: string;
-  clienteTelefono: string;
-  total: number;
-  lineas: Array<{ productoNombre: string; cantidad: number }>;
-};
+type Pedido = PedidoPublico;
 
 const ESTADOS = [
   "recibido",
@@ -33,6 +22,23 @@ export default function PedidosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
+
+  const mergePedido = useCallback(
+    (p: Pedido) => {
+      setPedidos((prev) => {
+        if (p.fechaEntrega !== fecha) {
+          return prev.filter((x) => x.id !== p.id);
+        }
+        const idx = prev.findIndex((x) => x.id === p.id);
+        if (idx === -1) return [p, ...prev];
+        const next = [...prev];
+        next[idx] = p;
+        return next;
+      });
+    },
+    [fecha]
+  );
 
   async function load() {
     setLoading(true);
@@ -53,6 +59,19 @@ export default function PedidosPage() {
     load();
   }, [fecha]);
 
+  useRestaurantPedidoEvents(fecha, {
+    onSnapshot: (list) => {
+      setPedidos(list);
+      setLoading(false);
+      setLive(true);
+    },
+    onEvent: (_type, pedido) => {
+      mergePedido(pedido);
+      setLive(true);
+    },
+    onError: () => setLive(false),
+  });
+
   async function patch(id: string, body: Record<string, string>) {
     setBusyId(id);
     setError(null);
@@ -64,7 +83,8 @@ export default function PedidosPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
-      await load();
+      if (data.pedido) mergePedido(data.pedido);
+      else await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -76,7 +96,12 @@ export default function PedidosPage() {
     <div className="space-y-4 rise-in">
       <div>
         <h1 className="font-display text-3xl">Pedidos</h1>
-        <p className="text-sm text-muted">Cola del día · producción y pagos</p>
+        <p className="text-sm text-muted">
+          Cola del día · producción y pagos
+          {live ? (
+            <span className="ml-2 text-xs font-medium text-ok">● En vivo</span>
+          ) : null}
+        </p>
       </div>
 
       <div>

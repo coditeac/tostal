@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { fetchPedido, formatoMoneda, labelFecha } from "@/lib/api";
+import { usePedidoEvents } from "@/lib/use-pedido-events";
 import {
   ESTADO_PAGO,
   ESTADO_PEDIDO,
@@ -20,6 +21,7 @@ function PedidoView() {
   const [pedido, setPedido] = useState<PedidoPublico | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [live, setLive] = useState(false);
   const stripeHint = search.get("pago") === "stripe";
 
   useEffect(() => {
@@ -39,12 +41,24 @@ function PedidoView() {
       }
     }
     load();
-    const t = window.setInterval(load, 8000);
+    const t = window.setInterval(() => {
+      if (!live) load();
+    }, 15000);
     return () => {
       alive = false;
       window.clearInterval(t);
     };
-  }, [codigo]);
+  }, [codigo, live]);
+
+  usePedidoEvents(codigo, {
+    onPedido: (p) => {
+      setPedido(p);
+      setError(null);
+      setLoading(false);
+      setLive(true);
+    },
+    onError: () => setLive(false),
+  });
 
   if (loading) {
     return (
@@ -82,6 +96,11 @@ function PedidoView() {
         Hola {pedido.clienteNombre}. Para {labelFecha(pedido.fechaEntrega)} ·{" "}
         {MODO_ENTREGA[pedido.modoEntrega]}
       </p>
+      {live && (
+        <p className="mt-2 text-xs font-medium text-ok">
+          ● Seguimiento en vivo
+        </p>
+      )}
 
       {stripeHint && pedido.metodoPago === "stripe" && (
         <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-ok">

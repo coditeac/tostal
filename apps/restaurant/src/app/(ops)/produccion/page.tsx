@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatoMoneda, hoyISO } from "@/lib/format";
+import { useRestaurantPedidoEvents } from "@/lib/use-pedido-events";
 
 type Pedido = {
   id: string;
@@ -20,9 +21,10 @@ export default function ProduccionPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
 
-  async function load() {
-    setLoading(true);
+  async function load(silent = false) {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/produccion?fecha=${fecha}`);
@@ -32,13 +34,25 @@ export default function ProduccionPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
   useEffect(() => {
     load();
   }, [fecha]);
+
+  useRestaurantPedidoEvents(fecha, {
+    onSnapshot: () => {
+      load(true);
+      setLive(true);
+    },
+    onEvent: () => {
+      load(true);
+      setLive(true);
+    },
+    onError: () => setLive(false),
+  });
 
   async function accion(pedidoId: string, accion: string, aVitrina = false) {
     setBusyId(pedidoId);
@@ -69,6 +83,9 @@ export default function ProduccionPage() {
         <h1 className="font-display text-3xl">Producción</h1>
         <p className="text-sm text-muted">
           Cola de cocina · al iniciar se descuentan insumos
+          {live ? (
+            <span className="ml-2 text-xs font-medium text-ok">● En vivo</span>
+          ) : null}
         </p>
       </div>
 

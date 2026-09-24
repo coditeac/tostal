@@ -60,12 +60,30 @@ export type GetPedidoPublicoResponse = {
   pedido: import("./types").PedidoPublico;
 };
 
+/** SSE GET /api/public/pedidos/events?codigo= — event types */
+export type PedidoSseEventType =
+  | "snapshot"
+  | "pedido_creado"
+  | "estado_cambiado"
+  | "pago_confirmado"
+  | "listo"
+  | "entregado"
+  | "ping";
+
+export type PedidoSsePayload = {
+  type: PedidoSseEventType;
+  at: string;
+  pedido?: import("./types").PedidoPublico;
+};
+
 export type ApiErrorBody = { error: string };
 
 export const PUBLIC_API = {
   dias: "/api/public/dias",
   menu: "/api/public/menu",
   pedidos: "/api/public/pedidos",
+  /** EventSource — seguimiento en tiempo real */
+  pedidosEvents: "/api/public/pedidos/events",
 } as const;
 
 export const RESTAURANT_DEV_ORIGIN = "http://127.0.0.1:4321";

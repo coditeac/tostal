@@ -74,6 +74,15 @@ export function toPostgresSql(sql: string): string {
       s = `${s} ON CONFLICT DO NOTHING`;
     }
   }
+  // Postgres lowercasing: preservar alias camelCase → "productoId"
+  s = s.replace(/\bas\s+([A-Za-z_][A-Za-z0-9_]*)/g, (full, alias: string) => {
+    if (alias !== alias.toLowerCase() && !alias.startsWith('"')) {
+      return `as "${alias}"`;
+    }
+    return full;
+  });
+  // COUNT(*) en pg llega como string (int8); forzar int4
+  s = s.replace(/COUNT\(\*\)/gi, "COUNT(*)::int");
   let i = 0;
   s = s.replace(/\?/g, () => `$${++i}`);
   return s;

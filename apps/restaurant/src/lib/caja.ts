@@ -5,6 +5,7 @@ import { getProducto, listProductos } from "./catalogo";
 import { id, hoyISO } from "./utils";
 import type { MetodoPago, PedidoPublico } from "../../../../shared/types";
 import { mapPedido, getPedido, actualizarEstadoPedido } from "./pedidos";
+import { publishPedidoEvent } from "./pedido-events";
 
 async function boot() {
   await ensureSeed();
@@ -274,6 +275,7 @@ export async function crearPedidoMostrador(input: {
   });
 
   const pedido = (await getPedido(pedidoId))!;
+  publishPedidoEvent("pedido_creado", pedido);
   return {
     ok: true,
     pedido: { ...pedido, fichaCodigo: ficha },
