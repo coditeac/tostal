@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -44,7 +46,7 @@ export function AppShell({
   const router = useRouter();
 
   async function salir() {
-    await fetch("/api/auth/session", { method: "POST" });
+    await apiFetch("/api/auth/session", { method: "POST" });
     router.push("/login");
     router.refresh();
   }

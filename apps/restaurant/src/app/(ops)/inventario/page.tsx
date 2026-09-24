@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatoMoneda } from "@/lib/format";
@@ -45,7 +47,7 @@ export default function InventarioPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/inventario");
+      const res = await apiFetch("/api/inventario");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
       setInsumos(data.insumos || []);
@@ -69,7 +71,7 @@ export default function InventarioPage() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/inventario", {
+      const res = await apiFetch("/api/inventario", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

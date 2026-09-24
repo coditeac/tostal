@@ -1,28 +1,75 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/reui/badge";
 import Link from "next/link";
-import { listPedidos } from "@/lib/pedidos";
-import { listInsumos } from "@/lib/catalogo";
-import { getConfigPublica } from "@/lib/config";
-import { sqlGet } from "@/lib/db";
-import { formatoMoneda, hoyISO } from "@/lib/utils";
-import { ensureSeed } from "@/lib/seed";
+import { apiFetch } from "@/lib/api";
+import { formatoMoneda } from "@/lib/format";
 
-export default async function PanelHome() {
-  await ensureSeed();
-  const hoy = hoyISO();
-  const pedidosHoy = await listPedidos({ fecha: hoy });
-  const insumos = await listInsumos();
-  const bajos = insumos.filter((i) => i.stockActual <= i.stockMinimo);
-  const config = await getConfigPublica();
-  const avisosPendientes =
-    (
-      await sqlGet<{ c: number }>(
-        `SELECT COUNT(*) as c FROM avisos_whatsapp WHERE estado = 'pendiente'`
-      )
-    )?.c ?? 0;
+type Resumen = {
+  config: {
+    marca: string;
+    eslogan: string;
+    moneda: string;
+    canalRemotoActivo: boolean;
+    canalMostradorActivo: boolean;
+  };
+  pedidosHoy: Array<{
+    id: string;
+    codigo: string;
+    clienteNombre: string;
+    estado: string;
+    total: number;
+  }>;
+  activosCount: number;
+  totalVentas: number;
+  insumosBajos: Array<{
+    id: string;
+    nombre: string;
+    stockActual: number;
+    stockMinimo: number;
+    unidad: string;
+  }>;
+  avisosPendientes: number;
+};
 
-  const activos = pedidosHoy.filter((p) => p.estado !== "cancelado");
-  const totalVentas = activos.reduce((a, p) => a + p.total, 0);
+export default function PanelHome() {
+  const [data, setData] = useState<Resumen | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiFetch("/api/panel/resumen");
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "No se pudo cargar el panel");
+        if (!cancelled) setData(json);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Error");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (error) {
+    return (
+      <p className="text-sm text-alerta">
+        {error}. ¿Está corriendo la API Nest (`NEXT_PUBLIC_API_URL`)?
+      </p>
+    );
+  }
+  if (!data) {
+    return <p className="text-sm text-muted-foreground">Cargando panel…</p>;
+  }
+
+  const { config, pedidosHoy, activosCount, totalVentas, insumosBajos, avisosPendientes } =
+    data;
+  const bajos = insumosBajos;
 
   return (
     <div className="space-y-5 rise-in">
@@ -51,9 +98,7 @@ export default async function PanelHome() {
         <div className="mt-5 grid grid-cols-2 gap-3">
           <div className="rounded-xl bg-arena p-3.5">
             <p className="text-xs text-muted-foreground">Pedidos de hoy</p>
-            <p className="text-2xl font-semibold tabular-nums">
-              {activos.length}
-            </p>
+            <p className="text-2xl font-semibold tabular-nums">{activosCount}</p>
           </div>
           <div className="rounded-xl bg-arena p-3.5">
             <p className="text-xs text-muted-foreground">Ventas del día</p>
@@ -63,10 +108,16 @@ export default async function PanelHome() {
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Badge variant={config.canalRemotoActivo ? "success-light" : "secondary"} radius="full">
+          <Badge
+            variant={config.canalRemotoActivo ? "success-light" : "secondary"}
+            radius="full"
+          >
             Remoto: {config.canalRemotoActivo ? "activo" : "apagado"}
           </Badge>
-          <Badge variant={config.canalMostradorActivo ? "success-light" : "secondary"} radius="full">
+          <Badge
+            variant={config.canalMostradorActivo ? "success-light" : "secondary"}
+            radius="full"
+          >
             Mostrador: {config.canalMostradorActivo ? "activo" : "apagado"}
           </Badge>
           {avisosPendientes > 0 && (
@@ -104,9 +155,7 @@ export default async function PanelHome() {
         <Link href="/inventario" className="surface p-3.5 active:bg-arena/50">
           <p className="font-semibold">Inventario</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {bajos.length > 0
-              ? `${bajos.length} bajo mínimo`
-              : "Movimientos"}
+            {bajos.length > 0 ? `${bajos.length} bajo mínimo` : "Movimientos"}
           </p>
         </Link>
         <Link href="/compras" className="surface p-3.5 active:bg-arena/50">
@@ -124,29 +173,27 @@ export default async function PanelHome() {
         <Link href="/avisos" className="surface p-3.5 active:bg-arena/50">
           <p className="font-semibold">Avisos WhatsApp</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {avisosPendientes} pendientes
+            {avisosPendientes} pendientes (manual)
           </p>
         </Link>
         <Link href="/costos" className="surface p-3.5 active:bg-arena/50">
           <p className="font-semibold">Costos</p>
           <p className="mt-1 text-xs text-muted-foreground">Márgenes por receta</p>
         </Link>
-        <Link
-          href="/panel/calendario"
-          className="surface p-3.5 active:bg-arena/50"
-        >
+        <Link href="/panel/calendario" className="surface p-3.5 active:bg-arena/50">
           <p className="font-semibold">Calendario</p>
           <p className="mt-1 text-xs text-muted-foreground">Disponibilidad</p>
+        </Link>
+        <Link href="/panel/usuarios" className="surface p-3.5 active:bg-arena/50">
+          <p className="font-semibold">Personal</p>
+          <p className="mt-1 text-xs text-muted-foreground">Roles admin/cocina/caja</p>
         </Link>
       </section>
 
       <section className="surface p-4">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">Últimos pedidos de hoy</h2>
-          <Link
-            href="/panel/pedidos"
-            className="text-sm font-semibold text-miel"
-          >
+          <Link href="/panel/pedidos" className="text-sm font-semibold text-miel">
             Ver todos
           </Link>
         </div>

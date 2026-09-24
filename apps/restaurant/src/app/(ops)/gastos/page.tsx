@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { formatoMoneda, hoyISO } from "@/lib/format";
 
@@ -40,7 +42,7 @@ export default function GastosPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/gastos");
+      const res = await apiFetch("/api/gastos");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
       setGastos(data.gastos || []);
@@ -64,7 +66,7 @@ export default function GastosPage() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/gastos", {
+      const res = await apiFetch("/api/gastos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -87,7 +89,7 @@ export default function GastosPage() {
   }
 
   async function borrar(id: string) {
-    await fetch(`/api/gastos?id=${id}`, { method: "DELETE" });
+    await apiFetch(`/api/gastos?id=${id}`, { method: "DELETE" });
     await load();
   }
 

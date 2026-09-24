@@ -38,6 +38,10 @@ export interface ConfiguracionPublica {
   canalMostradorActivo: boolean;
   telefonoWhatsApp?: string | null;
   direccionRetiro?: string | null;
+  /** Si true, el checkout exige sesión de cuenta cliente. Default false (guest+email OK). */
+  checkoutRequiereCuenta?: boolean;
+  /** Si true, la UI recomienda crear/iniciar sesión al pedir. Default true. */
+  checkoutRecomiendaCuenta?: boolean;
 }
 
 export interface Categoria {

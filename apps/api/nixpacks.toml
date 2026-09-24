@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs_22", "python3", "gcc", "gnumake"]
+
+[phases.install]
+cmds = ["npm --prefix apps/api ci"]
+
+[phases.build]
+cmds = ["npm --prefix apps/api run build"]
+
+[start]
+cmd = "npm --prefix apps/api run start:prod"

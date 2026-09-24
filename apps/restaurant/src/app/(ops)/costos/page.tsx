@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
 
@@ -27,7 +29,7 @@ export default function CostosPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/costos");
+        const res = await apiFetch("/api/costos");
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Error");
         setProductos(data.productos || []);

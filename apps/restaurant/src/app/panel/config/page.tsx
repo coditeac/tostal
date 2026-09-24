@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 
 export default function ConfigPage() {
@@ -20,7 +22,7 @@ export default function ConfigPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/config");
+        const res = await apiFetch("/api/config");
         const data = await res.json();
         if (data.all) {
           setForm((f) => ({
@@ -47,7 +49,7 @@ export default function ConfigPage() {
     setMsg(null);
     setError(null);
     try {
-      const res = await fetch("/api/config", {
+      const res = await apiFetch("/api/config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),

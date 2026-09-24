@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { formatoMoneda, hoyISO } from "@/lib/format";
 import { useRestaurantPedidoEvents } from "@/lib/use-pedido-events";
@@ -27,7 +29,7 @@ export default function ProduccionPage() {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/produccion?fecha=${fecha}`);
+      const res = await apiFetch(`/api/produccion?fecha=${fecha}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
       setPedidos(data.pedidos || []);
@@ -58,7 +60,7 @@ export default function ProduccionPage() {
     setBusyId(pedidoId);
     setError(null);
     try {
-      const res = await fetch("/api/produccion", {
+      const res = await apiFetch("/api/produccion", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pedidoId, accion, aVitrina }),

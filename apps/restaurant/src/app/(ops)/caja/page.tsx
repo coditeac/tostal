@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatoMoneda, hoyISO } from "@/lib/format";
@@ -52,7 +54,7 @@ export default function CajaPage() {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/caja");
+      const res = await apiFetch("/api/caja");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
       setTurno(data.turno);
@@ -104,7 +106,7 @@ export default function CajaPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/caja", {
+      const res = await apiFetch("/api/caja", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

@@ -1,8 +1,6 @@
 /**
  * Contratos públicos estables para App Cliente.
- * No romper shapes sin coordinar con el agent de Cliente.
- *
- * Base: http://127.0.0.1:4321
+ * Base API Nest: http://127.0.0.1:4331 (prod: https://api.tostal.cafe)
  * Precios en centavos (integer).
  */
 
@@ -36,8 +34,6 @@ export type PublicDiasResponse = {
   config: import("./types").ConfiguracionPublica;
 };
 
-/** GET /api/public/menu?fecha=YYYY-MM-DD → MenuDiaResponse */
-
 /** POST /api/public/pedidos */
 export type CrearPedidoRemotoBody = {
   fechaEntrega: string;
@@ -45,6 +41,9 @@ export type CrearPedidoRemotoBody = {
   zonaId?: string | null;
   clienteNombre: string;
   clienteTelefono: string;
+  /** Email guest o de la cuenta; requerido si no hay sesión. */
+  clienteEmail?: string | null;
+  email?: string | null;
   direccion?: string | null;
   metodoPago: import("./types").MetodoPago;
   notas?: string | null;
@@ -55,12 +54,10 @@ export type CrearPedidoRemotoResponse = {
   pedido: import("./types").PedidoPublico;
 };
 
-/** GET /api/public/pedidos?codigo= */
 export type GetPedidoPublicoResponse = {
   pedido: import("./types").PedidoPublico;
 };
 
-/** SSE GET /api/public/pedidos/events?codigo= — event types */
 export type PedidoSseEventType =
   | "snapshot"
   | "pedido_creado"
@@ -82,9 +79,18 @@ export const PUBLIC_API = {
   dias: "/api/public/dias",
   menu: "/api/public/menu",
   pedidos: "/api/public/pedidos",
-  /** EventSource — seguimiento en tiempo real */
   pedidosEvents: "/api/public/pedidos/events",
 } as const;
 
+export const CLIENTE_AUTH_API = {
+  policy: "/api/cliente/policy",
+  register: "/api/cliente/register",
+  login: "/api/cliente/login",
+  logout: "/api/cliente/logout",
+  me: "/api/cliente/me",
+  pedidos: "/api/cliente/pedidos",
+} as const;
+
 export const RESTAURANT_DEV_ORIGIN = "http://127.0.0.1:4321";
+export const API_DEV_ORIGIN = "http://127.0.0.1:4331";
 export const CLIENTE_DEV_ORIGIN = "http://127.0.0.1:4322";

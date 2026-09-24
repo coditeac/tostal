@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { Copy, ExternalLink } from "lucide-react";
 
@@ -25,7 +27,7 @@ export default function WhatsappPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/whatsapp?estado=${filtro}`);
+      const res = await apiFetch(`/api/whatsapp?estado=${filtro}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
       setAvisos(data.avisos || []);
@@ -41,7 +43,7 @@ export default function WhatsappPage() {
   }, [filtro]);
 
   async function marcar(id: string, estado: string) {
-    await fetch("/api/whatsapp", {
+    await apiFetch("/api/whatsapp", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, estado }),
