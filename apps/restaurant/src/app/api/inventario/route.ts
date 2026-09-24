@@ -21,17 +21,17 @@ export async function GET(req: NextRequest) {
   const vista = req.nextUrl.searchParams.get("vista") || "todo";
 
   if (vista === "alertas") {
-    return jsonOk({ alertas: alertasStock() }, req);
+    return jsonOk({ alertas: await alertasStock() }, req);
   }
 
   return jsonOk(
     {
-      insumos: listInsumos().map((i) => ({
+      insumos: (await listInsumos()).map((i) => ({
         ...i,
         bajoMinimo: i.stockActual <= i.stockMinimo,
       })),
-      alertas: alertasStock(),
-      movimientos: listMovimientos({ insumoId, limit: 60 }),
+      alertas: await alertasStock(),
+      movimientos: await listMovimientos({ insumoId, limit: 60 }),
     },
     req
   );
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
         ? Number(body.costoUnitario)
         : null;
 
-  const result = registrarMovimiento({
+  const result = await registrarMovimiento({
     insumoId: body.insumoId,
     tipo: body.tipo,
     cantidad: Number(body.cantidad),
@@ -75,8 +75,8 @@ export async function POST(req: NextRequest) {
   return jsonOk(
     {
       ok: true,
-      alertas: alertasStock(),
-      movimientos: listMovimientos({ limit: 40 }),
+      alertas: await alertasStock(),
+      movimientos: await listMovimientos({ limit: 40 }),
     },
     req,
     201

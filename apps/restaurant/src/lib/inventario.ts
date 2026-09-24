@@ -1,11 +1,11 @@
-import { getDb } from "./db";
+import { sqlAll, sqlGet, sqlRun, sqlTransaction } from "./db";
 import { ensureSeed } from "./seed";
 import { listInsumos } from "./catalogo";
 import { id } from "./utils";
 import type { TipoMovimiento } from "../../../../shared/types";
 
-function boot() {
-  ensureSeed();
+async function boot() {
+  await ensureSeed();
 }
 
 export type Movimiento = {
@@ -21,11 +21,11 @@ export type Movimiento = {
   creadoEn: string;
 };
 
-export function listMovimientos(opts?: {
+export async function listMovimientos(opts?: {
   insumoId?: string;
   limit?: number;
-}): Movimiento[] {
-  boot();
+}): Promise<Movimiento[]> {
+  await boot();
   let sql = `
     SELECT m.id, m.insumo_id as insumoId, i.nombre as insumoNombre, i.unidad,
            m.tipo, m.cantidad, m.costo_unitario as costoUnitario, m.motivo,
@@ -33,19 +33,19 @@ export function listMovimientos(opts?: {
     FROM movimientos_inventario m
     JOIN insumos i ON i.id = m.insumo_id
     WHERE 1=1`;
-  const params: string[] = [];
+  const params: Array<string | number> = [];
   if (opts?.insumoId) {
     sql += ` AND m.insumo_id = ?`;
     params.push(opts.insumoId);
   }
   sql += ` ORDER BY m.creado_en DESC LIMIT ?`;
-  params.push(String(opts?.limit ?? 80));
-  return getDb().prepare(sql).all(...params) as Movimiento[];
+  params.push(opts?.limit ?? 80);
+  return sqlAll<Movimiento>(sql, ...params);
 }
 
-export function alertasStock() {
-  boot();
-  return listInsumos()
+export async function alertasStock() {
+  await boot();
+  return (await listInsumos())
     .filter((i) => i.stockActual <= i.stockMinimo)
     .map((i) => ({
       ...i,
@@ -54,7 +54,7 @@ export function alertasStock() {
     }));
 }
 
-export function registrarMovimiento(input: {
+export async function registrarMovimiento(input: {
   insumoId: string;
   tipo: TipoMovimiento;
   cantidad: number;
@@ -62,20 +62,21 @@ export function registrarMovimiento(input: {
   usuarioId?: string | null;
   pedidoId?: string | null;
   actualizarCosto?: number | null;
-}): { ok: true } | { ok: false; error: string } {
-  boot();
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  await boot();
   if (!input.cantidad || input.cantidad <= 0) {
     return { ok: false, error: "La cantidad debe ser mayor a 0." };
   }
-  const db = getDb();
-  const insumo = db
-    .prepare(`SELECT id, stock_actual, costo_unitario FROM insumos WHERE id = ?`)
-    .get(input.insumoId) as
-    | { id: string; stock_actual: number; costo_unitario: number }
-    | undefined;
+  const insumo = await sqlGet<{
+    id: string;
+    stock_actual: number;
+    costo_unitario: number;
+  }>(
+    `SELECT id, stock_actual, costo_unitario FROM insumos WHERE id = ?`,
+    input.insumoId
+  );
   if (!insumo) return { ok: false, error: "Insumo no encontrado." };
 
-  const entradas: TipoMovimiento[] = ["entrada", "ajuste"];
   const esEntrada =
     input.tipo === "entrada" ||
     (input.tipo === "ajuste" && input.motivo?.startsWith("+"));
@@ -102,8 +103,9 @@ export function registrarMovimiento(input: {
   }
 
   const now = new Date().toISOString();
-  const tx = db.transaction(() => {
-    db.prepare(`UPDATE insumos SET stock_actual = ? WHERE id = ?`).run(
+  await sqlTransaction(async () => {
+    await sqlRun(
+      `UPDATE insumos SET stock_actual = ? WHERE id = ?`,
       Math.max(0, nuevoStock),
       input.insumoId
     );
@@ -112,16 +114,16 @@ export function registrarMovimiento(input: {
       input.actualizarCosto >= 0 &&
       (input.tipo === "entrada" || input.tipo === "ajuste")
     ) {
-      db.prepare(`UPDATE insumos SET costo_unitario = ? WHERE id = ?`).run(
+      await sqlRun(
+        `UPDATE insumos SET costo_unitario = ? WHERE id = ?`,
         input.actualizarCosto,
         input.insumoId
       );
     }
-    db.prepare(
+    await sqlRun(
       `INSERT INTO movimientos_inventario
        (id, insumo_id, tipo, cantidad, costo_unitario, motivo, pedido_id, usuario_id, creado_en)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id(),
       input.insumoId,
       input.tipo,
@@ -133,6 +135,5 @@ export function registrarMovimiento(input: {
       now
     );
   });
-  tx();
   return { ok: true };
 }

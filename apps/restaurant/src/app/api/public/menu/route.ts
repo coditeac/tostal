@@ -8,10 +8,10 @@ export async function OPTIONS(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  ensureSeed();
+  await ensureSeed();
   const fecha = req.nextUrl.searchParams.get("fecha");
   if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
     return jsonError("Indica una fecha válida (YYYY-MM-DD).", req);
   }
-  return jsonOk(getMenuPorDia(fecha), req);
+  return jsonOk(await getMenuPorDia(fecha), req);
 }

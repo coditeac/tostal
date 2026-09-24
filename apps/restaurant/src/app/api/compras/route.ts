@@ -27,21 +27,21 @@ export async function GET(req: NextRequest) {
   const carritoId = req.nextUrl.searchParams.get("carritoId");
 
   if (listaId) {
-    const lista = getLista(listaId);
+    const lista = await getLista(listaId);
     if (!lista) return jsonError("Lista no encontrada.", req, 404);
     return jsonOk({ lista }, req);
   }
   if (carritoId) {
-    const carrito = getCarrito(carritoId);
+    const carrito = await getCarrito(carritoId);
     if (!carrito) return jsonError("Carrito no encontrado.", req, 404);
     return jsonOk({ carrito }, req);
   }
 
   return jsonOk(
     {
-      sugerencia: calcularSugerencia(),
-      listas: listListas(),
-      carritos: listCarritos(),
+      sugerencia: await calcularSugerencia(),
+      listas: await listListas(),
+      carritos: await listCarritos(),
     },
     req
   );
@@ -55,19 +55,22 @@ export async function POST(req: NextRequest) {
 
   try {
     if (body.accion === "crear_lista") {
-      const lista = crearListaDesdeSugerencia(body.items, body.notas);
+      const lista = await crearListaDesdeSugerencia(body.items, body.notas);
       return jsonOk({ lista }, req, 201);
     }
     if (body.accion === "crear_carrito_desde_lista") {
       if (!body.listaId) return jsonError("Falta listaId.", req);
-      const carrito = crearCarritoDesdeLista(body.listaId, body.proveedor);
+      const carrito = await crearCarritoDesdeLista(
+        body.listaId,
+        body.proveedor
+      );
       return jsonOk({ carrito }, req, 201);
     }
     if (body.accion === "crear_carrito") {
       if (!Array.isArray(body.lineas) || !body.lineas.length) {
         return jsonError("Agrega líneas al carrito.", req);
       }
-      const carrito = crearCarritoManual(
+      const carrito = await crearCarritoManual(
         body.lineas.map(
           (l: {
             insumoId: string;
@@ -79,7 +82,9 @@ export async function POST(req: NextRequest) {
             cantidad: Number(l.cantidad),
             costoUnitario:
               l.costoUnitario ??
-              (l.costoPesos != null ? aCentavos(Number(l.costoPesos)) : undefined),
+              (l.costoPesos != null
+                ? aCentavos(Number(l.costoPesos))
+                : undefined),
           })
         ),
         body.proveedor
@@ -88,7 +93,7 @@ export async function POST(req: NextRequest) {
     }
     if (body.accion === "marcar_comprada") {
       if (!body.carritoId) return jsonError("Falta carritoId.", req);
-      const result = marcarCarritoComprado(body.carritoId, {
+      const result = await marcarCarritoComprado(body.carritoId, {
         lineasCompradas: body.lineasCompradas,
         registrarGasto: body.registrarGasto !== false,
         usuarioId: auth.id,
@@ -109,11 +114,15 @@ export async function PATCH(req: NextRequest) {
   if (!body) return jsonError("Cuerpo inválido.", req);
 
   if (body.itemListaId && body.cantidad != null) {
-    actualizarItemLista(body.itemListaId, Number(body.cantidad), body.proveedor);
+    await actualizarItemLista(
+      body.itemListaId,
+      Number(body.cantidad),
+      body.proveedor
+    );
     return jsonOk({ ok: true }, req);
   }
   if (body.lineaCarritoId) {
-    const carrito = actualizarLineaCarrito(body.lineaCarritoId, {
+    const carrito = await actualizarLineaCarrito(body.lineaCarritoId, {
       cantidad: body.cantidad != null ? Number(body.cantidad) : undefined,
       costoUnitario:
         body.costoUnitario != null

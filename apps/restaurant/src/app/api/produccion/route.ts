@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const auth = await requireSession();
   if (!isSessionUser(auth)) return auth;
   const fecha = req.nextUrl.searchParams.get("fecha") || hoyISO();
-  const pedidos = listPedidos({ fecha }).filter(
+  const pedidos = (await listPedidos({ fecha })).filter(
     (p) =>
       !["entregado", "cancelado"].includes(p.estado) ||
       p.estado === "listo"
@@ -53,11 +53,11 @@ export async function POST(req: NextRequest) {
   const estado = mapa[body.accion];
   if (!estado) return jsonError("Acción no válida.", req);
 
-  const result = actualizarEstadoPedido(body.pedidoId, estado, auth.id);
+  const result = await actualizarEstadoPedido(body.pedidoId, estado, auth.id);
   if (!result.ok) return jsonError(result.error, req);
 
   if (body.accion === "listo" && body.aVitrina) {
-    enviarAVitrinaDesdePedido(body.pedidoId);
+    await enviarAVitrinaDesdePedido(body.pedidoId);
   }
 
   return jsonOk({

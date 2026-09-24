@@ -1,7 +1,8 @@
-import { getDb } from "./db";
+import { sqlAll, sqlGet, sqlRun, sqlTransaction } from "./db";
 import { ensureSeed } from "./seed";
 import { getConfigPublica } from "./config";
 import { getDia, getDisponibilidad, getProducto, listZonas } from "./catalogo";
+import { publishPedidoEvent } from "./pedido-events";
 import { id } from "./utils";
 import type {
   EstadoPedido,
@@ -11,8 +12,8 @@ import type {
   PedidoPublico,
 } from "../../../../shared/types";
 
-function boot() {
-  ensureSeed();
+async function boot() {
+  await ensureSeed();
 }
 
 function codigoPedido(): string {
@@ -23,15 +24,15 @@ function codigoPedido(): string {
   return `T-${mm}${dd}-${n}`;
 }
 
-export function mapPedido(row: Record<string, unknown>): PedidoPublico {
-  const db = getDb();
-  const lineas = db
-    .prepare(
-      `SELECT id, producto_id as productoId, producto_nombre as productoNombre,
-              cantidad, precio_unitario as precioUnitario, subtotal, notas
-       FROM pedido_lineas WHERE pedido_id = ?`
-    )
-    .all(row.id as string) as PedidoPublico["lineas"];
+export async function mapPedido(
+  row: Record<string, unknown>
+): Promise<PedidoPublico> {
+  const lineas = await sqlAll<PedidoPublico["lineas"][number]>(
+    `SELECT id, producto_id as productoId, producto_nombre as productoNombre,
+            cantidad, precio_unitario as precioUnitario, subtotal, notas
+     FROM pedido_lineas WHERE pedido_id = ?`,
+    row.id as string
+  );
 
   return {
     id: row.id as string,
@@ -53,20 +54,24 @@ export function mapPedido(row: Record<string, unknown>): PedidoPublico {
   };
 }
 
-export function getPedido(pedidoId: string): PedidoPublico | null {
-  boot();
-  const row = getDb()
-    .prepare(`SELECT * FROM pedidos WHERE id = ? OR codigo = ?`)
-    .get(pedidoId, pedidoId) as Record<string, unknown> | undefined;
+export async function getPedido(
+  pedidoId: string
+): Promise<PedidoPublico | null> {
+  await boot();
+  const row = await sqlGet<Record<string, unknown>>(
+    `SELECT * FROM pedidos WHERE id = ? OR codigo = ?`,
+    pedidoId,
+    pedidoId
+  );
   if (!row) return null;
   return mapPedido(row);
 }
 
-export function listPedidos(opts?: {
+export async function listPedidos(opts?: {
   fecha?: string;
   canal?: string;
-}): PedidoPublico[] {
-  boot();
+}): Promise<PedidoPublico[]> {
+  await boot();
   let sql = `SELECT * FROM pedidos WHERE 1=1`;
   const params: string[] = [];
   if (opts?.fecha) {
@@ -78,13 +83,11 @@ export function listPedidos(opts?: {
     params.push(opts.canal);
   }
   sql += ` ORDER BY creado_en DESC`;
-  const rows = getDb().prepare(sql).all(...params) as Array<
-    Record<string, unknown>
-  >;
-  return rows.map(mapPedido);
+  const rows = await sqlAll<Record<string, unknown>>(sql, ...params);
+  return Promise.all(rows.map((r) => mapPedido(r)));
 }
 
-export function crearPedidoRemoto(input: {
+export async function crearPedidoRemoto(input: {
   fechaEntrega: string;
   modoEntrega: ModoEntrega;
   zonaId?: string | null;
@@ -94,13 +97,13 @@ export function crearPedidoRemoto(input: {
   metodoPago: MetodoPago;
   notas?: string | null;
   lineas: LineaPedidoInput[];
-}): { ok: true; pedido: PedidoPublico } | { ok: false; error: string } {
-  boot();
-  const config = getConfigPublica();
+}): Promise<{ ok: true; pedido: PedidoPublico } | { ok: false; error: string }> {
+  await boot();
+  const config = await getConfigPublica();
   if (!config.canalRemotoActivo) {
     return { ok: false, error: "El canal remoto está desactivado." };
   }
-  const dia = getDia(input.fechaEntrega);
+  const dia = await getDia(input.fechaEntrega);
   if (!dia || !dia.abierto) {
     return { ok: false, error: "Ese día no está abierto para pedidos." };
   }
@@ -115,7 +118,10 @@ export function crearPedidoRemoto(input: {
   }
 
   const disp = Object.fromEntries(
-    getDisponibilidad(input.fechaEntrega).map((d) => [d.productoId, d.disponible])
+    (await getDisponibilidad(input.fechaEntrega)).map((d) => [
+      d.productoId,
+      d.disponible,
+    ])
   );
 
   let subtotal = 0;
@@ -138,7 +144,7 @@ export function crearPedidoRemoto(input: {
         error: "Hay productos que no están disponibles ese día.",
       };
     }
-    const prod = getProducto(l.productoId);
+    const prod = await getProducto(l.productoId);
     if (!prod || !prod.activoCatalogo) {
       return { ok: false, error: "Producto no disponible." };
     }
@@ -159,7 +165,9 @@ export function crearPedidoRemoto(input: {
     if (!input.zonaId) {
       return { ok: false, error: "Elige una zona de envío." };
     }
-    const zona = listZonas().find((z) => z.id === input.zonaId && z.activa);
+    const zona = (await listZonas()).find(
+      (z) => z.id === input.zonaId && z.activa
+    );
     if (!zona) {
       return {
         ok: false,
@@ -173,14 +181,12 @@ export function crearPedidoRemoto(input: {
   }
 
   if (dia.cupoMaximo != null) {
-    const count = (
-      getDb()
-        .prepare(
-          `SELECT COUNT(*) as c FROM pedidos
-           WHERE fecha_entrega = ? AND estado != 'cancelado'`
-        )
-        .get(input.fechaEntrega) as { c: number }
-    ).c;
+    const countRow = await sqlGet<{ c: number }>(
+      `SELECT COUNT(*) as c FROM pedidos
+       WHERE fecha_entrega = ? AND estado != 'cancelado'`,
+      input.fechaEntrega
+    );
+    const count = countRow?.c ?? 0;
     if (count >= dia.cupoMaximo) {
       return { ok: false, error: "Ya no hay cupo para ese día." };
     }
@@ -211,25 +217,25 @@ export function crearPedidoRemoto(input: {
   const pedidoId = id();
   const codigo = codigoPedido();
   const total = subtotal + costoEnvio;
-  const db = getDb();
 
-  const tx = db.transaction(() => {
+  await sqlTransaction(async () => {
     let clienteId: string | null = null;
-    const existente = db
-      .prepare(`SELECT id FROM clientes WHERE telefono = ?`)
-      .get(input.clienteTelefono.trim()) as { id: string } | undefined;
+    const existente = await sqlGet<{ id: string }>(
+      `SELECT id FROM clientes WHERE telefono = ?`,
+      input.clienteTelefono.trim()
+    );
     if (existente) {
       clienteId = existente.id;
-      db.prepare(`UPDATE clientes SET nombre = ? WHERE id = ?`).run(
+      await sqlRun(
+        `UPDATE clientes SET nombre = ? WHERE id = ?`,
         input.clienteNombre.trim(),
         clienteId
       );
     } else {
       clienteId = id();
-      db.prepare(
+      await sqlRun(
         `INSERT INTO clientes (id, nombre, telefono, email, notas, creado_en)
-         VALUES (?, ?, ?, NULL, NULL, ?)`
-      ).run(
+         VALUES (?, ?, ?, NULL, NULL, ?)`,
         clienteId,
         input.clienteNombre.trim(),
         input.clienteTelefono.trim(),
@@ -237,14 +243,13 @@ export function crearPedidoRemoto(input: {
       );
     }
 
-    db.prepare(
+    await sqlRun(
       `INSERT INTO pedidos (
         id, codigo, canal, estado, estado_pago, metodo_pago, modo_entrega,
         fecha_entrega, zona_id, cliente_id, cliente_nombre, cliente_telefono,
         direccion, subtotal, costo_envio, total, notas, insumos_descontados,
         ficha_codigo, creado_en, actualizado_en
-      ) VALUES (?, ?, 'remoto', 'recibido', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)`
-    ).run(
+      ) VALUES (?, ?, 'remoto', 'recibido', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)`,
       pedidoId,
       codigo,
       estadoPago,
@@ -264,12 +269,10 @@ export function crearPedidoRemoto(input: {
       now
     );
 
-    const lStmt = db.prepare(
-      `INSERT INTO pedido_lineas (id, pedido_id, producto_id, producto_nombre, cantidad, precio_unitario, subtotal, notas)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    );
     for (const l of lineasResueltas) {
-      lStmt.run(
+      await sqlRun(
+        `INSERT INTO pedido_lineas (id, pedido_id, producto_id, producto_nombre, cantidad, precio_unitario, subtotal, notas)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         id(),
         pedidoId,
         l.productoId,
@@ -283,10 +286,9 @@ export function crearPedidoRemoto(input: {
 
     // Aviso WhatsApp pendiente
     const texto = `¡Hola ${input.clienteNombre}! Recibimos tu pedido ${codigo} en Tostal para el ${input.fechaEntrega}. Total: $${(total / 100).toFixed(2)}. Te avisamos cuando lo confirmemos.`;
-    db.prepare(
+    await sqlRun(
       `INSERT INTO avisos_whatsapp (id, pedido_id, destinatario, telefono, evento, texto, estado, creado_en)
-       VALUES (?, ?, ?, ?, 'recibido', ?, 'pendiente', ?)`
-    ).run(
+       VALUES (?, ?, ?, ?, 'recibido', ?, 'pendiente', ?)`,
       id(),
       pedidoId,
       input.clienteNombre.trim(),
@@ -296,62 +298,73 @@ export function crearPedidoRemoto(input: {
     );
   });
 
-  tx();
-  return { ok: true, pedido: getPedido(pedidoId)! };
+  const pedido = (await getPedido(pedidoId))!;
+  publishPedidoEvent("pedido_creado", pedido);
+  return { ok: true, pedido };
 }
 
-export function actualizarEstadoPedido(
+export async function actualizarEstadoPedido(
   pedidoId: string,
   estado: EstadoPedido,
   usuarioId?: string
-): { ok: true; pedido: PedidoPublico } | { ok: false; error: string } {
-  boot();
-  const db = getDb();
-  const row = db
-    .prepare(`SELECT * FROM pedidos WHERE id = ?`)
-    .get(pedidoId) as Record<string, unknown> | undefined;
+): Promise<{ ok: true; pedido: PedidoPublico } | { ok: false; error: string }> {
+  await boot();
+  const row = await sqlGet<Record<string, unknown>>(
+    `SELECT * FROM pedidos WHERE id = ?`,
+    pedidoId
+  );
   if (!row) return { ok: false, error: "Pedido no encontrado." };
 
   const now = new Date().toISOString();
 
-  const tx = db.transaction(() => {
+  await sqlTransaction(async () => {
     // Descuento de insumos al iniciar producción
     if (estado === "en_produccion" && !row.insumos_descontados) {
-      const lineas = db
-        .prepare(
-          `SELECT producto_id as productoId, cantidad FROM pedido_lineas WHERE pedido_id = ?`
-        )
-        .all(pedidoId) as Array<{ productoId: string; cantidad: number }>;
+      const lineas = await sqlAll<{ productoId: string; cantidad: number }>(
+        `SELECT producto_id as productoId, cantidad FROM pedido_lineas WHERE pedido_id = ?`,
+        pedidoId
+      );
 
       for (const linea of lineas) {
-        const receta = db
-          .prepare(
-            `SELECT insumo_id as insumoId, cantidad FROM receta_lineas WHERE producto_id = ?`
-          )
-          .all(linea.productoId) as Array<{
+        const receta = await sqlAll<{
           insumoId: string;
           cantidad: number;
-        }>;
+        }>(
+          `SELECT insumo_id as insumoId, cantidad FROM receta_lineas WHERE producto_id = ?`,
+          linea.productoId
+        );
         for (const r of receta) {
           const qty = r.cantidad * linea.cantidad;
-          db.prepare(
-            `UPDATE insumos SET stock_actual = stock_actual - ? WHERE id = ?`
-          ).run(qty, r.insumoId);
-          db.prepare(
+          await sqlRun(
+            `UPDATE insumos SET stock_actual = stock_actual - ? WHERE id = ?`,
+            qty,
+            r.insumoId
+          );
+          await sqlRun(
             `INSERT INTO movimientos_inventario
              (id, insumo_id, tipo, cantidad, costo_unitario, motivo, pedido_id, usuario_id, creado_en)
-             VALUES (?, ?, 'produccion', ?, NULL, 'Inicio de producción', ?, ?, ?)`
-          ).run(id(), r.insumoId, qty, pedidoId, usuarioId || null, now);
+             VALUES (?, ?, 'produccion', ?, NULL, 'Inicio de producción', ?, ?, ?)`,
+            id(),
+            r.insumoId,
+            qty,
+            pedidoId,
+            usuarioId || null,
+            now
+          );
         }
       }
-      db.prepare(
-        `UPDATE pedidos SET insumos_descontados = 1 WHERE id = ?`
-      ).run(pedidoId);
+      await sqlRun(
+        `UPDATE pedidos SET insumos_descontados = 1 WHERE id = ?`,
+        pedidoId
+      );
     }
 
-    db.prepare(
-      `UPDATE pedidos SET estado = ?, actualizado_en = ? WHERE id = ?`
-    ).run(estado, now, pedidoId);
+    await sqlRun(
+      `UPDATE pedidos SET estado = ?, actualizado_en = ? WHERE id = ?`,
+      estado,
+      now,
+      pedidoId
+    );
 
     const textos: Record<string, string> = {
       confirmado: `Tu pedido ${row.codigo} en Tostal fue confirmado. ¡Ya lo preparamos!`,
@@ -365,10 +378,9 @@ export function actualizarEstadoPedido(
       cancelado: `Tu pedido ${row.codigo} en Tostal fue cancelado. Escríbenos si tienes dudas.`,
     };
     if (textos[estado]) {
-      db.prepare(
+      await sqlRun(
         `INSERT INTO avisos_whatsapp (id, pedido_id, destinatario, telefono, evento, texto, estado, creado_en)
-         VALUES (?, ?, ?, ?, ?, ?, 'pendiente', ?)`
-      ).run(
+         VALUES (?, ?, ?, ?, ?, ?, 'pendiente', ?)`,
         id(),
         pedidoId,
         row.cliente_nombre,
@@ -380,19 +392,25 @@ export function actualizarEstadoPedido(
     }
   });
 
-  tx();
-  return { ok: true, pedido: getPedido(pedidoId)! };
+  const pedido = (await getPedido(pedidoId))!;
+  publishPedidoEvent("estado_cambiado", pedido);
+  return { ok: true, pedido };
 }
 
-export function marcarPago(
+export async function marcarPago(
   pedidoId: string,
   estadoPago: PedidoPublico["estadoPago"]
 ) {
-  boot();
-  getDb()
-    .prepare(
-      `UPDATE pedidos SET estado_pago = ?, actualizado_en = ? WHERE id = ?`
-    )
-    .run(estadoPago, new Date().toISOString(), pedidoId);
-  return getPedido(pedidoId);
+  await boot();
+  await sqlRun(
+    `UPDATE pedidos SET estado_pago = ?, actualizado_en = ? WHERE id = ?`,
+    estadoPago,
+    new Date().toISOString(),
+    pedidoId
+  );
+  const pedido = await getPedido(pedidoId);
+  if (pedido && estadoPago === "pagado") {
+    publishPedidoEvent("pago_confirmado", pedido);
+  }
+  return pedido;
 }

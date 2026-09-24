@@ -2,24 +2,23 @@ import Link from "next/link";
 import { listPedidos } from "@/lib/pedidos";
 import { listInsumos } from "@/lib/catalogo";
 import { getConfigPublica } from "@/lib/config";
-import { getDb } from "@/lib/db";
+import { sqlGet } from "@/lib/db";
 import { formatoMoneda, hoyISO } from "@/lib/utils";
 import { ensureSeed } from "@/lib/seed";
 
 export default async function PanelHome() {
-  ensureSeed();
+  await ensureSeed();
   const hoy = hoyISO();
-  const pedidosHoy = listPedidos({ fecha: hoy });
-  const insumos = listInsumos();
+  const pedidosHoy = await listPedidos({ fecha: hoy });
+  const insumos = await listInsumos();
   const bajos = insumos.filter((i) => i.stockActual <= i.stockMinimo);
-  const config = getConfigPublica();
-  const avisosPendientes = (
-    getDb()
-      .prepare(
+  const config = await getConfigPublica();
+  const avisosPendientes =
+    (
+      await sqlGet<{ c: number }>(
         `SELECT COUNT(*) as c FROM avisos_whatsapp WHERE estado = 'pendiente'`
       )
-      .get() as { c: number }
-  ).c;
+    )?.c ?? 0;
 
   const activos = pedidosHoy.filter((p) => p.estado !== "cancelado");
   const totalVentas = activos.reduce((a, p) => a + p.total, 0);

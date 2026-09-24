@@ -10,9 +10,12 @@ export async function OPTIONS(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const session = await getSession();
   if (session) {
-    return jsonOk({ public: getConfigPublica(), all: getConfigMap() }, req);
+    return jsonOk(
+      { public: await getConfigPublica(), all: await getConfigMap() },
+      req
+    );
   }
-  return jsonOk({ public: getConfigPublica() }, req);
+  return jsonOk({ public: await getConfigPublica() }, req);
 }
 
 export async function PUT(req: NextRequest) {
@@ -33,7 +36,10 @@ export async function PUT(req: NextRequest) {
     "plantilla_deadline_horas",
   ];
   for (const [k, v] of Object.entries(body)) {
-    if (allowed.includes(k)) setConfig(k, String(v));
+    if (allowed.includes(k)) await setConfig(k, String(v));
   }
-  return jsonOk({ public: getConfigPublica(), all: getConfigMap() }, req);
+  return jsonOk(
+    { public: await getConfigPublica(), all: await getConfigMap() },
+    req
+  );
 }

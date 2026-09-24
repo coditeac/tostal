@@ -1,32 +1,39 @@
 import bcrypt from "bcryptjs";
-import { getDb } from "./db";
+import { sqlGet, sqlRun, sqlTransaction } from "./db";
 import { aCentavos, hoyISO, id, sumarDias } from "./utils";
 
 const SEED_FLAG = "seed_version";
 const SEED_VERSION = "1";
 
-export function ensureSeed() {
-  const db = getDb();
-  const row = db
-    .prepare("SELECT valor FROM configuracion WHERE clave = ?")
-    .get(SEED_FLAG) as { valor: string } | undefined;
+export async function ensureSeed() {
+  const row = await sqlGet<{ valor: string }>(
+    "SELECT valor FROM configuracion WHERE clave = ?",
+    SEED_FLAG
+  );
   if (row?.valor === SEED_VERSION) return;
 
   const now = new Date().toISOString();
   const adminId = id();
   const hash = bcrypt.hashSync("tostal123", 10);
 
-  const run = db.transaction(() => {
+  await sqlTransaction(async () => {
     // Carrera entre workers de build/prerender: solo uno siembra.
-    const again = db
-      .prepare("SELECT valor FROM configuracion WHERE clave = ?")
-      .get(SEED_FLAG) as { valor: string } | undefined;
+    const again = await sqlGet<{ valor: string }>(
+      "SELECT valor FROM configuracion WHERE clave = ?",
+      SEED_FLAG
+    );
     if (again?.valor === SEED_VERSION) return;
 
-    db.prepare(
+    await sqlRun(
       `INSERT OR IGNORE INTO usuarios (id, email, nombre, rol, password_hash, activo, creado_en)
-       VALUES (?, ?, ?, ?, ?, 1, ?)`
-    ).run(adminId, "admin@tostal.mx", "Coditeac", "admin", hash, now);
+       VALUES (?, ?, ?, ?, ?, 1, ?)`,
+      adminId,
+      "admin@tostal.mx",
+      "Coditeac",
+      "admin",
+      hash,
+      now
+    );
 
     const configs: Record<string, string> = {
       marca: "Tostal",
@@ -40,26 +47,36 @@ export function ensureSeed() {
       stripe_mode: "mock",
       [SEED_FLAG]: SEED_VERSION,
     };
-    const upsertCfg = db.prepare(
-      `INSERT INTO configuracion (clave, valor) VALUES (?, ?)
-       ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor`
-    );
     for (const [k, v] of Object.entries(configs)) {
-      upsertCfg.run(k, v);
+      await sqlRun(
+        `INSERT INTO configuracion (clave, valor) VALUES (?, ?)
+         ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor`,
+        k,
+        v
+      );
     }
 
     const catTortas = id();
     const catInd = id();
     const catBeb = id();
-    db.prepare(
-      `INSERT INTO categorias (id, nombre, orden, activa) VALUES (?, ?, ?, 1)`
-    ).run(catTortas, "Tortas y pasteles", 1);
-    db.prepare(
-      `INSERT INTO categorias (id, nombre, orden, activa) VALUES (?, ?, ?, 1)`
-    ).run(catInd, "Individuales", 2);
-    db.prepare(
-      `INSERT INTO categorias (id, nombre, orden, activa) VALUES (?, ?, ?, 1)`
-    ).run(catBeb, "Bebidas", 3);
+    await sqlRun(
+      `INSERT INTO categorias (id, nombre, orden, activa) VALUES (?, ?, ?, 1)`,
+      catTortas,
+      "Tortas y pasteles",
+      1
+    );
+    await sqlRun(
+      `INSERT INTO categorias (id, nombre, orden, activa) VALUES (?, ?, ?, 1)`,
+      catInd,
+      "Individuales",
+      2
+    );
+    await sqlRun(
+      `INSERT INTO categorias (id, nombre, orden, activa) VALUES (?, ?, ?, 1)`,
+      catBeb,
+      "Bebidas",
+      3
+    );
 
     const insumos = [
       { nombre: "Harina de trigo", unidad: "g", stock: 5000, min: 1000, costo: 0.02 },
@@ -73,14 +90,12 @@ export function ensureSeed() {
     ] as const;
 
     const insumoIds: Record<string, string> = {};
-    const insStmt = db.prepare(
-      `INSERT INTO insumos (id, nombre, unidad, stock_actual, stock_minimo, costo_unitario, ubicacion, proveedor_preferido)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    );
     for (const i of insumos) {
       const iid = id();
       insumoIds[i.nombre] = iid;
-      insStmt.run(
+      await sqlRun(
+        `INSERT INTO insumos (id, nombre, unidad, stock_actual, stock_minimo, costo_unitario, ubicacion, proveedor_preferido)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         iid,
         i.nombre,
         i.unidad,
@@ -152,14 +167,13 @@ export function ensureSeed() {
     ] as const;
 
     const prodIds: string[] = [];
-    const pStmt = db.prepare(
-      `INSERT INTO productos (id, categoria_id, nombre, descripcion, precio, activo_catalogo, foto_url, alergenos, orden)
-       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)`
-    );
-    productos.forEach((p, idx) => {
+    for (let idx = 0; idx < productos.length; idx++) {
+      const p = productos[idx];
       const pid = id();
       prodIds.push(pid);
-      pStmt.run(
+      await sqlRun(
+        `INSERT INTO productos (id, categoria_id, nombre, descripcion, precio, activo_catalogo, foto_url, alergenos, orden)
+         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)`,
         pid,
         p.cat,
         p.nombre,
@@ -169,7 +183,7 @@ export function ensureSeed() {
         p.alergenos,
         idx + 1
       );
-    });
+    }
 
     const recetas: Array<[number, string, number]> = [
       [0, "Harina de trigo", 400],
@@ -195,31 +209,34 @@ export function ensureSeed() {
       [6, "Chocolate cobertura", 40],
       [6, "Leche", 200],
     ];
-    const rStmt = db.prepare(
-      `INSERT INTO receta_lineas (id, producto_id, insumo_id, cantidad) VALUES (?, ?, ?, ?)`
-    );
     for (const [pi, nombre, cant] of recetas) {
-      rStmt.run(id(), prodIds[pi], insumoIds[nombre], cant);
+      await sqlRun(
+        `INSERT INTO receta_lineas (id, producto_id, insumo_id, cantidad) VALUES (?, ?, ?, ?)`,
+        id(),
+        prodIds[pi],
+        insumoIds[nombre],
+        cant
+      );
     }
 
     const zona1 = id();
     const zona2 = id();
-    db.prepare(
-      `INSERT INTO zonas_envio (id, nombre, cobertura, costo_envio, activa) VALUES (?, ?, ?, ?, 1)`
-    ).run(zona1, "Centro", "Colonias del centro y Roma/Condesa", aCentavos(45));
-    db.prepare(
-      `INSERT INTO zonas_envio (id, nombre, cobertura, costo_envio, activa) VALUES (?, ?, ?, ?, 1)`
-    ).run(zona2, "Sur cercano", "Coyoacán y alrededores", aCentavos(65));
+    await sqlRun(
+      `INSERT INTO zonas_envio (id, nombre, cobertura, costo_envio, activa) VALUES (?, ?, ?, ?, 1)`,
+      zona1,
+      "Centro",
+      "Colonias del centro y Roma/Condesa",
+      aCentavos(45)
+    );
+    await sqlRun(
+      `INSERT INTO zonas_envio (id, nombre, cobertura, costo_envio, activa) VALUES (?, ?, ?, ?, 1)`,
+      zona2,
+      "Sur cercano",
+      "Coyoacán y alrededores",
+      aCentavos(65)
+    );
 
     const hoy = hoyISO();
-    const diaStmt = db.prepare(
-      `INSERT OR IGNORE INTO dias_operativos (id, fecha, abierto, deadline_pedido, cupo_maximo, notas)
-       VALUES (?, ?, 1, ?, ?, ?)`
-    );
-    const dispStmt = db.prepare(
-      `INSERT OR IGNORE INTO disponibilidad_producto_dia (id, fecha, producto_id, disponible)
-       VALUES (?, ?, ?, ?)`
-    );
 
     for (let i = 0; i < 14; i++) {
       const fecha = sumarDias(hoy, i);
@@ -230,22 +247,39 @@ export function ensureSeed() {
         // para hoy: deadline en 6 horas desde ahora para demos
         const d = new Date();
         d.setHours(d.getHours() + 6);
-        diaStmt.run(id(), fecha, d.toISOString(), 20, i === 0 ? "Día de demostración" : null);
+        await sqlRun(
+          `INSERT OR IGNORE INTO dias_operativos (id, fecha, abierto, deadline_pedido, cupo_maximo, notas)
+           VALUES (?, ?, 1, ?, ?, ?)`,
+          id(),
+          fecha,
+          d.toISOString(),
+          20,
+          "Día de demostración"
+        );
       } else {
-        diaStmt.run(id(), fecha, deadlineDate.toISOString(), 20, null);
+        await sqlRun(
+          `INSERT OR IGNORE INTO dias_operativos (id, fecha, abierto, deadline_pedido, cupo_maximo, notas)
+           VALUES (?, ?, 1, ?, ?, ?)`,
+          id(),
+          fecha,
+          deadlineDate.toISOString(),
+          20,
+          null
+        );
       }
       for (const pid of prodIds) {
         // El café solo algunos días
         const esCafe = pid === prodIds[5] || pid === prodIds[6];
         const disponible = !esCafe || i % 2 === 0 ? 1 : 0;
-        if (disponible) {
-          dispStmt.run(id(), fecha, pid, 1);
-        } else {
-          dispStmt.run(id(), fecha, pid, 0);
-        }
+        await sqlRun(
+          `INSERT OR IGNORE INTO disponibilidad_producto_dia (id, fecha, producto_id, disponible)
+           VALUES (?, ?, ?, ?)`,
+          id(),
+          fecha,
+          pid,
+          disponible
+        );
       }
     }
   });
-
-  run();
 }

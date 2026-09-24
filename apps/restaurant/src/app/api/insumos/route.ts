@@ -11,7 +11,7 @@ export async function OPTIONS(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const auth = await requireSession();
   if (!isSessionUser(auth)) return auth;
-  const insumos = listInsumos().map((i) => ({
+  const insumos = (await listInsumos()).map((i) => ({
     ...i,
     bajoMinimo: i.stockActual <= i.stockMinimo,
   }));
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       ? Math.round(body.costoUnitario)
       : aCentavos(Number(body.costoPesos ?? body.costoUnitario ?? 0));
 
-  const insumo = upsertInsumo({
+  const insumo = await upsertInsumo({
     nombre: String(body.nombre),
     unidad: body.unidad,
     stockActual: Number(body.stockActual ?? 0),
@@ -54,7 +54,7 @@ export async function PUT(req: NextRequest) {
         : aCentavos(body.costoUnitario)
       : aCentavos(Number(body.costoPesos ?? 0));
 
-  const insumo = upsertInsumo({
+  const insumo = await upsertInsumo({
     id: body.id,
     nombre: String(body.nombre),
     unidad: body.unidad,
