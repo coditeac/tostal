@@ -18,18 +18,22 @@ export async function OPTIONS(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const auth = await requireSession();
   if (!isSessionUser(auth)) return auth;
-  const productos = listProductos().map((p) => {
-    const costo = costoTeoricoProducto(p.id);
+  const productosRaw = await listProductos();
+  const productos = [];
+  for (const p of productosRaw) {
+    const costo = await costoTeoricoProducto(p.id);
     const margen =
-      p.precio > 0 ? Math.round(((p.precio - costo) / p.precio) * 1000) / 10 : 0;
-    return {
+      p.precio > 0
+        ? Math.round(((p.precio - costo) / p.precio) * 1000) / 10
+        : 0;
+    productos.push({
       ...p,
       costoTeorico: costo,
       margenPct: margen,
-      receta: getReceta(p.id),
-    };
-  });
-  return jsonOk({ productos, categorias: listCategorias() }, req);
+      receta: await getReceta(p.id),
+    });
+  }
+  return jsonOk({ productos, categorias: await listCategorias() }, req);
 }
 
 export async function POST(req: NextRequest) {
@@ -44,7 +48,7 @@ export async function POST(req: NextRequest) {
         : aCentavos(body.precio)
       : aCentavos(Number(body.precioPesos || 0));
 
-  const producto = upsertProducto({
+  const producto = await upsertProducto({
     categoriaId: body.categoriaId || null,
     nombre: String(body.nombre),
     descripcion: body.descripcion || null,
@@ -55,7 +59,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (Array.isArray(body.receta)) {
-    setReceta(
+    await setReceta(
       producto.id,
       body.receta.map((r: { insumoId: string; cantidad: number }) => ({
         insumoId: r.insumoId,
@@ -64,7 +68,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return jsonOk({ producto, receta: getReceta(producto.id) }, req, 201);
+  return jsonOk(
+    { producto, receta: await getReceta(producto.id) },
+    req,
+    201
+  );
 }
 
 export async function PUT(req: NextRequest) {
@@ -79,7 +87,7 @@ export async function PUT(req: NextRequest) {
         : aCentavos(body.precio)
       : undefined;
 
-  const producto = upsertProducto({
+  const producto = await upsertProducto({
     id: body.id,
     categoriaId: body.categoriaId ?? null,
     nombre: String(body.nombre),
@@ -91,7 +99,7 @@ export async function PUT(req: NextRequest) {
   });
 
   if (Array.isArray(body.receta)) {
-    setReceta(
+    await setReceta(
       producto.id,
       body.receta.map((r: { insumoId: string; cantidad: number }) => ({
         insumoId: r.insumoId,
@@ -100,9 +108,12 @@ export async function PUT(req: NextRequest) {
     );
   }
 
-  return jsonOk({
-    producto,
-    receta: getReceta(producto.id),
-    costoTeorico: costoTeoricoProducto(producto.id),
-  }, req);
+  return jsonOk(
+    {
+      producto,
+      receta: await getReceta(producto.id),
+      costoTeorico: await costoTeoricoProducto(producto.id),
+    },
+    req
+  );
 }

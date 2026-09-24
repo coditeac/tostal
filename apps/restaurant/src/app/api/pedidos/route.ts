@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (!isSessionUser(auth)) return auth;
   const fecha = req.nextUrl.searchParams.get("fecha") || undefined;
   const canal = req.nextUrl.searchParams.get("canal") || undefined;
-  const pedidos = listPedidos({
+  const pedidos = await listPedidos({
     fecha: fecha === "todos" ? undefined : fecha || hoyISO(),
     canal: canal || undefined,
   });
@@ -31,11 +31,11 @@ export async function PATCH(req: NextRequest) {
   if (!body?.id) return jsonError("Falta id.", req);
 
   if (body.estadoPago) {
-    const pedido = marcarPago(body.id, body.estadoPago);
+    const pedido = await marcarPago(body.id, body.estadoPago);
     return jsonOk({ pedido }, req);
   }
   if (body.estado) {
-    const result = actualizarEstadoPedido(body.id, body.estado, auth.id);
+    const result = await actualizarEstadoPedido(body.id, body.estado, auth.id);
     if (!result.ok) return jsonError(result.error, req);
     return jsonOk({ pedido: result.pedido }, req);
   }

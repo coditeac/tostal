@@ -1,4 +1,4 @@
-import { getDb } from "./db";
+import { sqlAll, sqlGet, sqlRun, sqlTransaction } from "./db";
 import { ensureSeed } from "./seed";
 import { getConfigPublica } from "./config";
 import { id } from "./utils";
@@ -12,27 +12,22 @@ import type {
   ZonaEnvio,
 } from "../../../../shared/types";
 
-function boot() {
-  ensureSeed();
+async function boot() {
+  await ensureSeed();
 }
 
 /** Filas SQLite traen 0/1 donde el tipo de dominio usa boolean. */
 type SqliteBool<T, K extends keyof T> = Omit<T, K> & { [P in K]: number };
 
-export function listCategorias(): Categoria[] {
-  boot();
-  return (
-    getDb()
-      .prepare(
-        `SELECT id, nombre, orden, activa FROM categorias ORDER BY orden, nombre`
-      )
-      .all() as Array<{
-      id: string;
-      nombre: string;
-      orden: number;
-      activa: number;
-    }>
-  ).map((r) => ({
+export async function listCategorias(): Promise<Categoria[]> {
+  await boot();
+  const rows = await sqlAll<{
+    id: string;
+    nombre: string;
+    orden: number;
+    activa: number;
+  }>(`SELECT id, nombre, orden, activa FROM categorias ORDER BY orden, nombre`);
+  return rows.map((r) => ({
     id: r.id,
     nombre: r.nombre,
     orden: r.orden,
@@ -40,43 +35,39 @@ export function listCategorias(): Categoria[] {
   }));
 }
 
-export function listProductos(): Array<
-  Producto & { categoriaNombre: string | null }
+export async function listProductos(): Promise<
+  Array<Producto & { categoriaNombre: string | null }>
 > {
-  boot();
-  return (
-    getDb()
-      .prepare(
-        `SELECT p.id, p.categoria_id as categoriaId, p.nombre, p.descripcion,
-                p.precio, p.activo_catalogo as activoCatalogo, p.foto_url as fotoUrl,
-                p.alergenos, p.orden, c.nombre as categoriaNombre
-         FROM productos p
-         LEFT JOIN categorias c ON c.id = p.categoria_id
-         ORDER BY p.orden, p.nombre`
-      )
-      .all() as Array<
-        SqliteBool<Producto, "activoCatalogo"> & { categoriaNombre: string | null }
-      >
-  ).map((r) => ({
+  await boot();
+  const rows = await sqlAll<
+    SqliteBool<Producto, "activoCatalogo"> & { categoriaNombre: string | null }
+  >(
+    `SELECT p.id, p.categoria_id as categoriaId, p.nombre, p.descripcion,
+            p.precio, p.activo_catalogo as activoCatalogo, p.foto_url as fotoUrl,
+            p.alergenos, p.orden, c.nombre as categoriaNombre
+     FROM productos p
+     LEFT JOIN categorias c ON c.id = p.categoria_id
+     ORDER BY p.orden, p.nombre`
+  );
+  return rows.map((r) => ({
     ...r,
     activoCatalogo: !!r.activoCatalogo,
   }));
 }
 
-export function getProducto(idProd: string): Producto | null {
-  boot();
-  const r = getDb()
-    .prepare(
-      `SELECT id, categoria_id as categoriaId, nombre, descripcion, precio,
-              activo_catalogo as activoCatalogo, foto_url as fotoUrl, alergenos, orden
-       FROM productos WHERE id = ?`
-    )
-    .get(idProd) as SqliteBool<Producto, "activoCatalogo"> | undefined;
+export async function getProducto(idProd: string): Promise<Producto | null> {
+  await boot();
+  const r = await sqlGet<SqliteBool<Producto, "activoCatalogo">>(
+    `SELECT id, categoria_id as categoriaId, nombre, descripcion, precio,
+            activo_catalogo as activoCatalogo, foto_url as fotoUrl, alergenos, orden
+     FROM productos WHERE id = ?`,
+    idProd
+  );
   if (!r) return null;
   return { ...r, activoCatalogo: !!r.activoCatalogo };
 }
 
-export function upsertProducto(data: {
+export async function upsertProducto(data: {
   id?: string;
   categoriaId: string | null;
   nombre: string;
@@ -85,15 +76,13 @@ export function upsertProducto(data: {
   activoCatalogo: boolean;
   alergenos: string | null;
   orden?: number;
-}): Producto {
-  boot();
-  const db = getDb();
+}): Promise<Producto> {
+  await boot();
   const pid = data.id || id();
   if (data.id) {
-    db.prepare(
+    await sqlRun(
       `UPDATE productos SET categoria_id=?, nombre=?, descripcion=?, precio=?,
-       activo_catalogo=?, alergenos=?, orden=? WHERE id=?`
-    ).run(
+       activo_catalogo=?, alergenos=?, orden=? WHERE id=?`,
       data.categoriaId,
       data.nombre,
       data.descripcion,
@@ -104,10 +93,9 @@ export function upsertProducto(data: {
       pid
     );
   } else {
-    db.prepare(
+    await sqlRun(
       `INSERT INTO productos (id, categoria_id, nombre, descripcion, precio, activo_catalogo, foto_url, alergenos, orden)
-       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)`
-    ).run(
+       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
       pid,
       data.categoriaId,
       data.nombre,
@@ -118,23 +106,19 @@ export function upsertProducto(data: {
       data.orden ?? 0
     );
   }
-  return getProducto(pid)!;
+  return (await getProducto(pid))!;
 }
 
-export function listInsumos(): Insumo[] {
-  boot();
-  return (
-    getDb()
-      .prepare(
-        `SELECT id, nombre, unidad, stock_actual as stockActual, stock_minimo as stockMinimo,
-                costo_unitario as costoUnitario, ubicacion, proveedor_preferido as proveedorPreferido
-         FROM insumos ORDER BY nombre`
-      )
-      .all() as Insumo[]
+export async function listInsumos(): Promise<Insumo[]> {
+  await boot();
+  return sqlAll<Insumo>(
+    `SELECT id, nombre, unidad, stock_actual as stockActual, stock_minimo as stockMinimo,
+            costo_unitario as costoUnitario, ubicacion, proveedor_preferido as proveedorPreferido
+     FROM insumos ORDER BY nombre`
   );
 }
 
-export function upsertInsumo(data: {
+export async function upsertInsumo(data: {
   id?: string;
   nombre: string;
   unidad: Insumo["unidad"];
@@ -143,15 +127,13 @@ export function upsertInsumo(data: {
   costoUnitario: number;
   ubicacion: string | null;
   proveedorPreferido: string | null;
-}): Insumo {
-  boot();
-  const db = getDb();
+}): Promise<Insumo> {
+  await boot();
   const iid = data.id || id();
   if (data.id) {
-    db.prepare(
+    await sqlRun(
       `UPDATE insumos SET nombre=?, unidad=?, stock_actual=?, stock_minimo=?,
-       costo_unitario=?, ubicacion=?, proveedor_preferido=? WHERE id=?`
-    ).run(
+       costo_unitario=?, ubicacion=?, proveedor_preferido=? WHERE id=?`,
       data.nombre,
       data.unidad,
       data.stockActual,
@@ -162,10 +144,9 @@ export function upsertInsumo(data: {
       iid
     );
   } else {
-    db.prepare(
+    await sqlRun(
       `INSERT INTO insumos (id, nombre, unidad, stock_actual, stock_minimo, costo_unitario, ubicacion, proveedor_preferido)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       iid,
       data.nombre,
       data.unidad,
@@ -176,46 +157,48 @@ export function upsertInsumo(data: {
       data.proveedorPreferido
     );
   }
-  return listInsumos().find((i) => i.id === iid)!;
+  return (await listInsumos()).find((i) => i.id === iid)!;
 }
 
-export function getReceta(productoId: string): LineaReceta[] {
-  boot();
-  return getDb()
-    .prepare(
-      `SELECT r.id, r.producto_id as productoId, r.insumo_id as insumoId, r.cantidad,
-              i.nombre as insumoNombre, i.unidad
-       FROM receta_lineas r
-       JOIN insumos i ON i.id = r.insumo_id
-       WHERE r.producto_id = ?
-       ORDER BY i.nombre`
-    )
-    .all(productoId) as LineaReceta[];
+export async function getReceta(productoId: string): Promise<LineaReceta[]> {
+  await boot();
+  return sqlAll<LineaReceta>(
+    `SELECT r.id, r.producto_id as productoId, r.insumo_id as insumoId, r.cantidad,
+            i.nombre as insumoNombre, i.unidad
+     FROM receta_lineas r
+     JOIN insumos i ON i.id = r.insumo_id
+     WHERE r.producto_id = ?
+     ORDER BY i.nombre`,
+    productoId
+  );
 }
 
-export function setReceta(
+export async function setReceta(
   productoId: string,
   lineas: Array<{ insumoId: string; cantidad: number }>
 ) {
-  boot();
-  const db = getDb();
-  const tx = db.transaction(() => {
-    db.prepare(`DELETE FROM receta_lineas WHERE producto_id = ?`).run(productoId);
-    const stmt = db.prepare(
-      `INSERT INTO receta_lineas (id, producto_id, insumo_id, cantidad) VALUES (?, ?, ?, ?)`
-    );
+  await boot();
+  await sqlTransaction(async () => {
+    await sqlRun(`DELETE FROM receta_lineas WHERE producto_id = ?`, productoId);
     for (const l of lineas) {
       if (l.cantidad <= 0) continue;
-      stmt.run(id(), productoId, l.insumoId, l.cantidad);
+      await sqlRun(
+        `INSERT INTO receta_lineas (id, producto_id, insumo_id, cantidad) VALUES (?, ?, ?, ?)`,
+        id(),
+        productoId,
+        l.insumoId,
+        l.cantidad
+      );
     }
   });
-  tx();
   return getReceta(productoId);
 }
 
-export function costoTeoricoProducto(productoId: string): number {
-  const lineas = getReceta(productoId);
-  const insumos = Object.fromEntries(listInsumos().map((i) => [i.id, i]));
+export async function costoTeoricoProducto(productoId: string): Promise<number> {
+  const lineas = await getReceta(productoId);
+  const insumos = Object.fromEntries(
+    (await listInsumos()).map((i) => [i.id, i])
+  );
   return lineas.reduce((acc, l) => {
     const i = insumos[l.insumoId];
     if (!i) return acc;
@@ -223,48 +206,47 @@ export function costoTeoricoProducto(productoId: string): number {
   }, 0);
 }
 
-export function listDias(from: string, to: string): DiaOperativo[] {
-  boot();
-  return (
-    getDb()
-      .prepare(
-        `SELECT id, fecha, abierto, deadline_pedido as deadlinePedido,
-                cupo_maximo as cupoMaximo, notas
-         FROM dias_operativos
-         WHERE fecha >= ? AND fecha <= ?
-         ORDER BY fecha`
-      )
-      .all(from, to) as Array<SqliteBool<DiaOperativo, "abierto">>
-  ).map((d) => ({ ...d, abierto: !!d.abierto }));
+export async function listDias(
+  from: string,
+  to: string
+): Promise<DiaOperativo[]> {
+  await boot();
+  const rows = await sqlAll<SqliteBool<DiaOperativo, "abierto">>(
+    `SELECT id, fecha, abierto, deadline_pedido as deadlinePedido,
+            cupo_maximo as cupoMaximo, notas
+     FROM dias_operativos
+     WHERE fecha >= ? AND fecha <= ?
+     ORDER BY fecha`,
+    from,
+    to
+  );
+  return rows.map((d) => ({ ...d, abierto: !!d.abierto }));
 }
 
-export function getDia(fecha: string): DiaOperativo | null {
-  boot();
-  const d = getDb()
-    .prepare(
-      `SELECT id, fecha, abierto, deadline_pedido as deadlinePedido,
-              cupo_maximo as cupoMaximo, notas
-       FROM dias_operativos WHERE fecha = ?`
-    )
-    .get(fecha) as SqliteBool<DiaOperativo, "abierto"> | undefined;
+export async function getDia(fecha: string): Promise<DiaOperativo | null> {
+  await boot();
+  const d = await sqlGet<SqliteBool<DiaOperativo, "abierto">>(
+    `SELECT id, fecha, abierto, deadline_pedido as deadlinePedido,
+            cupo_maximo as cupoMaximo, notas
+     FROM dias_operativos WHERE fecha = ?`,
+    fecha
+  );
   if (!d) return null;
   return { ...d, abierto: !!d.abierto };
 }
 
-export function upsertDia(data: {
+export async function upsertDia(data: {
   fecha: string;
   abierto: boolean;
   deadlinePedido: string;
   cupoMaximo: number | null;
   notas: string | null;
-}): DiaOperativo {
-  boot();
-  const db = getDb();
-  const existing = getDia(data.fecha);
+}): Promise<DiaOperativo> {
+  await boot();
+  const existing = await getDia(data.fecha);
   if (existing) {
-    db.prepare(
-      `UPDATE dias_operativos SET abierto=?, deadline_pedido=?, cupo_maximo=?, notas=? WHERE fecha=?`
-    ).run(
+    await sqlRun(
+      `UPDATE dias_operativos SET abierto=?, deadline_pedido=?, cupo_maximo=?, notas=? WHERE fecha=?`,
       data.abierto ? 1 : 0,
       data.deadlinePedido,
       data.cupoMaximo,
@@ -272,10 +254,9 @@ export function upsertDia(data: {
       data.fecha
     );
   } else {
-    db.prepare(
+    await sqlRun(
       `INSERT INTO dias_operativos (id, fecha, abierto, deadline_pedido, cupo_maximo, notas)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    ).run(
+       VALUES (?, ?, ?, ?, ?, ?)`,
       id(),
       data.fecha,
       data.abierto ? 1 : 0,
@@ -284,32 +265,33 @@ export function upsertDia(data: {
       data.notas
     );
   }
-  return getDia(data.fecha)!;
+  return (await getDia(data.fecha))!;
 }
 
-export function getDisponibilidad(fecha: string): Array<{
-  productoId: string;
-  disponible: boolean;
-  productoNombre: string;
-}> {
-  boot();
-  const rows = getDb()
-    .prepare(
-      `SELECT d.producto_id as productoId, d.disponible, p.nombre as productoNombre
-       FROM disponibilidad_producto_dia d
-       JOIN productos p ON p.id = d.producto_id
-       WHERE d.fecha = ?
-       ORDER BY p.orden, p.nombre`
-    )
-    .all(fecha) as Array<{
+export async function getDisponibilidad(fecha: string): Promise<
+  Array<{
+    productoId: string;
+    disponible: boolean;
+    productoNombre: string;
+  }>
+> {
+  await boot();
+  const rows = await sqlAll<{
     productoId: string;
     disponible: number;
     productoNombre: string;
-  }>;
+  }>(
+    `SELECT d.producto_id as productoId, d.disponible, p.nombre as productoNombre
+     FROM disponibilidad_producto_dia d
+     JOIN productos p ON p.id = d.producto_id
+     WHERE d.fecha = ?
+     ORDER BY p.orden, p.nombre`,
+    fecha
+  );
 
   if (rows.length === 0) {
     // Si no hay filas, devolver todos los productos del catálogo como no configurados
-    return listProductos().map((p) => ({
+    return (await listProductos()).map((p) => ({
       productoId: p.id,
       disponible: false,
       productoNombre: p.nombre,
@@ -322,56 +304,54 @@ export function getDisponibilidad(fecha: string): Array<{
   }));
 }
 
-export function setDisponibilidad(
+export async function setDisponibilidad(
   fecha: string,
   items: Array<{ productoId: string; disponible: boolean }>
 ) {
-  boot();
-  const db = getDb();
-  const stmt = db.prepare(
-    `INSERT INTO disponibilidad_producto_dia (id, fecha, producto_id, disponible)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(fecha, producto_id) DO UPDATE SET disponible = excluded.disponible`
-  );
-  const tx = db.transaction(() => {
+  await boot();
+  await sqlTransaction(async () => {
     for (const it of items) {
-      stmt.run(id(), fecha, it.productoId, it.disponible ? 1 : 0);
+      await sqlRun(
+        `INSERT INTO disponibilidad_producto_dia (id, fecha, producto_id, disponible)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(fecha, producto_id) DO UPDATE SET disponible = excluded.disponible`,
+        id(),
+        fecha,
+        it.productoId,
+        it.disponible ? 1 : 0
+      );
     }
   });
-  tx();
   return getDisponibilidad(fecha);
 }
 
-export function copiarDisponibilidad(desde: string, hacia: string) {
-  const items = getDisponibilidad(desde).map((i) => ({
+export async function copiarDisponibilidad(desde: string, hacia: string) {
+  const items = (await getDisponibilidad(desde)).map((i) => ({
     productoId: i.productoId,
     disponible: i.disponible,
   }));
   return setDisponibilidad(hacia, items);
 }
 
-export function listZonas(): ZonaEnvio[] {
-  boot();
-  return (
-    getDb()
-      .prepare(
-        `SELECT id, nombre, cobertura, costo_envio as costoEnvio, activa
-         FROM zonas_envio ORDER BY nombre`
-      )
-      .all() as Array<SqliteBool<ZonaEnvio, "activa">>
-  ).map((z) => ({ ...z, activa: !!z.activa }));
+export async function listZonas(): Promise<ZonaEnvio[]> {
+  await boot();
+  const rows = await sqlAll<SqliteBool<ZonaEnvio, "activa">>(
+    `SELECT id, nombre, cobertura, costo_envio as costoEnvio, activa
+     FROM zonas_envio ORDER BY nombre`
+  );
+  return rows.map((z) => ({ ...z, activa: !!z.activa }));
 }
 
-export function getMenuPorDia(fecha: string): MenuDiaResponse {
-  boot();
-  const dia = getDia(fecha);
-  const config = getConfigPublica();
-  const categorias = listCategorias().filter((c) => c.activa);
-  const zonas = listZonas().filter((z) => z.activa);
+export async function getMenuPorDia(fecha: string): Promise<MenuDiaResponse> {
+  await boot();
+  const dia = await getDia(fecha);
+  const config = await getConfigPublica();
+  const categorias = (await listCategorias()).filter((c) => c.activa);
+  const zonas = (await listZonas()).filter((z) => z.activa);
   const disp = Object.fromEntries(
-    getDisponibilidad(fecha).map((d) => [d.productoId, d.disponible])
+    (await getDisponibilidad(fecha)).map((d) => [d.productoId, d.disponible])
   );
-  const productos = listProductos()
+  const productos = (await listProductos())
     .filter((p) => p.activoCatalogo)
     .map((p) => ({
       ...p,

@@ -1,16 +1,14 @@
-import { getDb } from "./db";
+import { sqlAll, sqlGet, sqlRun, sqlTransaction } from "./db";
 import { ensureSeed } from "./seed";
 import { getConfigPublica } from "./config";
 import { getProducto, listProductos } from "./catalogo";
 import { id, hoyISO } from "./utils";
-import type {
-  MetodoPago,
-  PedidoPublico,
-} from "../../../../shared/types";
+import type { MetodoPago, PedidoPublico } from "../../../../shared/types";
 import { mapPedido, getPedido, actualizarEstadoPedido } from "./pedidos";
+import { publishPedidoEvent } from "./pedido-events";
 
-function boot() {
-  ensureSeed();
+async function boot() {
+  await ensureSeed();
 }
 
 export type TurnoCaja = {
@@ -44,43 +42,47 @@ function mapTurno(row: Record<string, unknown>): TurnoCaja {
   };
 }
 
-export function getTurnoAbierto(): TurnoCaja | null {
-  boot();
-  const row = getDb()
-    .prepare(`SELECT * FROM turnos_caja WHERE cerrado_en IS NULL ORDER BY abierto_en DESC LIMIT 1`)
-    .get() as Record<string, unknown> | undefined;
+export async function getTurnoAbierto(): Promise<TurnoCaja | null> {
+  await boot();
+  const row = await sqlGet<Record<string, unknown>>(
+    `SELECT * FROM turnos_caja WHERE cerrado_en IS NULL ORDER BY abierto_en DESC LIMIT 1`
+  );
   return row ? mapTurno(row) : null;
 }
 
-export function abrirTurno(usuarioId?: string | null): TurnoCaja {
-  boot();
-  const existing = getTurnoAbierto();
+export async function abrirTurno(
+  usuarioId?: string | null
+): Promise<TurnoCaja> {
+  await boot();
+  const existing = await getTurnoAbierto();
   if (existing) return existing;
   const tid = id();
   const now = new Date().toISOString();
-  getDb()
-    .prepare(
-      `INSERT INTO turnos_caja (id, abierto_en, cerrado_en, usuario_id, total_efectivo, total_otros, notas, contador_fichas)
-       VALUES (?, ?, NULL, ?, 0, 0, NULL, 0)`
-    )
-    .run(tid, now, usuarioId || null);
-  return getTurnoAbierto()!;
+  await sqlRun(
+    `INSERT INTO turnos_caja (id, abierto_en, cerrado_en, usuario_id, total_efectivo, total_otros, notas, contador_fichas)
+     VALUES (?, ?, NULL, ?, 0, 0, NULL, 0)`,
+    tid,
+    now,
+    usuarioId || null
+  );
+  return (await getTurnoAbierto())!;
 }
 
-export function cerrarTurno(notas?: string | null): TurnoCaja | null {
-  boot();
-  const turno = getTurnoAbierto();
+export async function cerrarTurno(
+  notas?: string | null
+): Promise<TurnoCaja | null> {
+  await boot();
+  const turno = await getTurnoAbierto();
   if (!turno) return null;
   const now = new Date().toISOString();
 
   // Recalcular totales del turno desde pedidos
-  const rows = getDb()
-    .prepare(
-      `SELECT metodo_pago as metodo, SUM(total) as t FROM pedidos
-       WHERE turno_id = ? AND estado != 'cancelado' AND estado_pago = 'pagado'
-       GROUP BY metodo_pago`
-    )
-    .all(turno.id) as Array<{ metodo: string; t: number }>;
+  const rows = await sqlAll<{ metodo: string; t: number }>(
+    `SELECT metodo_pago as metodo, SUM(total) as t FROM pedidos
+     WHERE turno_id = ? AND estado != 'cancelado' AND estado_pago = 'pagado'
+     GROUP BY metodo_pago`,
+    turno.id
+  );
 
   let efectivo = 0;
   let otros = 0;
@@ -89,43 +91,51 @@ export function cerrarTurno(notas?: string | null): TurnoCaja | null {
     else otros += r.t;
   }
 
-  getDb()
-    .prepare(
-      `UPDATE turnos_caja SET cerrado_en = ?, total_efectivo = ?, total_otros = ?, notas = ? WHERE id = ?`
-    )
-    .run(now, efectivo, otros, notas || null, turno.id);
-
-  return mapTurno(
-    getDb().prepare(`SELECT * FROM turnos_caja WHERE id = ?`).get(turno.id) as Record<
-      string,
-      unknown
-    >
+  await sqlRun(
+    `UPDATE turnos_caja SET cerrado_en = ?, total_efectivo = ?, total_otros = ?, notas = ? WHERE id = ?`,
+    now,
+    efectivo,
+    otros,
+    notas || null,
+    turno.id
   );
+
+  const closed = await sqlGet<Record<string, unknown>>(
+    `SELECT * FROM turnos_caja WHERE id = ?`,
+    turno.id
+  );
+  return mapTurno(closed!);
 }
 
-function siguienteFicha(turnoId: string): string {
-  const db = getDb();
-  db.prepare(
-    `UPDATE turnos_caja SET contador_fichas = contador_fichas + 1 WHERE id = ?`
-  ).run(turnoId);
-  const n = (
-    db
-      .prepare(`SELECT contador_fichas as n FROM turnos_caja WHERE id = ?`)
-      .get(turnoId) as { n: number }
-  ).n;
-  return `F-${String(n).padStart(3, "0")}`;
+async function siguienteFicha(turnoId: string): Promise<string> {
+  await sqlRun(
+    `UPDATE turnos_caja SET contador_fichas = contador_fichas + 1 WHERE id = ?`,
+    turnoId
+  );
+  const row = await sqlGet<{ n: number }>(
+    `SELECT contador_fichas as n FROM turnos_caja WHERE id = ?`,
+    turnoId
+  );
+  return `F-${String(row!.n).padStart(3, "0")}`;
 }
 
-export function crearPedidoMostrador(input: {
+export async function crearPedidoMostrador(input: {
   clienteNombre?: string;
   clienteTelefono?: string;
   metodoPago: MetodoPago;
-  lineas: Array<{ productoId: string; cantidad: number; desdeVitrina?: boolean }>;
+  lineas: Array<{
+    productoId: string;
+    cantidad: number;
+    desdeVitrina?: boolean;
+  }>;
   notas?: string | null;
   usuarioId?: string | null;
-}): { ok: true; pedido: PedidoPublico & { fichaCodigo: string } } | { ok: false; error: string } {
-  boot();
-  const config = getConfigPublica();
+}): Promise<
+  | { ok: true; pedido: PedidoPublico & { fichaCodigo: string } }
+  | { ok: false; error: string }
+> {
+  await boot();
+  const config = await getConfigPublica();
   if (!config.canalMostradorActivo) {
     return {
       ok: false,
@@ -136,12 +146,11 @@ export function crearPedidoMostrador(input: {
     return { ok: false, error: "Agrega al menos un producto." };
   }
 
-  let turno = getTurnoAbierto();
+  let turno = await getTurnoAbierto();
   if (!turno) {
-    turno = abrirTurno(input.usuarioId);
+    turno = await abrirTurno(input.usuarioId);
   }
 
-  const db = getDb();
   let subtotal = 0;
   const lineasResueltas: Array<{
     productoId: string;
@@ -154,16 +163,16 @@ export function crearPedidoMostrador(input: {
 
   for (const l of input.lineas) {
     if (l.cantidad < 1) return { ok: false, error: "Cantidad inválida." };
-    const prod = getProducto(l.productoId);
+    const prod = await getProducto(l.productoId);
     if (!prod || !prod.activoCatalogo) {
       return { ok: false, error: "Producto no disponible." };
     }
     if (l.desdeVitrina) {
-      const stock = (
-        db
-          .prepare(`SELECT cantidad FROM vitrina_stock WHERE producto_id = ?`)
-          .get(l.productoId) as { cantidad: number } | undefined
-      )?.cantidad ?? 0;
+      const stockRow = await sqlGet<{ cantidad: number }>(
+        `SELECT cantidad FROM vitrina_stock WHERE producto_id = ?`,
+        l.productoId
+      );
+      const stock = stockRow?.cantidad ?? 0;
       if (stock < l.cantidad) {
         return {
           ok: false,
@@ -188,21 +197,21 @@ export function crearPedidoMostrador(input: {
   const codigo = `M-${hoyISO().slice(5).replace("-", "")}-${Math.floor(
     100 + Math.random() * 900
   )}`;
-  const ficha = siguienteFicha(turno.id);
+  const ficha = await siguienteFicha(turno.id);
   const nombre = (input.clienteNombre || "Cliente mostrador").trim();
   const telefono = (input.clienteTelefono || "0000000000").trim();
   const metodo = input.metodoPago || "efectivo_mostrador";
   const necesitaPrep = lineasResueltas.some((l) => !l.desdeVitrina);
+  const turnoId = turno.id;
 
-  const tx = db.transaction(() => {
-    db.prepare(
+  await sqlTransaction(async () => {
+    await sqlRun(
       `INSERT INTO pedidos (
         id, codigo, canal, estado, estado_pago, metodo_pago, modo_entrega,
         fecha_entrega, zona_id, cliente_id, cliente_nombre, cliente_telefono,
         direccion, subtotal, costo_envio, total, notas, insumos_descontados,
         ficha_codigo, creado_en, actualizado_en, turno_id
-      ) VALUES (?, ?, 'mostrador', ?, 'pagado', ?, 'retiro', ?, NULL, NULL, ?, ?, NULL, ?, 0, ?, ?, 0, ?, ?, ?, ?)`
-    ).run(
+      ) VALUES (?, ?, 'mostrador', ?, 'pagado', ?, 'retiro', ?, NULL, NULL, ?, ?, NULL, ?, 0, ?, ?, 0, ?, ?, ?, ?)`,
       pedidoId,
       codigo,
       necesitaPrep ? "confirmado" : "listo",
@@ -216,15 +225,13 @@ export function crearPedidoMostrador(input: {
       ficha,
       now,
       now,
-      turno!.id
+      turnoId
     );
 
-    const lStmt = db.prepare(
-      `INSERT INTO pedido_lineas (id, pedido_id, producto_id, producto_nombre, cantidad, precio_unitario, subtotal, notas)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    );
     for (const l of lineasResueltas) {
-      lStmt.run(
+      await sqlRun(
+        `INSERT INTO pedido_lineas (id, pedido_id, producto_id, producto_nombre, cantidad, precio_unitario, subtotal, notas)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         id(),
         pedidoId,
         l.productoId,
@@ -235,47 +242,63 @@ export function crearPedidoMostrador(input: {
         l.desdeVitrina ? "vitrina" : null
       );
       if (l.desdeVitrina) {
-        db.prepare(
-          `UPDATE vitrina_stock SET cantidad = cantidad - ? WHERE producto_id = ?`
-        ).run(l.cantidad, l.productoId);
-        db.prepare(
+        await sqlRun(
+          `UPDATE vitrina_stock SET cantidad = cantidad - ? WHERE producto_id = ?`,
+          l.cantidad,
+          l.productoId
+        );
+        await sqlRun(
           `INSERT INTO vitrina_movimientos (id, producto_id, tipo, cantidad, pedido_id, motivo, creado_en)
-           VALUES (?, ?, 'venta', ?, ?, 'Venta mostrador', ?)`
-        ).run(id(), l.productoId, l.cantidad, pedidoId, now);
+           VALUES (?, ?, 'venta', ?, ?, 'Venta mostrador', ?)`,
+          id(),
+          l.productoId,
+          l.cantidad,
+          pedidoId,
+          now
+        );
       }
     }
 
     if (metodo === "efectivo_mostrador") {
-      db.prepare(
-        `UPDATE turnos_caja SET total_efectivo = total_efectivo + ? WHERE id = ?`
-      ).run(subtotal, turno!.id);
+      await sqlRun(
+        `UPDATE turnos_caja SET total_efectivo = total_efectivo + ? WHERE id = ?`,
+        subtotal,
+        turnoId
+      );
     } else {
-      db.prepare(
-        `UPDATE turnos_caja SET total_otros = total_otros + ? WHERE id = ?`
-      ).run(subtotal, turno!.id);
+      await sqlRun(
+        `UPDATE turnos_caja SET total_otros = total_otros + ? WHERE id = ?`,
+        subtotal,
+        turnoId
+      );
     }
   });
-  tx();
 
-  const pedido = getPedido(pedidoId)!;
+  const pedido = (await getPedido(pedidoId))!;
+  publishPedidoEvent("pedido_creado", pedido);
   return {
     ok: true,
     pedido: { ...pedido, fichaCodigo: ficha },
   };
 }
 
-export function entregarPorFicha(
+export async function entregarPorFicha(
   fichaCodigo: string
-): { ok: true; pedido: PedidoPublico } | { ok: false; error: string } {
-  boot();
-  const row = getDb()
-    .prepare(`SELECT id, estado FROM pedidos WHERE ficha_codigo = ?`)
-    .get(fichaCodigo.trim()) as { id: string; estado: string } | undefined;
+): Promise<{ ok: true; pedido: PedidoPublico } | { ok: false; error: string }> {
+  await boot();
+  const row = await sqlGet<{ id: string; estado: string }>(
+    `SELECT id, estado FROM pedidos WHERE ficha_codigo = ?`,
+    fichaCodigo.trim()
+  );
   if (!row) return { ok: false, error: "No hay pedido con esa ficha." };
   if (row.estado === "entregado") {
     return { ok: false, error: "Esa ficha ya fue entregada." };
   }
-  if (row.estado !== "listo" && row.estado !== "confirmado" && row.estado !== "en_produccion") {
+  if (
+    row.estado !== "listo" &&
+    row.estado !== "confirmado" &&
+    row.estado !== "en_produccion"
+  ) {
     // permitir entregar desde listo preferentemente
   }
   // Si aún no está listo, marcarlo listo primero no — exigir listo
@@ -288,35 +311,33 @@ export function entregarPorFicha(
   return actualizarEstadoPedido(row.id, "entregado");
 }
 
-export function listPedidosMostradorActivos(): Array<
-  PedidoPublico & { fichaCodigo: string | null }
+export async function listPedidosMostradorActivos(): Promise<
+  Array<PedidoPublico & { fichaCodigo: string | null }>
 > {
-  boot();
-  const rows = getDb()
-    .prepare(
-      `SELECT * FROM pedidos
-       WHERE canal = 'mostrador'
-         AND estado NOT IN ('entregado','cancelado')
-         AND fecha_entrega = ?
-       ORDER BY creado_en ASC`
-    )
-    .all(hoyISO()) as Array<Record<string, unknown>>;
-  return rows.map((r) => ({
-    ...mapPedido(r),
-    fichaCodigo: (r.ficha_codigo as string) || null,
-  }));
+  await boot();
+  const rows = await sqlAll<Record<string, unknown>>(
+    `SELECT * FROM pedidos
+     WHERE canal = 'mostrador'
+       AND estado NOT IN ('entregado','cancelado')
+       AND fecha_entrega = ?
+     ORDER BY creado_en ASC`,
+    hoyISO()
+  );
+  return Promise.all(
+    rows.map(async (r) => ({
+      ...(await mapPedido(r)),
+      fichaCodigo: (r.ficha_codigo as string) || null,
+    }))
+  );
 }
 
-export function listVitrina(): VitrinaItem[] {
-  boot();
-  const productos = listProductos().filter((p) => p.activoCatalogo);
-  const stocks = Object.fromEntries(
-    (
-      getDb()
-        .prepare(`SELECT producto_id as id, cantidad FROM vitrina_stock`)
-        .all() as Array<{ id: string; cantidad: number }>
-    ).map((r) => [r.id, r.cantidad])
+export async function listVitrina(): Promise<VitrinaItem[]> {
+  await boot();
+  const productos = (await listProductos()).filter((p) => p.activoCatalogo);
+  const stockRows = await sqlAll<{ id: string; cantidad: number }>(
+    `SELECT producto_id as id, cantidad FROM vitrina_stock`
   );
+  const stocks = Object.fromEntries(stockRows.map((r) => [r.id, r.cantidad]));
   return productos.map((p) => ({
     productoId: p.id,
     nombre: p.nombre,
@@ -325,42 +346,43 @@ export function listVitrina(): VitrinaItem[] {
   }));
 }
 
-export function ajustarVitrina(input: {
+export async function ajustarVitrina(input: {
   productoId: string;
   cantidad: number;
   tipo: "entrada" | "salida" | "merma" | "set";
   motivo?: string | null;
   pedidoId?: string | null;
-}): { ok: true } | { ok: false; error: string } {
-  boot();
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  await boot();
   if (input.cantidad < 0) return { ok: false, error: "Cantidad inválida." };
-  const db = getDb();
-  const prod = getProducto(input.productoId);
+  const prod = await getProducto(input.productoId);
   if (!prod) return { ok: false, error: "Producto no encontrado." };
 
-  const actual = (
-    db
-      .prepare(`SELECT cantidad FROM vitrina_stock WHERE producto_id = ?`)
-      .get(input.productoId) as { cantidad: number } | undefined
-  )?.cantidad ?? 0;
+  const actualRow = await sqlGet<{ cantidad: number }>(
+    `SELECT cantidad FROM vitrina_stock WHERE producto_id = ?`,
+    input.productoId
+  );
+  const actual = actualRow?.cantidad ?? 0;
 
   let nuevo = actual;
   if (input.tipo === "entrada") nuevo = actual + input.cantidad;
   else if (input.tipo === "set") nuevo = input.cantidad;
   else nuevo = actual - input.cantidad;
 
-  if (nuevo < 0) return { ok: false, error: "No hay suficientes unidades en vitrina." };
+  if (nuevo < 0)
+    return { ok: false, error: "No hay suficientes unidades en vitrina." };
 
   const now = new Date().toISOString();
-  const tx = db.transaction(() => {
-    db.prepare(
+  await sqlTransaction(async () => {
+    await sqlRun(
       `INSERT INTO vitrina_stock (producto_id, cantidad) VALUES (?, ?)
-       ON CONFLICT(producto_id) DO UPDATE SET cantidad = excluded.cantidad`
-    ).run(input.productoId, nuevo);
-    db.prepare(
+       ON CONFLICT(producto_id) DO UPDATE SET cantidad = excluded.cantidad`,
+      input.productoId,
+      nuevo
+    );
+    await sqlRun(
       `INSERT INTO vitrina_movimientos (id, producto_id, tipo, cantidad, pedido_id, motivo, creado_en)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).run(
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       id(),
       input.productoId,
       input.tipo === "set" ? "entrada" : input.tipo,
@@ -370,28 +392,25 @@ export function ajustarVitrina(input: {
       now
     );
   });
-  tx();
   return { ok: true };
 }
 
 /** Al marcar pedido listo desde producción, opcionalmente enviar a vitrina */
-export function enviarAVitrinaDesdePedido(
+export async function enviarAVitrinaDesdePedido(
   pedidoId: string
-): { ok: true } | { ok: false; error: string } {
-  boot();
-  const db = getDb();
-  const lineas = db
-    .prepare(
-      `SELECT producto_id as productoId, cantidad, notas FROM pedido_lineas WHERE pedido_id = ?`
-    )
-    .all(pedidoId) as Array<{
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await boot();
+  const lineas = await sqlAll<{
     productoId: string;
     cantidad: number;
     notas: string | null;
-  }>;
+  }>(
+    `SELECT producto_id as productoId, cantidad, notas FROM pedido_lineas WHERE pedido_id = ?`,
+    pedidoId
+  );
   for (const l of lineas) {
     if (l.notas === "vitrina") continue; // ya salió de vitrina
-    const res = ajustarVitrina({
+    const res = await ajustarVitrina({
       productoId: l.productoId,
       cantidad: l.cantidad,
       tipo: "entrada",

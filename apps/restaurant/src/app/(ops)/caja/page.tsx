@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { formatoMoneda } from "@/lib/format";
+import { formatoMoneda, hoyISO } from "@/lib/format";
+import { useRestaurantPedidoEvents } from "@/lib/use-pedido-events";
 
 type Producto = { id: string; nombre: string; precio: number };
 type Vitrina = {
@@ -47,8 +48,8 @@ export default function CajaPage() {
   const [fichaBuscar, setFichaBuscar] = useState("");
   const [tab, setTab] = useState<"venta" | "cola" | "vitrina">("venta");
 
-  async function load() {
-    setLoading(true);
+  async function load(silent = false) {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/caja");
@@ -62,13 +63,19 @@ export default function CajaPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
   useEffect(() => {
     load();
   }, []);
+
+  useRestaurantPedidoEvents(hoyISO(), {
+    onEvent: () => {
+      load(true);
+    },
+  });
 
   const subtotal = useMemo(() => {
     return lineas.reduce((acc, l) => {

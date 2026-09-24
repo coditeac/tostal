@@ -1,6 +1,24 @@
+/**
+ * Capa de datos Tostal.
+ * - Producción (Railway): Postgres vía DATABASE_URL (servicio visible).
+ * - Local: SQLite (better-sqlite3) en TOSTAL_DB_PATH o ./data/tostal.sqlite.
+ */
 import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
+import { Pool, type PoolClient, type QueryResultRow } from "pg";
+
+export type Dialect = "sqlite" | "postgres";
+
+export function getDialect(): Dialect {
+  return process.env.DATABASE_URL ? "postgres" : "sqlite";
+}
+
+export function isPostgres(): boolean {
+  return getDialect() === "postgres";
+}
+
+/* ---------- SQLite ---------- */
 
 function resolveDbPath(): string {
   const preferred =
@@ -12,27 +30,195 @@ function resolveDbPath(): string {
     fs.accessSync(dir, fs.constants.W_OK);
     return preferred;
   } catch {
-    // Build/CI o volumen /data aún no montado → /tmp
     const fallback = path.join("/tmp", "tostal-build.sqlite");
     fs.mkdirSync(path.dirname(fallback), { recursive: true });
     return fallback;
   }
 }
 
-let _db: Database.Database | null = null;
+let _sqlite: Database.Database | null = null;
 
-export function getDb(): Database.Database {
-  if (_db) return _db;
-  const dbPath = resolveDbPath();
-  _db = new Database(dbPath);
-  _db.pragma("journal_mode = WAL");
-  _db.pragma("foreign_keys = ON");
-  ensureSchema(_db);
-  return _db;
+function getSqlite(): Database.Database {
+  if (_sqlite) return _sqlite;
+  _sqlite = new Database(resolveDbPath());
+  _sqlite.pragma("journal_mode = WAL");
+  _sqlite.pragma("foreign_keys = ON");
+  return _sqlite;
 }
 
-function ensureSchema(db: Database.Database) {
-  db.exec(`
+/* ---------- Postgres ---------- */
+
+let _pool: Pool | null = null;
+let _schemaReady = false;
+let _txClient: PoolClient | null = null;
+
+function getPool(): Pool {
+  if (_pool) return _pool;
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL no configurada");
+  _pool = new Pool({
+    connectionString: url,
+    // Railway private network usa SSL a veces; permitir ambos
+    ssl: process.env.DATABASE_SSL === "require" ? { rejectUnauthorized: false } : undefined,
+    max: 10,
+  });
+  return _pool;
+}
+
+/** Convierte SQL estilo SQLite (? / INSERT OR IGNORE) a Postgres. */
+export function toPostgresSql(sql: string): string {
+  let s = sql.trim();
+  if (/^INSERT\s+OR\s+IGNORE\s+INTO/i.test(s)) {
+    s = s.replace(/^INSERT\s+OR\s+IGNORE\s+INTO/i, "INSERT INTO");
+    if (!/\bON\s+CONFLICT\b/i.test(s)) {
+      s = `${s} ON CONFLICT DO NOTHING`;
+    }
+  }
+  // Postgres lowercasing: preservar alias camelCase → "productoId"
+  s = s.replace(/\bas\s+([A-Za-z_][A-Za-z0-9_]*)/g, (full, alias: string) => {
+    if (alias !== alias.toLowerCase() && !alias.startsWith('"')) {
+      return `as "${alias}"`;
+    }
+    return full;
+  });
+  // COUNT(*) en pg llega como string (int8); forzar int4
+  s = s.replace(/COUNT\(\*\)/gi, "COUNT(*)::int");
+  let i = 0;
+  s = s.replace(/\?/g, () => `$${++i}`);
+  return s;
+}
+
+async function pgQuery<T extends QueryResultRow = QueryResultRow>(
+  sql: string,
+  params: unknown[] = []
+): Promise<{ rows: T[]; rowCount: number }> {
+  const text = toPostgresSql(sql);
+  const client = _txClient || getPool();
+  const res = await client.query<T>(text, params);
+  return { rows: res.rows, rowCount: res.rowCount ?? 0 };
+}
+
+/* ---------- API unificada async ---------- */
+
+export async function sqlAll<T extends QueryResultRow = QueryResultRow>(
+  sql: string,
+  ...params: unknown[]
+): Promise<T[]> {
+  await ensureReady();
+  if (isPostgres()) {
+    const { rows } = await pgQuery<T>(sql, params);
+    return rows;
+  }
+  return getSqlite().prepare(sql).all(...params) as T[];
+}
+
+export async function sqlGet<T extends QueryResultRow = QueryResultRow>(
+  sql: string,
+  ...params: unknown[]
+): Promise<T | undefined> {
+  await ensureReady();
+  if (isPostgres()) {
+    const { rows } = await pgQuery<T>(sql, params);
+    return rows[0];
+  }
+  return getSqlite().prepare(sql).get(...params) as T | undefined;
+}
+
+export async function sqlRun(
+  sql: string,
+  ...params: unknown[]
+): Promise<{ changes: number }> {
+  await ensureReady();
+  if (isPostgres()) {
+    const { rowCount } = await pgQuery(sql, params);
+    return { changes: rowCount };
+  }
+  const info = getSqlite().prepare(sql).run(...params);
+  return { changes: info.changes };
+}
+
+export async function sqlExec(sql: string): Promise<void> {
+  await ensureReady();
+  if (isPostgres()) {
+    const client = _txClient || getPool();
+    await client.query(sql);
+    return;
+  }
+  getSqlite().exec(sql);
+}
+
+export async function sqlTransaction<T>(fn: () => Promise<T>): Promise<T> {
+  await ensureReady();
+  if (!isPostgres()) {
+    const db = getSqlite();
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      const result = await fn();
+      db.exec("COMMIT");
+      return result;
+    } catch (e) {
+      try {
+        db.exec("ROLLBACK");
+      } catch {
+        /* ignore */
+      }
+      throw e;
+    }
+  }
+
+  const pool = getPool();
+  const client = await pool.connect();
+  const prev = _txClient;
+  _txClient = client;
+  try {
+    await client.query("BEGIN");
+    const result = await fn();
+    await client.query("COMMIT");
+    return result;
+  } catch (e) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* ignore */
+    }
+    throw e;
+  } finally {
+    _txClient = prev;
+    client.release();
+  }
+}
+
+async function ensureReady(): Promise<void> {
+  if (_schemaReady) return;
+  if (isPostgres()) {
+    await ensureSchemaPostgres();
+  } else {
+    ensureSchemaSqlite(getSqlite());
+  }
+  _schemaReady = true;
+}
+
+/** Fuerza init (schema) — llamar al boot de API. */
+export async function initDb(): Promise<void> {
+  await ensureReady();
+}
+
+/**
+ * Compat legado: solo SQLite sync.
+ * No usar en código nuevo; preferir sqlAll/sqlGet/sqlRun.
+ */
+export function getDb(): Database.Database {
+  if (isPostgres()) {
+    throw new Error(
+      "getDb() sync no disponible con Postgres. Usa sqlAll/sqlGet/sqlRun."
+    );
+  }
+  ensureSchemaSqlite(getSqlite());
+  _schemaReady = true;
+  return getSqlite();
+}
+
+const SCHEMA_SQLITE = `
     CREATE TABLE IF NOT EXISTS usuarios (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
@@ -260,9 +446,10 @@ function ensureSchema(db: Database.Database) {
       motivo TEXT,
       creado_en TEXT NOT NULL
     );
-  `);
+`;
 
-  // Migraciones aditivas seguras (DBs ya sembradas)
+function ensureSchemaSqlite(db: Database.Database) {
+  db.exec(SCHEMA_SQLITE);
   const alters = [
     `ALTER TABLE gastos ADD COLUMN comprobante TEXT`,
     `ALTER TABLE gastos ADD COLUMN compra_id TEXT`,
@@ -275,5 +462,20 @@ function ensureSchema(db: Database.Database) {
     } catch {
       // columna ya existe
     }
+  }
+}
+
+async function ensureSchemaPostgres() {
+  const pool = getPool();
+  // Varias sentencias DDL; el driver pg las acepta en una query simple.
+  await pool.query(SCHEMA_SQLITE);
+  const alters = [
+    `ALTER TABLE gastos ADD COLUMN IF NOT EXISTS comprobante TEXT`,
+    `ALTER TABLE gastos ADD COLUMN IF NOT EXISTS compra_id TEXT`,
+    `ALTER TABLE turnos_caja ADD COLUMN IF NOT EXISTS contador_fichas INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS turno_id TEXT`,
+  ];
+  for (const sql of alters) {
+    await pool.query(sql);
   }
 }

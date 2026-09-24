@@ -11,7 +11,7 @@ export default async function OpsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  ensureSeed();
+  await ensureSeed();
   const user = await getSession();
   if (!user) redirect("/login");
   return <AppShell userNombre={user.nombre}>{children}</AppShell>;

@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "./db";
+import { sqlGet } from "./db";
 import { ensureSeed } from "./seed";
 
 const COOKIE = "tostal_session";
@@ -17,30 +17,26 @@ export type SessionUser = {
   rol: "admin" | "cocina" | "caja";
 };
 
-function boot() {
-  ensureSeed();
+async function boot() {
+  await ensureSeed();
 }
 
 export async function login(
   email: string,
   password: string
 ): Promise<SessionUser | null> {
-  boot();
-  const db = getDb();
-  const user = db
-    .prepare(
-      `SELECT id, email, nombre, rol, password_hash, activo FROM usuarios WHERE email = ?`
-    )
-    .get(email.trim().toLowerCase()) as
-    | {
-        id: string;
-        email: string;
-        nombre: string;
-        rol: SessionUser["rol"];
-        password_hash: string;
-        activo: number;
-      }
-    | undefined;
+  await boot();
+  const user = await sqlGet<{
+    id: string;
+    email: string;
+    nombre: string;
+    rol: SessionUser["rol"];
+    password_hash: string;
+    activo: number;
+  }>(
+    `SELECT id, email, nombre, rol, password_hash, activo FROM usuarios WHERE email = ?`,
+    email.trim().toLowerCase()
+  );
   if (!user || !user.activo) return null;
   const ok = await bcrypt.compare(password, user.password_hash);
   if (!ok) return null;
@@ -80,7 +76,7 @@ export async function destroySession() {
 }
 
 export async function getSession(): Promise<SessionUser | null> {
-  boot();
+  await boot();
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value;
   if (!token) return null;
@@ -119,7 +115,7 @@ export function isSessionUser(
 export async function getSessionFromRequest(
   req: NextRequest
 ): Promise<SessionUser | null> {
-  boot();
+  await boot();
   const token = req.cookies.get(COOKIE)?.value;
   if (!token) return null;
   try {

@@ -8,11 +8,11 @@ export async function OPTIONS(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  ensureSeed();
+  await ensureSeed();
   const body = await req.json().catch(() => null);
   if (!body) return jsonError("JSON inválido", req);
 
-  const result = crearPedidoRemoto({
+  const result = await crearPedidoRemoto({
     fechaEntrega: String(body.fechaEntrega || ""),
     modoEntrega: body.modoEntrega,
     zonaId: body.zonaId || null,
@@ -29,10 +29,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  ensureSeed();
+  await ensureSeed();
   const codigo = req.nextUrl.searchParams.get("codigo");
   if (!codigo) return jsonError("Indica el código del pedido.", req);
-  const pedido = getPedido(codigo);
+  const pedido = await getPedido(codigo);
   if (!pedido) return jsonError("Pedido no encontrado.", req, 404);
   return jsonOk({ pedido }, req);
 }

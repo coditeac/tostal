@@ -23,8 +23,8 @@ export async function GET(req: NextRequest) {
 
   return jsonOk(
     {
-      gastos: listGastos({ desde, hasta, categoria }),
-      resumen: resumenGastos({ desde, hasta }),
+      gastos: await listGastos({ desde, hasta, categoria }),
+      resumen: await resumenGastos({ desde, hasta }),
       categorias: CATEGORIAS_GASTO,
     },
     req
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       ? Math.round(body.monto)
       : aCentavos(Number(body.montoPesos ?? body.monto));
 
-  const gasto = crearGasto({
+  const gasto = await crearGasto({
     categoria: String(body.categoria),
     monto,
     fecha: body.fecha || hoyISO(),
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     notas: body.notas || null,
     comprobante: body.comprobante || null,
   });
-  return jsonOk({ gasto, resumen: resumenGastos() }, req, 201);
+  return jsonOk({ gasto, resumen: await resumenGastos() }, req, 201);
 }
 
 export async function DELETE(req: NextRequest) {
@@ -59,6 +59,6 @@ export async function DELETE(req: NextRequest) {
   if (!isSessionUser(auth)) return auth;
   const idParam = req.nextUrl.searchParams.get("id");
   if (!idParam) return jsonError("Falta id.", req);
-  eliminarGasto(idParam);
-  return jsonOk({ ok: true, resumen: resumenGastos() }, req);
+  await eliminarGasto(idParam);
+  return jsonOk({ ok: true, resumen: await resumenGastos() }, req);
 }

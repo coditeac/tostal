@@ -10,12 +10,12 @@ export async function OPTIONS(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  ensureSeed();
+  await ensureSeed();
   const from = req.nextUrl.searchParams.get("from") || hoyISO();
   const to = req.nextUrl.searchParams.get("to") || sumarDias(from, 13);
-  const dias = listDias(from, to).map((d) => ({
+  const dias = (await listDias(from, to)).map((d) => ({
     ...d,
     deadlineVigente: new Date() < new Date(d.deadlinePedido),
   }));
-  return jsonOk({ dias, config: getConfigPublica() }, req);
+  return jsonOk({ dias, config: await getConfigPublica() }, req);
 }

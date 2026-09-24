@@ -22,15 +22,15 @@ export async function GET(req: NextRequest) {
   if (fecha) {
     return jsonOk(
       {
-        dia: getDia(fecha),
-        disponibilidad: getDisponibilidad(fecha),
+        dia: await getDia(fecha),
+        disponibilidad: await getDisponibilidad(fecha),
       },
       req
     );
   }
   const from = req.nextUrl.searchParams.get("from") || hoyISO();
   const to = req.nextUrl.searchParams.get("to") || sumarDias(from, 13);
-  return jsonOk({ dias: listDias(from, to) }, req);
+  return jsonOk({ dias: await listDias(from, to) }, req);
 }
 
 export async function PUT(req: NextRequest) {
@@ -40,21 +40,21 @@ export async function PUT(req: NextRequest) {
   if (!body?.fecha) return jsonError("Falta fecha.", req);
 
   if (body.copiarDesde) {
-    const disponibilidad = copiarDisponibilidad(
+    const disponibilidad = await copiarDisponibilidad(
       String(body.copiarDesde),
       String(body.fecha)
     );
     return jsonOk({ disponibilidad }, req);
   }
 
-  let dia = getDia(body.fecha);
+  let dia = await getDia(body.fecha);
   if (
     body.abierto != null ||
     body.deadlinePedido ||
     body.cupoMaximo !== undefined ||
     body.notas !== undefined
   ) {
-    dia = upsertDia({
+    dia = await upsertDia({
       fecha: body.fecha,
       abierto: body.abierto ?? dia?.abierto ?? true,
       deadlinePedido:
@@ -69,9 +69,9 @@ export async function PUT(req: NextRequest) {
     });
   }
 
-  let disponibilidad = getDisponibilidad(body.fecha);
+  let disponibilidad = await getDisponibilidad(body.fecha);
   if (Array.isArray(body.disponibilidad)) {
-    disponibilidad = setDisponibilidad(body.fecha, body.disponibilidad);
+    disponibilidad = await setDisponibilidad(body.fecha, body.disponibilidad);
   }
 
   return jsonOk({ dia, disponibilidad }, req);

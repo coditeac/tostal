@@ -1,10 +1,10 @@
-import { getDb } from "./db";
+import { sqlAll, sqlGet, sqlRun, sqlTransaction } from "./db";
 import { ensureSeed } from "./seed";
 import { listInsumos, getReceta } from "./catalogo";
 import { id, hoyISO, sumarDias } from "./utils";
 
-function boot() {
-  ensureSeed();
+async function boot() {
+  await ensureSeed();
 }
 
 export type ItemSugerido = {
@@ -56,38 +56,46 @@ export type CarritoCompra = {
 };
 
 /** Explosión de demanda (pedidos próximos) + ítems bajo mínimo */
-export function calcularSugerencia(diasAdelante = 7): ItemSugerido[] {
-  boot();
-  const db = getDb();
+export async function calcularSugerencia(
+  diasAdelante = 7
+): Promise<ItemSugerido[]> {
+  await boot();
   const desde = hoyISO();
   const hasta = sumarDias(desde, diasAdelante);
 
   const demanda: Record<string, number> = {};
-  const lineas = db
-    .prepare(
-      `SELECT pl.producto_id as productoId, pl.cantidad
-       FROM pedido_lineas pl
-       JOIN pedidos p ON p.id = pl.pedido_id
-       WHERE p.fecha_entrega >= ? AND p.fecha_entrega <= ?
-         AND p.estado IN ('recibido','confirmado','en_produccion')
-         AND p.insumos_descontados = 0`
-    )
-    .all(desde, hasta) as Array<{ productoId: string; cantidad: number }>;
+  const lineas = await sqlAll<{ productoId: string; cantidad: number }>(
+    `SELECT pl.producto_id as productoId, pl.cantidad
+     FROM pedido_lineas pl
+     JOIN pedidos p ON p.id = pl.pedido_id
+     WHERE p.fecha_entrega >= ? AND p.fecha_entrega <= ?
+       AND p.estado IN ('recibido','confirmado','en_produccion')
+       AND p.insumos_descontados = 0`,
+    desde,
+    hasta
+  );
 
   for (const l of lineas) {
-    const receta = getReceta(l.productoId);
+    const receta = await getReceta(l.productoId);
     for (const r of receta) {
       demanda[r.insumoId] = (demanda[r.insumoId] || 0) + r.cantidad * l.cantidad;
     }
   }
 
   const out: ItemSugerido[] = [];
-  for (const i of listInsumos()) {
+  for (const i of await listInsumos()) {
     const reqDemanda = demanda[i.id] || 0;
     const stockTrasDemanda = i.stockActual - reqDemanda;
-    const porMinimo = Math.max(0, i.stockMinimo - Math.min(i.stockActual, stockTrasDemanda));
+    const porMinimo = Math.max(
+      0,
+      i.stockMinimo - Math.min(i.stockActual, stockTrasDemanda)
+    );
     const porDemanda = Math.max(0, reqDemanda - i.stockActual);
-    const cantidad = Math.max(porMinimo, porDemanda, i.stockMinimo - i.stockActual);
+    const cantidad = Math.max(
+      porMinimo,
+      porDemanda,
+      i.stockMinimo - i.stockActual
+    );
     if (cantidad <= 0 && i.stockActual > i.stockMinimo) continue;
     if (cantidad <= 0) continue;
 
@@ -110,12 +118,16 @@ export function calcularSugerencia(diasAdelante = 7): ItemSugerido[] {
   return out.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 }
 
-export function crearListaDesdeSugerencia(
-  items?: Array<{ insumoId: string; cantidad: number; proveedor?: string | null }>,
+export async function crearListaDesdeSugerencia(
+  items?: Array<{
+    insumoId: string;
+    cantidad: number;
+    proveedor?: string | null;
+  }>,
   notas?: string | null
-): ListaCompra {
-  boot();
-  const sugeridos = calcularSugerencia();
+): Promise<ListaCompra> {
+  await boot();
+  const sugeridos = await calcularSugerencia();
   const byId = Object.fromEntries(sugeridos.map((s) => [s.insumoId, s]));
   const selected =
     items && items.length
@@ -128,19 +140,19 @@ export function crearListaDesdeSugerencia(
 
   const now = new Date().toISOString();
   const listaId = id();
-  const db = getDb();
-  const tx = db.transaction(() => {
-    db.prepare(
-      `INSERT INTO listas_compra (id, estado, creado_en, notas) VALUES (?, 'lista', ?, ?)`
-    ).run(listaId, now, notas || null);
-    const stmt = db.prepare(
-      `INSERT INTO lista_compra_items
-       (id, lista_id, insumo_id, cantidad_sugerida, cantidad, proveedor, motivo)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+  await sqlTransaction(async () => {
+    await sqlRun(
+      `INSERT INTO listas_compra (id, estado, creado_en, notas) VALUES (?, 'lista', ?, ?)`,
+      listaId,
+      now,
+      notas || null
     );
     for (const it of selected) {
       const sug = byId[it.insumoId];
-      stmt.run(
+      await sqlRun(
+        `INSERT INTO lista_compra_items
+         (id, lista_id, insumo_id, cantidad_sugerida, cantidad, proveedor, motivo)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         id(),
         listaId,
         it.insumoId,
@@ -151,158 +163,170 @@ export function crearListaDesdeSugerencia(
       );
     }
   });
-  tx();
-  return getLista(listaId)!;
+  return (await getLista(listaId))!;
 }
 
-export function getLista(listaId: string): ListaCompra | null {
-  boot();
-  const db = getDb();
-  const row = db
-    .prepare(
-      `SELECT id, estado, creado_en as creadoEn, notas FROM listas_compra WHERE id = ?`
-    )
-    .get(listaId) as
-    | { id: string; estado: string; creadoEn: string; notas: string | null }
-    | undefined;
+export async function getLista(listaId: string): Promise<ListaCompra | null> {
+  await boot();
+  const row = await sqlGet<{
+    id: string;
+    estado: string;
+    creadoEn: string;
+    notas: string | null;
+  }>(
+    `SELECT id, estado, creado_en as creadoEn, notas FROM listas_compra WHERE id = ?`,
+    listaId
+  );
   if (!row) return null;
-  const items = db
-    .prepare(
-      `SELECT li.id, li.insumo_id as insumoId, i.nombre, i.unidad,
-              li.cantidad_sugerida as cantidadSugerida, li.cantidad,
-              li.proveedor, li.motivo
-       FROM lista_compra_items li
-       JOIN insumos i ON i.id = li.insumo_id
-       WHERE li.lista_id = ?
-       ORDER BY i.nombre`
-    )
-    .all(listaId) as ListaCompra["items"];
+  const items = await sqlAll<ListaCompra["items"][number]>(
+    `SELECT li.id, li.insumo_id as insumoId, i.nombre, i.unidad,
+            li.cantidad_sugerida as cantidadSugerida, li.cantidad,
+            li.proveedor, li.motivo
+     FROM lista_compra_items li
+     JOIN insumos i ON i.id = li.insumo_id
+     WHERE li.lista_id = ?
+     ORDER BY i.nombre`,
+    listaId
+  );
   return { ...row, items };
 }
 
-export function listListas(limit = 20): Array<Omit<ListaCompra, "items"> & { itemCount: number }> {
-  boot();
-  return getDb()
-    .prepare(
-      `SELECT l.id, l.estado, l.creado_en as creadoEn, l.notas,
-              (SELECT COUNT(*) FROM lista_compra_items WHERE lista_id = l.id) as itemCount
-       FROM listas_compra l
-       ORDER BY l.creado_en DESC
-       LIMIT ?`
-    )
-    .all(limit) as Array<Omit<ListaCompra, "items"> & { itemCount: number }>;
+export async function listListas(
+  limit = 20
+): Promise<Array<Omit<ListaCompra, "items"> & { itemCount: number }>> {
+  await boot();
+  return sqlAll<Omit<ListaCompra, "items"> & { itemCount: number }>(
+    `SELECT l.id, l.estado, l.creado_en as creadoEn, l.notas,
+            (SELECT COUNT(*) FROM lista_compra_items WHERE lista_id = l.id) as itemCount
+     FROM listas_compra l
+     ORDER BY l.creado_en DESC
+     LIMIT ?`,
+    limit
+  );
 }
 
-export function actualizarItemLista(
+export async function actualizarItemLista(
   itemId: string,
   cantidad: number,
   proveedor?: string | null
 ) {
-  boot();
-  getDb()
-    .prepare(
-      `UPDATE lista_compra_items SET cantidad = ?, proveedor = COALESCE(?, proveedor) WHERE id = ?`
-    )
-    .run(cantidad, proveedor ?? null, itemId);
+  await boot();
+  await sqlRun(
+    `UPDATE lista_compra_items SET cantidad = ?, proveedor = COALESCE(?, proveedor) WHERE id = ?`,
+    cantidad,
+    proveedor ?? null,
+    itemId
+  );
 }
 
-export function crearCarritoDesdeLista(
+export async function crearCarritoDesdeLista(
   listaId: string,
   proveedor?: string | null
-): CarritoCompra {
-  boot();
-  const lista = getLista(listaId);
+): Promise<CarritoCompra> {
+  await boot();
+  const lista = await getLista(listaId);
   if (!lista) throw new Error("Lista no encontrada");
   const now = new Date().toISOString();
   const carritoId = id();
-  const db = getDb();
-  const insumos = Object.fromEntries(listInsumos().map((i) => [i.id, i]));
+  const insumos = Object.fromEntries(
+    (await listInsumos()).map((i) => [i.id, i])
+  );
 
-  const tx = db.transaction(() => {
-    db.prepare(
+  await sqlTransaction(async () => {
+    await sqlRun(
       `INSERT INTO carritos_compra (id, proveedor, estado, creado_en, comprado_en, notas, total, lista_id)
-       VALUES (?, ?, 'lista', ?, NULL, NULL, 0, ?)`
-    ).run(carritoId, proveedor || lista.items[0]?.proveedor || null, now, listaId);
-
-    const stmt = db.prepare(
-      `INSERT INTO carrito_compra_lineas
-       (id, carrito_id, insumo_id, cantidad, costo_unitario, comprada)
-       VALUES (?, ?, ?, ?, ?, 0)`
+       VALUES (?, ?, 'lista', ?, NULL, NULL, 0, ?)`,
+      carritoId,
+      proveedor || lista.items[0]?.proveedor || null,
+      now,
+      listaId
     );
+
     let total = 0;
     for (const it of lista.items) {
       const costo = insumos[it.insumoId]?.costoUnitario ?? 0;
       total += Math.round(it.cantidad * costo);
-      stmt.run(id(), carritoId, it.insumoId, it.cantidad, costo);
+      await sqlRun(
+        `INSERT INTO carrito_compra_lineas
+         (id, carrito_id, insumo_id, cantidad, costo_unitario, comprada)
+         VALUES (?, ?, ?, ?, ?, 0)`,
+        id(),
+        carritoId,
+        it.insumoId,
+        it.cantidad,
+        costo
+      );
     }
-    db.prepare(`UPDATE carritos_compra SET total = ? WHERE id = ?`).run(
+    await sqlRun(
+      `UPDATE carritos_compra SET total = ? WHERE id = ?`,
       total,
       carritoId
     );
-    db.prepare(`UPDATE listas_compra SET estado = 'convertida' WHERE id = ?`).run(
+    await sqlRun(
+      `UPDATE listas_compra SET estado = 'convertida' WHERE id = ?`,
       listaId
     );
   });
-  tx();
-  return getCarrito(carritoId)!;
+  return (await getCarrito(carritoId))!;
 }
 
-export function crearCarritoManual(
-  lineas: Array<{ insumoId: string; cantidad: number; costoUnitario?: number }>,
+export async function crearCarritoManual(
+  lineas: Array<{
+    insumoId: string;
+    cantidad: number;
+    costoUnitario?: number;
+  }>,
   proveedor?: string | null
-): CarritoCompra {
-  boot();
+): Promise<CarritoCompra> {
+  await boot();
   const now = new Date().toISOString();
   const carritoId = id();
-  const db = getDb();
-  const insumos = Object.fromEntries(listInsumos().map((i) => [i.id, i]));
-  const tx = db.transaction(() => {
-    db.prepare(
+  const insumos = Object.fromEntries(
+    (await listInsumos()).map((i) => [i.id, i])
+  );
+  await sqlTransaction(async () => {
+    await sqlRun(
       `INSERT INTO carritos_compra (id, proveedor, estado, creado_en, comprado_en, notas, total, lista_id)
-       VALUES (?, ?, 'borrador', ?, NULL, NULL, 0, NULL)`
-    ).run(carritoId, proveedor || null, now);
-    const stmt = db.prepare(
-      `INSERT INTO carrito_compra_lineas
-       (id, carrito_id, insumo_id, cantidad, costo_unitario, comprada)
-       VALUES (?, ?, ?, ?, ?, 0)`
+       VALUES (?, ?, 'borrador', ?, NULL, NULL, 0, NULL)`,
+      carritoId,
+      proveedor || null,
+      now
     );
     let total = 0;
     for (const l of lineas) {
       const costo = l.costoUnitario ?? insumos[l.insumoId]?.costoUnitario ?? 0;
       total += Math.round(l.cantidad * costo);
-      stmt.run(id(), carritoId, l.insumoId, l.cantidad, costo);
+      await sqlRun(
+        `INSERT INTO carrito_compra_lineas
+         (id, carrito_id, insumo_id, cantidad, costo_unitario, comprada)
+         VALUES (?, ?, ?, ?, ?, 0)`,
+        id(),
+        carritoId,
+        l.insumoId,
+        l.cantidad,
+        costo
+      );
     }
-    db.prepare(`UPDATE carritos_compra SET total = ?, estado = 'lista' WHERE id = ?`).run(
+    await sqlRun(
+      `UPDATE carritos_compra SET total = ?, estado = 'lista' WHERE id = ?`,
       total,
       carritoId
     );
   });
-  tx();
-  return getCarrito(carritoId)!;
+  return (await getCarrito(carritoId))!;
 }
 
-export function getCarrito(carritoId: string): CarritoCompra | null {
-  boot();
-  const db = getDb();
-  const row = db
-    .prepare(
-      `SELECT id, proveedor, estado, creado_en as creadoEn, comprado_en as compradoEn,
-              notas, total FROM carritos_compra WHERE id = ?`
-    )
-    .get(carritoId) as
-    | Omit<CarritoCompra, "lineas">
-    | undefined;
+export async function getCarrito(
+  carritoId: string
+): Promise<CarritoCompra | null> {
+  await boot();
+  const row = await sqlGet<Omit<CarritoCompra, "lineas">>(
+    `SELECT id, proveedor, estado, creado_en as creadoEn, comprado_en as compradoEn,
+            notas, total FROM carritos_compra WHERE id = ?`,
+    carritoId
+  );
   if (!row) return null;
-  const lineas = db
-    .prepare(
-      `SELECT cl.id, cl.insumo_id as insumoId, i.nombre, i.unidad, cl.cantidad,
-              cl.costo_unitario as costoUnitario, cl.comprada as compradaRaw
-       FROM carrito_compra_lineas cl
-       JOIN insumos i ON i.id = cl.insumo_id
-       WHERE cl.carrito_id = ?
-       ORDER BY i.nombre`
-    )
-    .all(carritoId) as Array<{
+  const lineas = await sqlAll<{
     id: string;
     insumoId: string;
     nombre: string;
@@ -310,7 +334,15 @@ export function getCarrito(carritoId: string): CarritoCompra | null {
     cantidad: number;
     costoUnitario: number;
     compradaRaw: number;
-  }>;
+  }>(
+    `SELECT cl.id, cl.insumo_id as insumoId, i.nombre, i.unidad, cl.cantidad,
+            cl.costo_unitario as costoUnitario, cl.comprada as compradaRaw
+     FROM carrito_compra_lineas cl
+     JOIN insumos i ON i.id = cl.insumo_id
+     WHERE cl.carrito_id = ?
+     ORDER BY i.nombre`,
+    carritoId
+  );
   return {
     ...row,
     lineas: lineas.map((l) => ({
@@ -325,52 +357,54 @@ export function getCarrito(carritoId: string): CarritoCompra | null {
   };
 }
 
-export function listCarritos(limit = 20) {
-  boot();
-  return getDb()
-    .prepare(
-      `SELECT id, proveedor, estado, creado_en as creadoEn, comprado_en as compradoEn,
-              notas, total FROM carritos_compra
-       ORDER BY creado_en DESC LIMIT ?`
-    )
-    .all(limit);
+export async function listCarritos(limit = 20) {
+  await boot();
+  return sqlAll(
+    `SELECT id, proveedor, estado, creado_en as creadoEn, comprado_en as compradoEn,
+            notas, total FROM carritos_compra
+     ORDER BY creado_en DESC LIMIT ?`,
+    limit
+  );
 }
 
 /** Marca carrito comprado: actualiza precios, entra stock y registra gasto */
-export function marcarCarritoComprado(
+export async function marcarCarritoComprado(
   carritoId: string,
   opts?: {
     lineasCompradas?: string[]; // ids de línea; si omitido, todas
     registrarGasto?: boolean;
     usuarioId?: string | null;
   }
-): { ok: true; carrito: CarritoCompra } | { ok: false; error: string } {
-  boot();
-  const carrito = getCarrito(carritoId);
+): Promise<
+  { ok: true; carrito: CarritoCompra } | { ok: false; error: string }
+> {
+  await boot();
+  const carrito = await getCarrito(carritoId);
   if (!carrito) return { ok: false, error: "Carrito no encontrado." };
   if (carrito.estado === "comprada") {
     return { ok: false, error: "Este carrito ya está marcado como comprado." };
   }
 
   const now = new Date().toISOString();
-  const db = getDb();
   const idsSet = opts?.lineasCompradas
     ? new Set(opts.lineasCompradas)
     : null;
 
-  const tx = db.transaction(() => {
+  await sqlTransaction(async () => {
     let totalComprado = 0;
     for (const l of carrito.lineas) {
       if (idsSet && !idsSet.has(l.id)) continue;
       if (l.comprada) continue;
-      db.prepare(
-        `UPDATE insumos SET stock_actual = stock_actual + ?, costo_unitario = ? WHERE id = ?`
-      ).run(l.cantidad, l.costoUnitario, l.insumoId);
-      db.prepare(
+      await sqlRun(
+        `UPDATE insumos SET stock_actual = stock_actual + ?, costo_unitario = ? WHERE id = ?`,
+        l.cantidad,
+        l.costoUnitario,
+        l.insumoId
+      );
+      await sqlRun(
         `INSERT INTO movimientos_inventario
          (id, insumo_id, tipo, cantidad, costo_unitario, motivo, pedido_id, usuario_id, creado_en)
-         VALUES (?, ?, 'entrada', ?, ?, ?, NULL, ?, ?)`
-      ).run(
+         VALUES (?, ?, 'entrada', ?, ?, ?, NULL, ?, ?)`,
         id(),
         l.insumoId,
         l.cantidad,
@@ -379,23 +413,21 @@ export function marcarCarritoComprado(
         opts?.usuarioId || null,
         now
       );
-      db.prepare(
-        `UPDATE carrito_compra_lineas SET comprada = 1 WHERE id = ?`
-      ).run(l.id);
+      await sqlRun(
+        `UPDATE carrito_compra_lineas SET comprada = 1 WHERE id = ?`,
+        l.id
+      );
       totalComprado += Math.round(l.cantidad * l.costoUnitario);
     }
 
-    const pendientes = (
-      db
-        .prepare(
-          `SELECT COUNT(*) as c FROM carrito_compra_lineas WHERE carrito_id = ? AND comprada = 0`
-        )
-        .get(carritoId) as { c: number }
-    ).c;
+    const pendientesRow = await sqlGet<{ c: number }>(
+      `SELECT COUNT(*) as c FROM carrito_compra_lineas WHERE carrito_id = ? AND comprada = 0`,
+      carritoId
+    );
+    const pendientes = pendientesRow?.c ?? 0;
 
-    db.prepare(
-      `UPDATE carritos_compra SET estado = ?, comprado_en = ?, total = ? WHERE id = ?`
-    ).run(
+    await sqlRun(
+      `UPDATE carritos_compra SET estado = ?, comprado_en = ?, total = ? WHERE id = ?`,
       pendientes > 0 ? "parcial" : "comprada",
       now,
       totalComprado || carrito.total,
@@ -403,10 +435,9 @@ export function marcarCarritoComprado(
     );
 
     if (opts?.registrarGasto !== false && totalComprado > 0) {
-      db.prepare(
+      await sqlRun(
         `INSERT INTO gastos (id, categoria, monto, fecha, metodo_pago, notas, creado_en, comprobante, compra_id)
-         VALUES (?, 'insumos', ?, ?, ?, ?, ?, NULL, ?)`
-      ).run(
+         VALUES (?, 'insumos', ?, ?, ?, ?, ?, NULL, ?)`,
         id(),
         totalComprado,
         hoyISO(),
@@ -417,41 +448,41 @@ export function marcarCarritoComprado(
       );
     }
   });
-  tx();
-  return { ok: true, carrito: getCarrito(carritoId)! };
+  return { ok: true, carrito: (await getCarrito(carritoId))! };
 }
 
-export function actualizarLineaCarrito(
+export async function actualizarLineaCarrito(
   lineaId: string,
   data: { cantidad?: number; costoUnitario?: number }
 ) {
-  boot();
-  const db = getDb();
-  const row = db
-    .prepare(`SELECT carrito_id as carritoId FROM carrito_compra_lineas WHERE id = ?`)
-    .get(lineaId) as { carritoId: string } | undefined;
+  await boot();
+  const row = await sqlGet<{ carritoId: string }>(
+    `SELECT carrito_id as carritoId FROM carrito_compra_lineas WHERE id = ?`,
+    lineaId
+  );
   if (!row) return null;
   if (data.cantidad != null) {
-    db.prepare(`UPDATE carrito_compra_lineas SET cantidad = ? WHERE id = ?`).run(
+    await sqlRun(
+      `UPDATE carrito_compra_lineas SET cantidad = ? WHERE id = ?`,
       data.cantidad,
       lineaId
     );
   }
   if (data.costoUnitario != null) {
-    db.prepare(
-      `UPDATE carrito_compra_lineas SET costo_unitario = ? WHERE id = ?`
-    ).run(data.costoUnitario, lineaId);
+    await sqlRun(
+      `UPDATE carrito_compra_lineas SET costo_unitario = ? WHERE id = ?`,
+      data.costoUnitario,
+      lineaId
+    );
   }
-  const total = (
-    db
-      .prepare(
-        `SELECT COALESCE(SUM(ROUND(cantidad * costo_unitario)), 0) as t
-         FROM carrito_compra_lineas WHERE carrito_id = ?`
-      )
-      .get(row.carritoId) as { t: number }
-  ).t;
-  db.prepare(`UPDATE carritos_compra SET total = ? WHERE id = ?`).run(
-    total,
+  const totalRow = await sqlGet<{ t: number }>(
+    `SELECT COALESCE(SUM(ROUND(cantidad * costo_unitario)), 0) as t
+     FROM carrito_compra_lineas WHERE carrito_id = ?`,
+    row.carritoId
+  );
+  await sqlRun(
+    `UPDATE carritos_compra SET total = ? WHERE id = ?`,
+    totalRow?.t ?? 0,
     row.carritoId
   );
   return getCarrito(row.carritoId);

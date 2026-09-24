@@ -1,17 +1,17 @@
-import { getDb } from "./db";
+import { sqlAll, sqlRun } from "./db";
 import { ensureSeed } from "./seed";
 import type { ConfiguracionPublica } from "../../../../shared/types";
 
-export function getConfigMap(): Record<string, string> {
-  ensureSeed();
-  const rows = getDb()
-    .prepare("SELECT clave, valor FROM configuracion")
-    .all() as Array<{ clave: string; valor: string }>;
+export async function getConfigMap(): Promise<Record<string, string>> {
+  await ensureSeed();
+  const rows = await sqlAll<{ clave: string; valor: string }>(
+    "SELECT clave, valor FROM configuracion"
+  );
   return Object.fromEntries(rows.map((r) => [r.clave, r.valor]));
 }
 
-export function getConfigPublica(): ConfiguracionPublica {
-  const c = getConfigMap();
+export async function getConfigPublica(): Promise<ConfiguracionPublica> {
+  const c = await getConfigMap();
   return {
     marca: c.marca || "Tostal",
     eslogan: c.eslogan || "Sabores que unen culturas",
@@ -23,11 +23,11 @@ export function getConfigPublica(): ConfiguracionPublica {
   };
 }
 
-export function setConfig(clave: string, valor: string) {
-  getDb()
-    .prepare(
-      `INSERT INTO configuracion (clave, valor) VALUES (?, ?)
-       ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor`
-    )
-    .run(clave, valor);
+export async function setConfig(clave: string, valor: string) {
+  await sqlRun(
+    `INSERT INTO configuracion (clave, valor) VALUES (?, ?)
+     ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor`,
+    clave,
+    valor
+  );
 }

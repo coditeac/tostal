@@ -22,13 +22,13 @@ export async function OPTIONS(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const auth = await requireSession();
   if (!isSessionUser(auth)) return auth;
-  const config = getConfigPublica();
+  const config = await getConfigPublica();
   return jsonOk(
     {
-      turno: getTurnoAbierto(),
-      cola: listPedidosMostradorActivos(),
-      vitrina: listVitrina(),
-      productos: listProductos().filter((p) => p.activoCatalogo),
+      turno: await getTurnoAbierto(),
+      cola: await listPedidosMostradorActivos(),
+      vitrina: await listVitrina(),
+      productos: (await listProductos()).filter((p) => p.activoCatalogo),
       canalMostradorActivo: config.canalMostradorActivo,
     },
     req
@@ -42,10 +42,10 @@ export async function POST(req: NextRequest) {
   if (!body?.accion) return jsonError("Falta acción.", req);
 
   if (body.accion === "abrir_turno") {
-    return jsonOk({ turno: abrirTurno(auth.id) }, req);
+    return jsonOk({ turno: await abrirTurno(auth.id) }, req);
   }
   if (body.accion === "cerrar_turno") {
-    const turno = cerrarTurno(body.notas);
+    const turno = await cerrarTurno(body.notas);
     if (!turno) return jsonError("No hay turno abierto.", req);
     return jsonOk({ turno }, req);
   }
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     if (!metodos.includes(metodo)) {
       return jsonError("Método de pago no válido.", req);
     }
-    const result = crearPedidoMostrador({
+    const result = await crearPedidoMostrador({
       clienteNombre: body.clienteNombre,
       clienteTelefono: body.clienteTelefono,
       metodoPago: metodo,
@@ -73,9 +73,9 @@ export async function POST(req: NextRequest) {
       {
         pedido: result.pedido,
         fichaCodigo: result.pedido.fichaCodigo,
-        cola: listPedidosMostradorActivos(),
-        vitrina: listVitrina(),
-        turno: getTurnoAbierto(),
+        cola: await listPedidosMostradorActivos(),
+        vitrina: await listVitrina(),
+        turno: await getTurnoAbierto(),
       },
       req,
       201
@@ -83,22 +83,22 @@ export async function POST(req: NextRequest) {
   }
   if (body.accion === "entregar") {
     if (!body.fichaCodigo) return jsonError("Indica el código de ficha.", req);
-    const result = entregarPorFicha(String(body.fichaCodigo));
+    const result = await entregarPorFicha(String(body.fichaCodigo));
     if (!result.ok) return jsonError(result.error, req);
     return jsonOk(
-      { pedido: result.pedido, cola: listPedidosMostradorActivos() },
+      { pedido: result.pedido, cola: await listPedidosMostradorActivos() },
       req
     );
   }
   if (body.accion === "vitrina") {
-    const result = ajustarVitrina({
+    const result = await ajustarVitrina({
       productoId: body.productoId,
       cantidad: Number(body.cantidad),
       tipo: body.tipo || "entrada",
       motivo: body.motivo || null,
     });
     if (!result.ok) return jsonError(result.error, req);
-    return jsonOk({ vitrina: listVitrina() }, req);
+    return jsonOk({ vitrina: await listVitrina() }, req);
   }
   return jsonError("Acción no reconocida.", req);
 }
