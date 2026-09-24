@@ -37,18 +37,15 @@ export default function LoginPage() {
   return (
     <div className="toastal-shell mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
       <div className="rise-in overflow-hidden rounded-[1.1rem] border border-border bg-white">
-        <div className="flex flex-col items-center bg-miel px-6 py-8 text-center">
+        <div className="flex flex-col items-center bg-miel px-6 py-9 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/tostal-logo.png"
             alt="Tostal"
-            width={120}
+            width={280}
             height={120}
-            className="h-[7.5rem] w-[7.5rem] rounded-xl object-cover shadow-[0_8px_24px_rgba(0,0,0,0.18)]"
+            className="h-auto w-[min(72%,14rem)] object-contain"
           />
-          <p className="brand-tagline mt-4 text-[#d6d2c4]">
-            Sabores que unen culturas
-          </p>
         </div>
 
         <div className="px-6 py-6">

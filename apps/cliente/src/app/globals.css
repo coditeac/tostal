@@ -209,9 +209,9 @@ a {
 .hero-logo {
   position: relative;
   z-index: 1;
-  width: min(72vw, 15.5rem);
+  width: min(78vw, 17rem);
   height: auto;
-  border-radius: 0.75rem;
+  object-fit: contain;
 }
 
 .hero-wordmark {
