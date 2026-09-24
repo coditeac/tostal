@@ -7,7 +7,7 @@ watchPatterns = ["apps/restaurant/**", "shared/**"]
 
 [deploy]
 startCommand = "npm --prefix apps/restaurant run start"
-healthcheckPath = "/api/public/dias"
+healthcheckPath = "/"
 healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5

@@ -33,6 +33,12 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
       </Link>
       <div className="flex items-center gap-2">
         <Link
+          href="/cuenta"
+          className="inline-flex h-11 items-center rounded-xl border border-border bg-white px-3 text-xs font-semibold text-cacao"
+        >
+          Cuenta
+        </Link>
+        <Link
           href="/seguimiento"
           className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-white text-cacao"
           aria-label="Seguir pedido"

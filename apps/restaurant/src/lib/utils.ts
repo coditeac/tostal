@@ -1,8 +1,4 @@
-export { cn } from "cn";
-
-export function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+export { cn, formatoMoneda, hoyISO, labelFecha } from "./format";
 
 export function sumarDias(fechaISO: string, dias: number): string {
   const d = new Date(`${fechaISO}T12:00:00`);
@@ -10,14 +6,6 @@ export function sumarDias(fechaISO: string, dias: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function formatoMoneda(centavos: number, moneda = "MXN"): string {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: moneda,
-  }).format(centavos / 100);
-}
-
-/** Precio en pesos → centavos enteros */
 export function aCentavos(pesos: number): number {
   return Math.round(pesos * 100);
 }

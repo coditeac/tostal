@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useCallback, useEffect, useState } from "react";
 import { formatoMoneda, hoyISO } from "@/lib/format";
 import { useRestaurantPedidoEvents } from "@/lib/use-pedido-events";
@@ -57,7 +59,7 @@ export default function PedidosPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/pedidos?fecha=${fecha}`);
+      const res = await apiFetch(`/api/pedidos?fecha=${fecha}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
       setPedidos(data.pedidos || []);
@@ -90,7 +92,7 @@ export default function PedidosPage() {
     setBusyId(id);
     setError(null);
     try {
-      const res = await fetch("/api/pedidos", {
+      const res = await apiFetch("/api/pedidos", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, ...body }),

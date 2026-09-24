@@ -39,6 +39,7 @@ export default function CarritoPage() {
   >("transferencia");
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
+  const [email, setEmail] = useState("");
   const [direccion, setDireccion] = useState("");
   const [notas, setNotas] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +86,7 @@ export default function CarritoPage() {
         zonaId: modo === "envio" ? zonaId : null,
         clienteNombre: nombre.trim(),
         clienteTelefono: telefono.trim(),
+        clienteEmail: email.trim() || null,
         direccion: modo === "envio" ? direccion.trim() : null,
         metodoPago,
         notas: notas.trim() || null,
@@ -277,6 +279,25 @@ export default function CarritoPage() {
             autoComplete="tel"
             required
           />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email (confirmación del pedido)</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            required
+            placeholder="tunombre@correo.com"
+          />
+          <p className="text-xs text-muted-foreground">
+            Guest OK.{" "}
+            <Link href="/cuenta" className="font-semibold text-miel">
+              Crear cuenta
+            </Link>{" "}
+            guarda tu historial.
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="notas">Notas (opcional)</Label>

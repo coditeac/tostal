@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
 
@@ -44,7 +46,7 @@ export default function ComprasPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/compras");
+      const res = await apiFetch("/api/compras");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
       const sug = data.sugerencia || [];
@@ -56,7 +58,7 @@ export default function ComprasPage() {
       );
       setCarritos(data.carritos || []);
       if (data.carritos?.[0] && !carrito) {
-        const cRes = await fetch(`/api/compras?carritoId=${data.carritos[0].id}`);
+        const cRes = await apiFetch(`/api/compras?carritoId=${data.carritos[0].id}`);
         const cData = await cRes.json();
         if (cRes.ok) setCarrito(cData.carrito);
       }
@@ -83,7 +85,7 @@ export default function ComprasPage() {
           proveedor: s.proveedor,
         }));
       if (!items.length) throw new Error("Nada que comprar.");
-      const listaRes = await fetch("/api/compras", {
+      const listaRes = await apiFetch("/api/compras", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accion: "crear_lista", items }),
@@ -91,7 +93,7 @@ export default function ComprasPage() {
       const listaData = await listaRes.json();
       if (!listaRes.ok) throw new Error(listaData.error || "Error al crear lista");
 
-      const cartRes = await fetch("/api/compras", {
+      const cartRes = await apiFetch("/api/compras", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -116,7 +118,7 @@ export default function ComprasPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/compras", {
+      const res = await apiFetch("/api/compras", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

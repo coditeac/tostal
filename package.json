@@ -2,8 +2,10 @@
   "name": "tostal",
   "private": true,
   "scripts": {
+    "dev:api": "npm --prefix apps/api run start:dev",
     "dev:restaurant": "npm --prefix apps/restaurant run dev",
     "dev:cliente": "npm --prefix apps/cliente run dev",
+    "build:api": "npm --prefix apps/api run build",
     "build:restaurant": "npm --prefix apps/restaurant run build",
     "build:cliente": "npm --prefix apps/cliente run build"
   }

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { PedidoPublico } from "../../../../shared/types";
+import { getApiBase } from "./api";
 
 type Handlers = {
   onSnapshot?: (pedidos: PedidoPublico[]) => void;
@@ -10,7 +11,7 @@ type Handlers = {
 };
 
 /**
- * SSE autenticado (misma origin → cookie de sesión).
+ * SSE autenticado hacia NestJS (credentials / cookie Domain=.tostal.cafe).
  * GET /api/pedidos/events?fecha=
  */
 export function useRestaurantPedidoEvents(
@@ -24,8 +25,8 @@ export function useRestaurantPedidoEvents(
   useEffect(() => {
     if (!enabled || typeof EventSource === "undefined") return;
 
-    const url = `/api/pedidos/events?fecha=${encodeURIComponent(fecha)}`;
-    const es = new EventSource(url);
+    const url = `${getApiBase()}/api/pedidos/events?fecha=${encodeURIComponent(fecha)}`;
+    const es = new EventSource(url, { withCredentials: true });
 
     const onSnapshot = (raw: MessageEvent) => {
       try {

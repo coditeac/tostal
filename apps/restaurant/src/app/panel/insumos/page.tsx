@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
 
@@ -35,7 +37,7 @@ export default function InsumosPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/insumos");
+      const res = await apiFetch("/api/insumos");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
       setInsumos(data.insumos || []);
@@ -90,7 +92,7 @@ export default function InsumosPage() {
         ubicacion: form.ubicacion || null,
         proveedorPreferido: form.proveedorPreferido || null,
       };
-      const res = await fetch("/api/insumos", {
+      const res = await apiFetch("/api/insumos", {
         method: editId === "nuevo" ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

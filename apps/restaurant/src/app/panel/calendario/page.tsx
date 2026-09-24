@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useMemo, useState } from "react";
 import { hoyISO, labelFecha } from "@/lib/format";
 
@@ -37,7 +39,7 @@ export default function CalendarioPage() {
   }, []);
 
   async function loadLista() {
-    const res = await fetch("/api/calendario");
+    const res = await apiFetch("/api/calendario");
     const data = await res.json();
     if (res.ok) setDias(data.dias || []);
   }
@@ -46,7 +48,7 @@ export default function CalendarioPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/calendario?fecha=${f}`);
+      const res = await apiFetch(`/api/calendario?fecha=${f}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
       setDia(data.dia);
@@ -77,7 +79,7 @@ export default function CalendarioPage() {
     setError(null);
     try {
       const deadlineIso = new Date(deadlineLocal).toISOString();
-      const res = await fetch("/api/calendario", {
+      const res = await apiFetch("/api/calendario", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -110,7 +112,7 @@ export default function CalendarioPage() {
     const desde = proximos[idx - 1];
     setSaving(true);
     try {
-      const res = await fetch("/api/calendario", {
+      const res = await apiFetch("/api/calendario", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fecha, copiarDesde: desde }),

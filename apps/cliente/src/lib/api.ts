@@ -5,26 +5,27 @@ import type {
   PublicDiasResponse,
 } from "@tostal/shared/api-public";
 import type { MenuDiaResponse } from "@tostal/shared/types";
-import { PUBLIC_API } from "@tostal/shared/api-public";
+import { PUBLIC_API, API_DEV_ORIGIN } from "@tostal/shared/api-public";
 
-/** Preferencia: NEXT_PUBLIC_API_URL; fallback al nombre del cimiento. */
+/** Preferencia: NEXT_PUBLIC_API_URL → NestJS (api.tostal.cafe). */
 export function getApiBase() {
   return (
     process.env.NEXT_PUBLIC_API_URL ||
     process.env.NEXT_PUBLIC_TOSTAL_API_URL ||
-    "http://127.0.0.1:4321"
+    API_DEV_ORIGIN
   ).replace(/\/$/, "");
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${getApiBase()}${path}`, {
     cache: "no-store",
+    credentials: "include",
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(
       (data as { error?: string }).error ||
-        "No pudimos conectar con Tostal. ¿Está corriendo la App Restaurant?"
+        "No pudimos conectar con Tostal. ¿Está corriendo la API?"
     );
   }
   return data as T;
@@ -35,6 +36,7 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    credentials: "include",
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

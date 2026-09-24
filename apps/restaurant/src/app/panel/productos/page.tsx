@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
 
@@ -51,8 +53,8 @@ export default function ProductosPage() {
     setError(null);
     try {
       const [pRes, iRes] = await Promise.all([
-        fetch("/api/productos"),
-        fetch("/api/insumos"),
+        apiFetch("/api/productos"),
+        apiFetch("/api/insumos"),
       ]);
       const pData = await pRes.json();
       const iData = await iRes.json();
@@ -123,7 +125,7 @@ export default function ProductosPage() {
             cantidad: Number(r.cantidad),
           })),
       };
-      const res = await fetch("/api/productos", {
+      const res = await apiFetch("/api/productos", {
         method: editId === "nuevo" ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
