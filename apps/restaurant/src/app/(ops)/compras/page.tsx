@@ -136,14 +136,14 @@ export default function ComprasPage() {
   }
 
   if (loading) {
-    return <p className="loading-pulse text-muted">Calculando compras…</p>;
+    return <p className="loading-pulse text-muted-foreground">Calculando compras…</p>;
   }
 
   return (
     <div className="space-y-4 rise-in">
       <div>
         <h1 className="font-display text-3xl">Compras</h1>
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted-foreground">
           Lista sugerida → carrito proveedor → entrada de stock
         </p>
       </div>
@@ -155,7 +155,7 @@ export default function ComprasPage() {
       <section className="space-y-2">
         <h2 className="font-semibold">Lista sugerida</h2>
         {sugerencia.length === 0 ? (
-          <p className="surface p-4 text-sm text-muted">
+          <p className="surface p-4 text-sm text-muted-foreground">
             Todo en orden: no hay faltantes ni demanda pendiente.
           </p>
         ) : (
@@ -165,12 +165,12 @@ export default function ComprasPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-medium">{s.nombre}</p>
-                    <p className="text-xs text-muted">
+                    <p className="text-xs text-muted-foreground">
                       Stock {s.stockActual} {s.unidad} · mín {s.stockMinimo} ·{" "}
                       {s.motivo.replace("_", " ")}
                     </p>
                     {s.proveedor && (
-                      <p className="text-xs text-muted">{s.proveedor}</p>
+                      <p className="text-xs text-muted-foreground">{s.proveedor}</p>
                     )}
                   </div>
                   <div className="w-24">
@@ -212,7 +212,7 @@ export default function ComprasPage() {
               {carrito.estado}
             </span>
           </div>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             {carrito.proveedor || "Sin proveedor"} ·{" "}
             {formatoMoneda(carrito.total)}
           </p>

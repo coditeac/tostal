@@ -40,14 +40,14 @@ export default function CostosPage() {
   }, []);
 
   if (loading) {
-    return <p className="loading-pulse text-muted">Calculando márgenes…</p>;
+    return <p className="loading-pulse text-muted-foreground">Calculando márgenes…</p>;
   }
 
   return (
     <div className="space-y-4 rise-in">
       <div>
         <h1 className="font-display text-3xl">Costos y márgenes</h1>
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted-foreground">
           Costo teórico por receta vs precio de venta
         </p>
       </div>
@@ -57,7 +57,7 @@ export default function CostosPage() {
       )}
 
       {productos.length === 0 ? (
-        <p className="text-sm text-muted">No hay productos activos.</p>
+        <p className="text-sm text-muted-foreground">No hay productos activos.</p>
       ) : (
         <ul className="space-y-2">
           {productos.map((p) => (
@@ -69,7 +69,7 @@ export default function CostosPage() {
               >
                 <div>
                   <p className="font-semibold">{p.nombre}</p>
-                  <p className="text-xs text-muted">
+                  <p className="text-xs text-muted-foreground">
                     Costo {formatoMoneda(p.costoTeorico)} · venta{" "}
                     {formatoMoneda(p.precio)}
                   </p>
@@ -87,7 +87,7 @@ export default function CostosPage() {
               {openId === p.id && (
                 <ul className="mt-3 space-y-1 border-t border-border pt-3 text-sm">
                   {p.receta.length === 0 ? (
-                    <li className="text-muted">Sin receta cargada.</li>
+                    <li className="text-muted-foreground">Sin receta cargada.</li>
                   ) : (
                     p.receta.map((r, i) => (
                       <li key={i} className="flex justify-between">

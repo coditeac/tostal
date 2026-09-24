@@ -2,6 +2,12 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
+import { Frame, FrameHeader, FramePanel, FrameTitle } from "@/components/reui/frame";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,7 +42,7 @@ export default function LoginPage() {
 
   return (
     <div className="toastal-shell mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
-      <div className="rise-in overflow-hidden rounded-[1.1rem] border border-border bg-white">
+      <Frame className="rise-in overflow-hidden rounded-[1.1rem] border border-border bg-white shadow-none">
         <div className="flex flex-col items-center bg-miel px-6 py-9 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -48,25 +54,24 @@ export default function LoginPage() {
           />
         </div>
 
-        <div className="px-6 py-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+        <FrameHeader className="border-0 px-6 pb-0 pt-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             Operación
           </p>
-          <h1 className="mt-1.5 text-xl font-semibold tracking-tight">
+          <FrameTitle className="mt-1.5 text-xl font-semibold tracking-tight">
             Entrar al equipo
-          </h1>
-          <p className="mt-1 text-sm text-muted">
+          </FrameTitle>
+          <p className="mt-1 text-sm text-muted-foreground">
             Solo para admin, cocina y caja.
           </p>
+        </FrameHeader>
 
-          <form onSubmit={onSubmit} className="mt-6 space-y-4">
-            <div>
-              <label className="label" htmlFor="email">
-                Correo
-              </label>
-              <input
+        <FramePanel className="border-0 px-6 pb-6 pt-4">
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Correo</Label>
+              <Input
                 id="email"
-                className="field"
                 type="email"
                 autoComplete="username"
                 value={email}
@@ -74,13 +79,10 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <div>
-              <label className="label" htmlFor="password">
-                Contraseña
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label htmlFor="password">Contraseña</Label>
+              <Input
                 id="password"
-                className="field"
                 type="password"
                 autoComplete="current-password"
                 value={password}
@@ -90,25 +92,28 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error">
-                {error}
-              </p>
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
 
-            <button
-              type="submit"
-              className="btn btn-primary w-full"
-              disabled={loading}
-            >
-              {loading ? "Entrando…" : "Entrar"}
-            </button>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <Spinner />
+                  Entrando…
+                </>
+              ) : (
+                "Entrar"
+              )}
+            </Button>
           </form>
 
-          <p className="mt-4 text-xs text-muted">
+          <p className="mt-4 text-xs text-muted-foreground">
             Demo: admin@tostal.mx / tostal123
           </p>
-        </div>
-      </div>
+        </FramePanel>
+      </Frame>
     </div>
   );
 }

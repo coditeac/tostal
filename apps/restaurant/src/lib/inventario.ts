@@ -1,7 +1,7 @@
 import { sqlAll, sqlGet, sqlRun, sqlTransaction } from "./db";
 import { ensureSeed } from "./seed";
 import { listInsumos } from "./catalogo";
-import { id } from "./utils";
+import { id } from "./id";
 import type { TipoMovimiento } from "../../../../shared/types";
 
 async function boot() {

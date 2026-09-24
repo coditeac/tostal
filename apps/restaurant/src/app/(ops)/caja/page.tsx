@@ -146,14 +146,14 @@ export default function CajaPage() {
   }
 
   if (loading) {
-    return <p className="loading-pulse text-muted">Abriendo caja…</p>;
+    return <p className="loading-pulse text-muted-foreground">Abriendo caja…</p>;
   }
 
   return (
     <div className="space-y-4 rise-in">
       <div>
         <h1 className="font-display text-3xl">Caja / mostrador</h1>
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted-foreground">
           Pedir → pagar → ficha → llevar pedido · sin mesas
         </p>
       </div>
@@ -176,7 +176,7 @@ export default function CajaPage() {
         {turno ? (
           <>
             <div>
-              <p className="text-xs text-muted">Turno abierto</p>
+              <p className="text-xs text-muted-foreground">Turno abierto</p>
               <p className="text-sm font-medium">
                 Efectivo {formatoMoneda(turno.totalEfectivo)} · Otros{" "}
                 {formatoMoneda(turno.totalOtros)}
@@ -231,7 +231,7 @@ export default function CajaPage() {
               <span
                 key={p}
                 className={`rounded-full px-2 py-1 capitalize ${
-                  paso === p ? "bg-miel text-white" : "bg-arena text-muted"
+                  paso === p ? "bg-miel text-white" : "bg-arena text-muted-foreground"
                 }`}
               >
                 {i + 1}. {p}
@@ -261,7 +261,7 @@ export default function CajaPage() {
                   onClick={() => addProducto(p.id, false)}
                 >
                   <p className="font-medium">{p.nombre}</p>
-                  <p className="text-muted">{formatoMoneda(p.precio)}</p>
+                  <p className="text-muted-foreground">{formatoMoneda(p.precio)}</p>
                 </button>
               ))}
             </div>
@@ -282,7 +282,7 @@ export default function CajaPage() {
                       onClick={() => addProducto(v.productoId, true)}
                     >
                       <p className="font-medium">{v.nombre}</p>
-                      <p className="text-muted">
+                      <p className="text-muted-foreground">
                         {v.cantidad} u · {formatoMoneda(v.precio)}
                       </p>
                     </button>
@@ -305,7 +305,7 @@ export default function CajaPage() {
                       </span>
                       <button
                         type="button"
-                        className="text-muted"
+                        className="text-muted-foreground"
                         onClick={() =>
                           setLineas(lineas.filter((_, i) => i !== idx))
                         }
@@ -342,11 +342,11 @@ export default function CajaPage() {
 
           {fichaEmitida && (
             <div className="surface border-ok/40 p-5 text-center">
-              <p className="text-sm text-muted">Ficha del cliente</p>
+              <p className="text-sm text-muted-foreground">Ficha del cliente</p>
               <p className="font-display mt-1 text-5xl text-cacao">
                 {fichaEmitida}
               </p>
-              <p className="mt-2 text-sm text-muted">
+              <p className="mt-2 text-sm text-muted-foreground">
                 Cuando esté listo, lleva el pedido a quien tenga esta ficha.
               </p>
             </div>
@@ -376,7 +376,7 @@ export default function CajaPage() {
             </div>
           </div>
           {cola.length === 0 ? (
-            <p className="text-sm text-muted">Sin pedidos de mostrador activos.</p>
+            <p className="text-sm text-muted-foreground">Sin pedidos de mostrador activos.</p>
           ) : (
             <ul className="space-y-2">
               {cola.map((c) => (
@@ -384,10 +384,10 @@ export default function CajaPage() {
                   <div className="flex justify-between">
                     <div>
                       <p className="font-display text-2xl">{c.fichaCodigo}</p>
-                      <p className="text-sm text-muted">
+                      <p className="text-sm text-muted-foreground">
                         {c.codigo} · {c.clienteNombre}
                       </p>
-                      <p className="text-xs text-muted">
+                      <p className="text-xs text-muted-foreground">
                         {c.lineas
                           .map((l) => `${l.cantidad}× ${l.productoNombre}`)
                           .join(" · ")}
@@ -409,7 +409,7 @@ export default function CajaPage() {
 
       {tab === "vitrina" && (
         <section className="space-y-2">
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             Stock de producto terminado (distinto de insumos)
           </p>
           <ul className="space-y-2">
@@ -420,7 +420,7 @@ export default function CajaPage() {
               >
                 <div>
                   <p className="font-medium">{v.nombre}</p>
-                  <p className="text-xs text-muted">{formatoMoneda(v.precio)}</p>
+                  <p className="text-xs text-muted-foreground">{formatoMoneda(v.precio)}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">{v.cantidad} u</span>

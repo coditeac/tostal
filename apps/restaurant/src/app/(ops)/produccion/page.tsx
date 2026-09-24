@@ -81,7 +81,7 @@ export default function ProduccionPage() {
     <div className="space-y-4 rise-in">
       <div>
         <h1 className="font-display text-3xl">Producción</h1>
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted-foreground">
           Cola de cocina · al iniciar se descuentan insumos
           {live ? (
             <span className="ml-2 text-xs font-medium text-ok">● En vivo</span>
@@ -107,9 +107,9 @@ export default function ProduccionPage() {
       )}
 
       {loading ? (
-        <p className="loading-pulse text-muted">Cargando cola…</p>
+        <p className="loading-pulse text-muted-foreground">Cargando cola…</p>
       ) : pedidos.length === 0 ? (
-        <p className="surface p-4 text-sm text-muted">
+        <p className="surface p-4 text-sm text-muted-foreground">
           No hay pedidos en cola para esta fecha.
         </p>
       ) : (
@@ -119,10 +119,10 @@ export default function ProduccionPage() {
               <div className="flex justify-between gap-2">
                 <div>
                   <p className="font-semibold">{p.codigo}</p>
-                  <p className="text-sm text-muted">
+                  <p className="text-sm text-muted-foreground">
                     {p.clienteNombre} · {p.canal}
                   </p>
-                  <p className="mt-1 text-xs text-muted">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {p.lineas
                       .map((l) => `${l.cantidad}× ${l.productoNombre}`)
                       .join(" · ")}

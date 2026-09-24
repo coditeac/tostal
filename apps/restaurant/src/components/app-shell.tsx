@@ -12,6 +12,8 @@ import {
   UtensilsCrossed,
   Wallet,
 } from "lucide-react";
+import { Badge } from "@/components/reui/badge";
+import { Button } from "@/components/ui/button";
 
 const links = [
   { href: "/panel", label: "Inicio", icon: LayoutDashboard },
@@ -61,36 +63,37 @@ export function AppShell({
               className="ops-mark"
             />
             <div className="min-w-0">
-              <p className="truncate text-xs text-muted">
+              <p className="truncate text-xs text-muted-foreground">
                 Operación · {userNombre}
               </p>
             </div>
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={salir}
-            className="btn btn-ghost text-sm text-muted"
+            className="text-muted-foreground"
             aria-label="Cerrar sesión"
           >
             <LogOut size={18} />
             Salir
-          </button>
+          </Button>
         </div>
         <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5 text-xs">
           {moreLinks.map((l) => {
             const active = pathname.startsWith(l.href);
             return (
-              <Link
+              <Badge
                 key={l.href}
-                href={l.href}
-                className={`shrink-0 rounded-full px-2.5 py-1.5 font-medium ${
-                  active
-                    ? "bg-miel text-[#d6d2c4]"
-                    : "bg-arena/80 text-muted"
-                }`}
+                asChild
+                variant={active ? "default" : "secondary"}
+                radius="full"
+                size="lg"
+                className={active ? "" : "bg-arena/80 text-muted-foreground"}
               >
-                {l.label}
-              </Link>
+                <Link href={l.href}>{l.label}</Link>
+              </Badge>
             );
           })}
         </div>
@@ -110,7 +113,7 @@ export function AppShell({
                 key={l.href}
                 href={l.href}
                 className={`flex min-h-[3.15rem] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-medium sm:text-[11px] ${
-                  active ? "bg-arena text-miel" : "text-muted"
+                  active ? "bg-arena text-miel" : "text-muted-foreground"
                 }`}
               >
                 <Icon size={18} strokeWidth={active ? 2.35 : 1.75} />

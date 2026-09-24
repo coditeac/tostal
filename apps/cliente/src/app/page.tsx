@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, ShoppingBag } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/reui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/components/cart-provider";
 import { SiteHeader } from "@/components/site-header";
 import {
@@ -145,7 +149,7 @@ export default function ClienteHome() {
           style={{ animationDelay: "80ms" }}
         >
           <h2 className="text-lg font-semibold tracking-tight">¿Para qué día?</h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted">
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             El menú solo muestra lo disponible ese día.
           </p>
           <div className="-mx-1 mt-4 flex gap-2.5 overflow-x-auto px-1 pb-1">
@@ -169,7 +173,7 @@ export default function ClienteHome() {
             })}
           </div>
           {menu && (
-            <p className="mt-3.5 text-xs leading-relaxed text-muted">
+            <p className="mt-3.5 text-xs leading-relaxed text-muted-foreground">
               {menu.abierto && menu.deadlineVigente
                 ? `Pedidos abiertos hasta ${labelDeadline(menu.deadlinePedido)}`
                 : "Ya cerramos pedidos para este día"}
@@ -178,29 +182,38 @@ export default function ClienteHome() {
         </section>
 
         {toast && (
-          <div className="fixed left-1/2 top-[max(1rem,env(safe-area-inset-top))] z-50 -translate-x-1/2 rounded-full bg-miel px-4 py-2.5 text-sm font-medium text-[#d6d2c4] shadow-lg">
+          <Badge
+            variant="default"
+            size="xl"
+            radius="full"
+            className="fixed left-1/2 top-[max(1rem,env(safe-area-inset-top))] z-50 -translate-x-1/2 px-4 py-2.5 text-sm shadow-lg"
+          >
             {toast}
-          </div>
+          </Badge>
         )}
 
         {error && (
-          <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-error">
-            {error}
-          </p>
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
         {loading ? (
-          <p className="loading-pulse text-muted">Cargando menú del día…</p>
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+          </div>
         ) : !menu ? null : !menu.config.canalRemotoActivo ? (
-          <p className="surface p-4 text-sm text-muted">
+          <p className="surface p-4 text-sm text-muted-foreground">
             Por ahora no estamos tomando pedidos en línea.
           </p>
         ) : !menu.abierto || !menu.deadlineVigente ? (
-          <p className="surface p-4 text-sm text-muted">
+          <p className="surface p-4 text-sm text-muted-foreground">
             Ya cerramos pedidos para este día. Elige otra fecha.
           </p>
         ) : menu.productos.length === 0 ? (
-          <p className="surface p-4 text-sm text-muted">
+          <p className="surface p-4 text-sm text-muted-foreground">
             No hay productos disponibles para este día.
           </p>
         ) : (
@@ -239,17 +252,17 @@ export default function ClienteHome() {
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold leading-tight">{p.nombre}</p>
                     {p.categoriaNombre && (
-                      <p className="mt-0.5 text-xs text-muted">
+                      <p className="mt-0.5 text-xs text-muted-foreground">
                         {p.categoriaNombre}
                       </p>
                     )}
                     {p.descripcion && (
-                      <p className="mt-1 line-clamp-2 text-sm text-muted">
+                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                         {p.descripcion}
                       </p>
                     )}
                     {p.alergenos && (
-                      <p className="mt-1 text-[11px] text-muted">
+                      <p className="mt-1 text-[11px] text-muted-foreground">
                         Alérgenos: {p.alergenos}
                       </p>
                     )}
@@ -274,7 +287,7 @@ export default function ClienteHome() {
           </>
         )}
 
-        <p className="pb-2 pt-2 text-center text-sm text-muted">
+        <p className="pb-2 pt-2 text-center text-sm text-muted-foreground">
           ¿Ya pediste?{" "}
           <Link href="/seguimiento" className="font-semibold text-miel">
             Sigue tu pedido
@@ -284,16 +297,19 @@ export default function ClienteHome() {
 
       {cart.totalItems > 0 && (
         <div className="cart-bar">
-          <Link
-            href="/carrito"
-            className="btn btn-primary mx-auto flex w-full max-w-lg justify-between shadow-[0_10px_28px_rgba(154,46,37,0.28)]"
+          <Button
+            asChild
+            size="lg"
+            className="mx-auto flex w-full max-w-lg justify-between shadow-[0_10px_28px_rgba(154,46,37,0.28)]"
           >
-            <span className="inline-flex items-center gap-2">
-              <ShoppingBag size={18} />
-              Ver carrito · {cart.totalItems}
-            </span>
-            <span>{formatoMoneda(cart.subtotal)}</span>
-          </Link>
+            <Link href="/carrito">
+              <span className="inline-flex items-center gap-2">
+                <ShoppingBag size={18} />
+                Ver carrito · {cart.totalItems}
+              </span>
+              <span>{formatoMoneda(cart.subtotal)}</span>
+            </Link>
+          </Button>
         </div>
       )}
     </div>

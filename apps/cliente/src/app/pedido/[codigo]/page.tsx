@@ -13,6 +13,26 @@ import {
   PASOS_PEDIDO,
 } from "@/lib/labels";
 import type { PedidoPublico } from "@tostal/shared/types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/reui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Stepper,
+  StepperIndicator,
+  StepperItem,
+  StepperNav,
+  StepperSeparator,
+  StepperTitle,
+  StepperTrigger,
+} from "@/components/reui/stepper";
+import {
+  Frame,
+  FrameHeader,
+  FramePanel,
+  FrameTitle,
+} from "@/components/reui/frame";
 
 function PedidoView() {
   const params = useParams<{ codigo: string }>();
@@ -62,8 +82,10 @@ function PedidoView() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-10">
-        <p className="loading-pulse text-muted">Buscando tu pedido…</p>
+      <div className="mx-auto max-w-lg space-y-3 px-4 py-10">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-24 w-full rounded-xl" />
+        <Skeleton className="h-40 w-full rounded-xl" />
       </div>
     );
   }
@@ -72,20 +94,23 @@ function PedidoView() {
     return (
       <div className="page-shell px-5 py-10">
         <h1 className="text-3xl font-semibold tracking-tight">Pedido</h1>
-        <p className="mt-2 text-error">{error || "No encontrado"}</p>
+        <Alert variant="destructive" className="mt-3">
+          <AlertDescription>{error || "No encontrado"}</AlertDescription>
+        </Alert>
         <div className="mt-5 flex flex-col gap-2">
-          <Link href="/seguimiento" className="btn btn-primary inline-flex">
-            Buscar otro código
-          </Link>
-          <Link href="/" className="btn btn-secondary inline-flex">
-            Volver al menú
-          </Link>
+          <Button asChild>
+            <Link href="/seguimiento">Buscar otro código</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/">Volver al menú</Link>
+          </Button>
         </div>
       </div>
     );
   }
 
   const idx = PASOS_PEDIDO.indexOf(pedido.estado);
+  const activeStep = idx < 0 ? 1 : idx + 1;
   const cancelado = pedido.estado === "cancelado";
 
   return (
@@ -94,121 +119,118 @@ function PedidoView() {
       <h1 className="mt-1 text-3xl font-semibold tracking-tight">
         Pedido {pedido.codigo}
       </h1>
-      <p className="mt-2 text-sm leading-relaxed text-muted">
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         Hola {pedido.clienteNombre}. Para {labelFecha(pedido.fechaEntrega)} ·{" "}
         {MODO_ENTREGA[pedido.modoEntrega]}
       </p>
       {live && (
-        <p className="mt-2 text-xs font-medium text-ok">
+        <Badge variant="success-light" size="lg" className="mt-2">
           ● Seguimiento en vivo
-        </p>
+        </Badge>
       )}
 
       {stripeHint && pedido.metodoPago === "stripe" && (
-        <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-ok">
-          {pedido.estadoPago === "pagado"
-            ? "Pago con tarjeta simulado correctamente (modo demo sin clave Stripe)."
-            : "Pago con tarjeta registrado; pendiente de confirmación."}
-        </p>
+        <Alert className="mt-4 border-ok/30 bg-emerald-50">
+          <AlertDescription className="text-ok">
+            {pedido.estadoPago === "pagado"
+              ? "Pago con tarjeta simulado correctamente (modo demo sin clave Stripe)."
+              : "Pago con tarjeta registrado; pendiente de confirmación."}
+          </AlertDescription>
+        </Alert>
       )}
 
       {pedido.metodoPago === "transferencia" &&
         pedido.estadoPago === "pendiente" && (
-          <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-alerta">
-            Transferencia pendiente: te confirmamos el pago cuando lo
-            verifiquemos.
-          </p>
+          <Alert className="mt-4 border-alerta/40 bg-amber-50">
+            <AlertDescription className="text-alerta">
+              Transferencia pendiente: te confirmamos el pago cuando lo
+              verifiquemos.
+            </AlertDescription>
+          </Alert>
         )}
 
-      <section className="surface mt-6 p-4">
-        {cancelado ? (
-          <p className="font-semibold text-error">Pedido cancelado</p>
-        ) : (
-          <>
-            <p className="text-2xl font-semibold leading-tight">
-              {ESTADO_PEDIDO[pedido.estado]}
-            </p>
-            <div className="status-track mt-5">
-              {PASOS_PEDIDO.map((paso, i) => {
-                const done = idx > i;
-                const current = idx === i;
-                const last = i === PASOS_PEDIDO.length - 1;
-                return (
-                  <div key={paso} className="status-step">
-                    {!last && (
-                      <span
-                        className={`status-line ${
-                          done || current ? "status-line-done" : ""
-                        }`}
-                      />
-                    )}
-                    <span
-                      className={`status-dot ${
-                        done
-                          ? "status-dot-done"
-                          : current
-                            ? "status-dot-current"
-                            : ""
-                      }`}
-                    />
-                    <span
-                      className={`max-w-[4.5rem] text-[10px] leading-tight ${
-                        current || done
-                          ? "font-semibold text-cacao"
-                          : "text-muted"
-                      }`}
+      <Frame className="mt-6 overflow-hidden rounded-[1rem] border border-border bg-white shadow-none">
+        <FramePanel className="border-0 p-4">
+          {cancelado ? (
+            <p className="font-semibold text-error">Pedido cancelado</p>
+          ) : (
+            <>
+              <p className="text-2xl font-semibold leading-tight">
+                {ESTADO_PEDIDO[pedido.estado]}
+              </p>
+              <Stepper
+                value={activeStep}
+                orientation="horizontal"
+                className="mt-5"
+              >
+                <StepperNav>
+                  {PASOS_PEDIDO.map((paso, i) => (
+                    <StepperItem
+                      key={paso}
+                      step={i + 1}
+                      className="relative flex-1 items-start"
                     >
-                      {ESTADO_PEDIDO[paso]}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-        <p className="mt-5 text-sm text-muted">
-          {METODO_PAGO[pedido.metodoPago]} · {ESTADO_PAGO[pedido.estadoPago]}
-        </p>
-      </section>
+                      <StepperTrigger className="flex w-full flex-col items-center gap-1.5 rounded-md p-0">
+                        <StepperIndicator className="size-3 data-[state=completed]:bg-ok data-[state=active]:bg-primary data-[state=active]:ring-4 data-[state=active]:ring-primary/20" />
+                        <StepperTitle className="max-w-[4.5rem] text-center text-[10px] font-medium leading-tight">
+                          {ESTADO_PEDIDO[paso]}
+                        </StepperTitle>
+                      </StepperTrigger>
+                      {i < PASOS_PEDIDO.length - 1 && (
+                        <StepperSeparator className="absolute top-1.5 right-0 left-[calc(50%+0.5rem)] m-0! w-[calc(100%-1rem)] group-data-[state=completed]/stepper-item:bg-ok" />
+                      )}
+                    </StepperItem>
+                  ))}
+                </StepperNav>
+              </Stepper>
+            </>
+          )}
+          <p className="mt-5 text-sm text-muted-foreground">
+            {METODO_PAGO[pedido.metodoPago]} · {ESTADO_PAGO[pedido.estadoPago]}
+          </p>
+        </FramePanel>
+      </Frame>
 
-      <section className="surface mt-4 p-4">
-        <h2 className="font-semibold">Detalle</h2>
-        <ul className="mt-2 space-y-2 text-sm">
-          {pedido.lineas.map((l) => (
-            <li key={l.id} className="flex justify-between gap-2">
-              <span>
-                {l.cantidad}× {l.productoNombre}
-              </span>
-              <span>{formatoMoneda(l.subtotal)}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-3 border-t border-border pt-3 text-sm">
-          <div className="flex justify-between">
-            <span>Subtotal</span>
-            <span>{formatoMoneda(pedido.subtotal)}</span>
+      <Frame className="mt-4 overflow-hidden rounded-[1rem] border border-border bg-white shadow-none">
+        <FrameHeader className="border-0 px-4 pb-0 pt-4">
+          <FrameTitle className="text-base font-semibold">Detalle</FrameTitle>
+        </FrameHeader>
+        <FramePanel className="border-0 p-4 pt-2">
+          <ul className="space-y-2 text-sm">
+            {pedido.lineas.map((l) => (
+              <li key={l.id} className="flex justify-between gap-2">
+                <span>
+                  {l.cantidad}× {l.productoNombre}
+                </span>
+                <span>{formatoMoneda(l.subtotal)}</span>
+              </li>
+            ))}
+          </ul>
+          <Separator className="my-3" />
+          <div className="text-sm">
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>{formatoMoneda(pedido.subtotal)}</span>
+            </div>
+            <div className="mt-1 flex justify-between">
+              <span>Envío</span>
+              <span>{formatoMoneda(pedido.costoEnvio)}</span>
+            </div>
+            <div className="mt-2 flex justify-between font-semibold">
+              <span>Total</span>
+              <span>{formatoMoneda(pedido.total)}</span>
+            </div>
           </div>
-          <div className="mt-1 flex justify-between">
-            <span>Envío</span>
-            <span>{formatoMoneda(pedido.costoEnvio)}</span>
-          </div>
-          <div className="mt-2 flex justify-between font-semibold">
-            <span>Total</span>
-            <span>{formatoMoneda(pedido.total)}</span>
-          </div>
-        </div>
-      </section>
+        </FramePanel>
+      </Frame>
 
       <div className="mt-6 flex flex-col gap-2">
-        <Link href="/" className="btn btn-secondary inline-flex w-full">
-          Pedir otra vez
-        </Link>
-        <Link
-          href="/seguimiento"
-          className="text-center text-sm font-semibold text-miel"
-        >
-          Buscar otro pedido
-        </Link>
+        <Button asChild variant="outline" className="w-full">
+          <Link href="/">Pedir otra vez</Link>
+        </Button>
+        <Button asChild variant="link" className="text-miel">
+          <Link href="/seguimiento">Buscar otro pedido</Link>
+        </Button>
       </div>
     </div>
   );
@@ -218,8 +240,9 @@ export default function PedidoPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-lg px-4 py-10">
-          <p className="loading-pulse text-muted">Buscando tu pedido…</p>
+        <div className="mx-auto max-w-lg space-y-3 px-4 py-10">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-24 w-full rounded-xl" />
         </div>
       }
     >

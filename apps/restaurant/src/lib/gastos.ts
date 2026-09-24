@@ -1,6 +1,7 @@
 import { sqlAll, sqlGet, sqlRun } from "./db";
 import { ensureSeed } from "./seed";
-import { id, hoyISO, sumarDias } from "./utils";
+import { id } from "./id";
+import { hoyISO, sumarDias } from "./utils";
 
 async function boot() {
   await ensureSeed();

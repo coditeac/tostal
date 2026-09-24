@@ -1,7 +1,7 @@
 import { sqlAll, sqlGet, sqlRun, sqlTransaction } from "./db";
 import { ensureSeed } from "./seed";
 import { getConfigPublica } from "./config";
-import { id } from "./utils";
+import { id } from "./id";
 import type {
   Categoria,
   DiaOperativo,

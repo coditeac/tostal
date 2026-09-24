@@ -106,14 +106,14 @@ export default function InsumosPage() {
     }
   }
 
-  if (loading) return <p className="loading-pulse text-muted">Cargando insumos…</p>;
+  if (loading) return <p className="loading-pulse text-muted-foreground">Cargando insumos…</p>;
 
   return (
     <div className="space-y-4 rise-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl">Insumos</h1>
-          <p className="text-sm text-muted">Un solo punto de almacén</p>
+          <p className="text-sm text-muted-foreground">Un solo punto de almacén</p>
         </div>
         <button type="button" className="btn btn-primary" onClick={startNew}>
           Nuevo
@@ -238,7 +238,7 @@ export default function InsumosPage() {
       )}
 
       {insumos.length === 0 ? (
-        <p className="text-sm text-muted">No hay insumos todavía.</p>
+        <p className="text-sm text-muted-foreground">No hay insumos todavía.</p>
       ) : (
         <ul className="space-y-2">
           {insumos.map((i) => (
@@ -252,11 +252,11 @@ export default function InsumosPage() {
                     </span>
                   )}
                 </p>
-                <p className="text-sm text-muted">
+                <p className="text-sm text-muted-foreground">
                   {i.stockActual} {i.unidad} · mín {i.stockMinimo} ·{" "}
                   {i.ubicacion || "—"}
                 </p>
-                <p className="text-xs text-muted">
+                <p className="text-xs text-muted-foreground">
                   Costo {formatoMoneda(i.costoUnitario)} / {i.unidad}
                 </p>
               </div>

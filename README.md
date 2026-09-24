@@ -14,6 +14,14 @@ CORS: orígenes en `TOSTAL_CORS_ORIGINS` (por defecto `4322`).
 
 ---
 
+## UI
+
+Ambas apps usan **shadcn/ui** (estilo `radix-nova`) + registry **[ReUI](https://reui.io)** (`@reui/*`).
+
+Tokens de marca Tostal (`--tostal-marca` `#9A2E25`, crema `#D6D2C4`) mapean a `--primary` / tema semántico. Componentes en `apps/*/src/components/ui` y `apps/*/src/components/reui`.
+
+---
+
 ## Arranque
 
 ```bash

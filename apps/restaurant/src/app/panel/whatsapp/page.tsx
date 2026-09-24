@@ -64,7 +64,7 @@ export default function WhatsappPage() {
     <div className="space-y-4 rise-in">
       <div>
         <h1 className="font-display text-3xl">Avisos WhatsApp</h1>
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted-foreground">
           Cola manual: copia o abre WhatsApp. La app no envía sola.
         </p>
       </div>
@@ -91,9 +91,9 @@ export default function WhatsappPage() {
       )}
 
       {loading ? (
-        <p className="loading-pulse text-muted">Cargando avisos…</p>
+        <p className="loading-pulse text-muted-foreground">Cargando avisos…</p>
       ) : avisos.length === 0 ? (
-        <p className="surface p-4 text-sm text-muted">
+        <p className="surface p-4 text-sm text-muted-foreground">
           No hay avisos en este filtro.
         </p>
       ) : (
@@ -103,7 +103,7 @@ export default function WhatsappPage() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold">{a.destinatario}</p>
-                  <p className="text-sm text-muted">
+                  <p className="text-sm text-muted-foreground">
                     {a.telefono} · {a.evento}
                   </p>
                 </div>

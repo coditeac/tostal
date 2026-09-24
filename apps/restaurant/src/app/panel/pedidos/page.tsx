@@ -4,6 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import { formatoMoneda, hoyISO } from "@/lib/format";
 import { useRestaurantPedidoEvents } from "@/lib/use-pedido-events";
 import type { PedidoPublico } from "../../../../../../shared/types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/reui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Pedido = PedidoPublico;
 
@@ -57,6 +70,7 @@ export default function PedidosPage() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fecha]);
 
   useRestaurantPedidoEvents(fecha, {
@@ -96,34 +110,39 @@ export default function PedidosPage() {
     <div className="space-y-4 rise-in">
       <div>
         <h1 className="font-display text-3xl">Pedidos</h1>
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted-foreground">
           Cola del día · producción y pagos
           {live ? (
-            <span className="ml-2 text-xs font-medium text-ok">● En vivo</span>
+            <Badge variant="success-light" size="sm" className="ml-2">
+              ● En vivo
+            </Badge>
           ) : null}
         </p>
       </div>
 
-      <div>
-        <label className="label">Fecha de entrega</label>
-        <input
+      <div className="space-y-2">
+        <Label htmlFor="fecha">Fecha de entrega</Label>
+        <Input
+          id="fecha"
           type="date"
-          className="field"
           value={fecha}
           onChange={(e) => setFecha(e.target.value)}
         />
       </div>
 
       {error && (
-        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error">
-          {error}
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {loading ? (
-        <p className="loading-pulse text-muted">Cargando pedidos…</p>
+        <div className="space-y-3">
+          <Skeleton className="h-28 w-full rounded-xl" />
+          <Skeleton className="h-28 w-full rounded-xl" />
+        </div>
       ) : pedidos.length === 0 ? (
-        <p className="surface p-4 text-sm text-muted">
+        <p className="surface p-4 text-sm text-muted-foreground">
           No hay pedidos para esta fecha.
         </p>
       ) : (
@@ -133,16 +152,24 @@ export default function PedidosPage() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold">{p.codigo}</p>
-                  <p className="text-sm text-muted">
+                  <p className="text-sm text-muted-foreground">
                     {p.clienteNombre} · {p.clienteTelefono}
                   </p>
-                  <p className="text-xs text-muted">
+                  <p className="text-xs text-muted-foreground">
                     {p.canal} · {p.modoEntrega} · {p.metodoPago}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="font-semibold">{formatoMoneda(p.total)}</p>
-                  <p className="text-xs text-muted">{p.estadoPago}</p>
+                  <Badge
+                    variant={
+                      p.estadoPago === "pagado" ? "success-light" : "warning-light"
+                    }
+                    size="sm"
+                    className="mt-1"
+                  >
+                    {p.estadoPago}
+                  </Badge>
                 </div>
               </div>
               <p className="text-sm">
@@ -151,31 +178,38 @@ export default function PedidosPage() {
                   .join(" · ")}
               </p>
               <div className="flex flex-wrap gap-2">
-                <select
-                  className="field max-w-[11rem] py-2"
+                <Select
                   value={p.estado}
                   disabled={busyId === p.id}
-                  onChange={(e) => patch(p.id, { estado: e.target.value })}
+                  onValueChange={(estado) => {
+                    if (estado) patch(p.id, { estado });
+                  }}
                 >
-                  {ESTADOS.map((e) => (
-                    <option key={e} value={e}>
-                      {e.replace("_", " ")}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-11 min-h-[var(--tap)] w-[11rem]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ESTADOS.map((e) => (
+                      <SelectItem key={e} value={e}>
+                        {e.replace("_", " ")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {p.estadoPago === "pendiente" &&
                   p.metodoPago === "transferencia" && (
-                    <button
+                    <Button
                       type="button"
-                      className="btn btn-secondary py-2 text-sm"
+                      variant="outline"
+                      size="sm"
                       disabled={busyId === p.id}
                       onClick={() => patch(p.id, { estadoPago: "pagado" })}
                     >
                       Marcar pagado
-                    </button>
+                    </Button>
                   )}
               </div>
-              <p className="text-xs text-muted">
+              <p className="text-xs text-muted-foreground">
                 Al pasar a «en producción» se descuentan insumos de la receta.
               </p>
             </li>

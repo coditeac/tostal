@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Oswald } from "next/font/google";
 import "./globals.css";
+import { cn } from "@/lib/utils";
 
 const manrope = Manrope({
   subsets: ["latin"],
-  variable: "--font-manrope",
+  variable: "--font-sans",
 });
 
 const oswald = Oswald({
@@ -31,8 +32,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
-      <body className={`${manrope.variable} ${oswald.variable} antialiased`}>
+    <html lang="es" className={cn(manrope.variable, oswald.variable, "font-sans")}>
+      <body className="antialiased">
         {children}
       </body>
     </html>
