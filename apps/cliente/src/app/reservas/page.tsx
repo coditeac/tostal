@@ -42,7 +42,7 @@ export default function ReservasPage() {
   const [email, setEmail] = useState("");
   const [notas, setNotas] = useState("");
   const [metodoPago, setMetodoPago] = useState<
-    Extract<MetodoPago, "transferencia" | "stripe" | "contra_entrega">
+    Extract<MetodoPago, "transferencia" | "stripe">
   >("transferencia");
   const [enviando, setEnviando] = useState(false);
   const [exito, setExito] = useState<{
@@ -128,6 +128,8 @@ export default function ReservasPage() {
     try {
       const data = await crearReserva({
         fecha,
+        fechaEntrega: fecha,
+        modoEntrega: "retiro",
         clienteNombre: nombre.trim(),
         clienteTelefono: telefono.trim(),
         clienteEmail: email.trim() || null,
@@ -140,9 +142,9 @@ export default function ReservasPage() {
       });
       setExito({
         codigo: data.reserva.codigo,
-        anticipo: data.reserva.anticipo,
+        anticipo: data.reserva.anticipoMonto,
         total: data.reserva.total,
-        fecha: data.reserva.fecha,
+        fecha: data.reserva.fechaEntrega,
       });
       setLineas([]);
       if (data.reserva.checkoutUrl) {
@@ -330,13 +332,14 @@ export default function ReservasPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="r-email">Email</Label>
+                    <Label htmlFor="r-email">Email (confirmación)</Label>
                     <Input
                       id="r-email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       autoComplete="email"
+                      required
                       placeholder="tunombre@correo.com"
                     />
                   </div>
@@ -358,9 +361,8 @@ export default function ReservasPage() {
                   <h2 className="section-title">Anticipo y pago</h2>
                   {(
                     [
-                      ["transferencia", "Te enviamos los datos; confirmamos a mano"],
-                      ["stripe", "Tarjeta en línea"],
-                      ["contra_entrega", "Anticipo al confirmar (coordinamos)"],
+                      ["transferencia", "Te enviamos los datos; confirmamos el anticipo a mano"],
+                      ["stripe", "Tarjeta en línea (anticipo)"],
                     ] as const
                   ).map(([value, hint]) => (
                     <label
@@ -415,6 +417,7 @@ export default function ReservasPage() {
                       enviando ||
                       !nombre.trim() ||
                       !telefono.trim() ||
+                      !email.trim() ||
                       !fecha ||
                       lineas.length === 0
                     }

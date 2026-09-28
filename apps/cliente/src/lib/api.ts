@@ -107,9 +107,7 @@ export async function fetchReservasProductos(): Promise<ReservaProducto[]> {
     productos?: Record<string, unknown>[];
   }>(CONTRATO_API.reservasProductos);
   const list = Array.isArray(data.productos) ? data.productos : [];
-  return list
-    .map(normalizeReservaProducto)
-    .filter((p) => p.reservaHabilitada);
+  return list.map(normalizeReservaProducto);
 }
 
 /** POST /api/public/reservas */

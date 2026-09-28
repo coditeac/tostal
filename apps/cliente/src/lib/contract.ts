@@ -51,11 +51,14 @@ export type ReservasProductosResponse = {
 };
 
 export type CrearReservaBody = {
+  /** Alias contrato; API acepta también fechaEntrega. */
   fecha: string;
+  fechaEntrega?: string;
+  modoEntrega?: "retiro" | "envio";
   clienteNombre: string;
   clienteTelefono: string;
   clienteEmail?: string | null;
-  metodoPago: Extract<MetodoPago, "transferencia" | "stripe" | "contra_entrega">;
+  metodoPago: Extract<MetodoPago, "transferencia" | "stripe">;
   notas?: string | null;
   lineas: Array<{
     productoId: string;
@@ -67,10 +70,11 @@ export type CrearReservaResponse = {
   reserva: {
     id: string;
     codigo: string;
-    fecha: string;
+    fechaEntrega: string;
     total: number;
-    anticipo: number;
-    estadoPago?: string;
+    anticipoMonto: number;
+    estado?: string;
+    estadoAnticipo?: string;
     checkoutUrl?: string | null;
   };
 };
