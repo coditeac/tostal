@@ -32,7 +32,7 @@ export default function LoginPage() {
         setError(data.error || "No se pudo entrar");
         return;
       }
-      router.push("/panel");
+      router.push("/productos");
       router.refresh();
     } catch {
       setError("Error de conexión. Intenta de nuevo.");
