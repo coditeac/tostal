@@ -12,7 +12,7 @@ type Insumo = {
   stockActual: number;
   stockMinimo: number;
   costoUnitario: number;
-  proveedorPreferido: string | null;
+  proveedorPreferido?: string | null;
   bajoMinimo?: boolean;
 };
 
@@ -26,7 +26,10 @@ type Sugerido = {
   proveedor: string | null;
   motivo: string;
   costoUnitario: number;
+  paraTienda?: boolean;
 };
+
+type Tienda = { id?: string; nombre: string; preferido?: boolean };
 
 type Linea = {
   key: string;
@@ -39,14 +42,15 @@ type Linea = {
 };
 
 /**
- * Compras: tienda actual → recomendaciones → autocomplete o insumo nuevo → gasto.
+ * Compras: tienda → recomendaciones → autocomplete / alta → cerrar_compra → gasto.
  */
 export default function ComprasPage() {
   const [tienda, setTienda] = useState("");
-  const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [tiendas, setTiendas] = useState<Tienda[]>([]);
   const [sugerencia, setSugerencia] = useState<Sugerido[]>([]);
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [query, setQuery] = useState("");
+  const [matches, setMatches] = useState<Insumo[]>([]);
   const [nuevoOpen, setNuevoOpen] = useState(false);
   const [nuevo, setNuevo] = useState({
     nombre: "",
@@ -60,20 +64,22 @@ export default function ComprasPage() {
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
 
-  async function load() {
+  async function load(tiendaCtx?: string) {
     setLoading(true);
     setError(null);
     try {
-      const [cRes, iRes] = await Promise.all([
-        apiFetch("/api/compras"),
-        apiFetch("/api/insumos"),
-      ]);
-      const cData = await cRes.json();
-      const iData = await iRes.json();
-      if (!cRes.ok) throw new Error(cData.error || "Error al cargar compras");
-      if (!iRes.ok) throw new Error(iData.error || "Error al cargar insumos");
-      setSugerencia(cData.sugerencia || []);
-      setInsumos(iData.insumos || []);
+      const q = tiendaCtx?.trim()
+        ? `?tienda=${encodeURIComponent(tiendaCtx.trim())}`
+        : "";
+      const res = await apiFetch(`/api/compras${q}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al cargar compras");
+      setSugerencia(data.sugerencia || []);
+      setTiendas(
+        (data.tiendas || []).map((t: Tienda | string) =>
+          typeof t === "string" ? { nombre: t } : t
+        )
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -85,34 +91,48 @@ export default function ComprasPage() {
     void load();
   }, []);
 
-  const tiendaNorm = tienda.trim().toLowerCase();
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void load(tienda);
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tienda]);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 1) {
+      setMatches([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      try {
+        const res = await apiFetch(
+          `/api/compras/insumos?q=${encodeURIComponent(q)}&limit=8`
+        );
+        const data = await res.json();
+        if (!res.ok) return;
+        const ya = new Set(lineas.map((l) => l.insumoId).filter(Boolean));
+        setMatches(
+          ((data.insumos || []) as Insumo[]).filter((i) => !ya.has(i.id))
+        );
+      } catch {
+        /* ignore */
+      }
+    }, 200);
+    return () => clearTimeout(t);
+  }, [query, lineas]);
 
   const recomendados = useMemo(() => {
-    if (!tiendaNorm) return sugerencia;
+    if (!tienda.trim()) return sugerencia;
     return sugerencia.filter(
       (s) =>
-        !s.proveedor ||
-        s.proveedor.toLowerCase().includes(tiendaNorm) ||
-        tiendaNorm.includes(s.proveedor.toLowerCase())
+        s.paraTienda !== false &&
+        (!s.proveedor ||
+          s.proveedor.toLowerCase().includes(tienda.trim().toLowerCase()) ||
+          tienda.trim().toLowerCase().includes(s.proveedor.toLowerCase()))
     );
-  }, [sugerencia, tiendaNorm]);
-
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q || q.length < 1) return [];
-    const ya = new Set(lineas.map((l) => l.insumoId).filter(Boolean));
-    return insumos
-      .filter(
-        (i) =>
-          !ya.has(i.id) &&
-          i.nombre.toLowerCase().includes(q) &&
-          (!tiendaNorm ||
-            !i.proveedorPreferido ||
-            i.proveedorPreferido.toLowerCase().includes(tiendaNorm) ||
-            tiendaNorm.includes(i.proveedorPreferido.toLowerCase()))
-      )
-      .slice(0, 8);
-  }, [query, insumos, lineas, tiendaNorm]);
+  }, [sugerencia, tienda]);
 
   function addInsumo(i: Insumo, cantidad?: number) {
     setLineas((prev) => [
@@ -122,18 +142,31 @@ export default function ComprasPage() {
         insumoId: i.id,
         nombre: i.nombre,
         unidad: i.unidad,
-        cantidad: String(cantidad ?? Math.max(1, i.stockMinimo - i.stockActual)),
-        costoPesos: String(i.costoUnitario / 100),
+        cantidad: String(
+          cantidad ??
+            Math.max(1, (i.stockMinimo || 0) - (i.stockActual || 0) || 1)
+        ),
+        costoPesos: String((i.costoUnitario || 0) / 100),
         esNuevo: false,
       },
     ]);
     setQuery("");
+    setMatches([]);
   }
 
   function addDesdeSugerencia(s: Sugerido) {
     if (lineas.some((l) => l.insumoId === s.insumoId)) return;
-    const found = insumos.find((i) => i.id === s.insumoId);
-    if (found) addInsumo(found, s.cantidadSugerida);
+    addInsumo(
+      {
+        id: s.insumoId,
+        nombre: s.nombre,
+        unidad: s.unidad,
+        stockActual: s.stockActual,
+        stockMinimo: s.stockMinimo,
+        costoUnitario: s.costoUnitario,
+      },
+      s.cantidadSugerida
+    );
   }
 
   async function crearInsumoYAgregar() {
@@ -144,21 +177,21 @@ export default function ComprasPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/insumos", {
+      const res = await apiFetch("/api/compras", {
         method: "POST",
         body: JSON.stringify({
+          accion: "alta_insumo",
           nombre: nuevo.nombre.trim(),
           unidad: nuevo.unidad,
-          stockActual: 0,
-          stockMinimo: Number(nuevo.stockMinimo || 0),
+          cantidad: Number(nuevo.cantidad),
           costoPesos: Number(nuevo.costoPesos),
-          proveedorPreferido: tienda.trim() || null,
+          stockMinimo: Number(nuevo.stockMinimo || 0),
+          tienda: tienda.trim() || null,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "No se pudo crear el insumo");
       const insumo = data.insumo as Insumo;
-      setInsumos((prev) => [...prev, insumo]);
       setLineas((prev) => [
         ...prev,
         {
@@ -208,10 +241,19 @@ export default function ComprasPage() {
     setError(null);
     setOkMsg(null);
     try {
+      await apiFetch("/api/compras", {
+        method: "POST",
+        body: JSON.stringify({
+          accion: "set_tienda",
+          nombre: tienda.trim(),
+        }),
+      });
+
       const cartRes = await apiFetch("/api/compras", {
         method: "POST",
         body: JSON.stringify({
           accion: "crear_carrito",
+          tienda: tienda.trim(),
           proveedor: tienda.trim(),
           lineas: validas.map((l) => ({
             insumoId: l.insumoId,
@@ -231,21 +273,24 @@ export default function ComprasPage() {
       const markRes = await apiFetch("/api/compras", {
         method: "POST",
         body: JSON.stringify({
-          accion: "marcar_comprada",
+          accion: "cerrar_compra",
           carritoId,
           registrarGasto: true,
         }),
       });
       const markData = await markRes.json();
       if (!markRes.ok) {
-        throw new Error(markData.error || "No se pudo registrar la compra");
+        throw new Error(markData.error || "No se pudo cerrar la compra");
       }
 
+      const gastoMonto = markData.gasto?.monto;
       setLineas([]);
       setOkMsg(
-        `Compra en ${tienda.trim()} registrada · stock actualizado · gasto en Finanzas`
+        gastoMonto != null
+          ? `Compra cerrada en ${tienda.trim()} · gasto ${formatoMoneda(gastoMonto)} en Finanzas`
+          : `Compra cerrada en ${tienda.trim()} · stock y gasto registrados`
       );
-      await load();
+      await load(tienda);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -253,7 +298,7 @@ export default function ComprasPage() {
     }
   }
 
-  if (loading) {
+  if (loading && !sugerencia.length && !tiendas.length) {
     return (
       <p className="loading-pulse text-muted-foreground">Cargando compras…</p>
     );
@@ -264,8 +309,7 @@ export default function ComprasPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Compras</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Indica la tienda, revisa recomendaciones y confirma — se registra el
-          gasto
+          Tienda → recomendaciones → confirmar (`cerrar_compra` → gasto)
         </p>
       </div>
 
@@ -287,21 +331,14 @@ export default function ComprasPage() {
         <input
           id="tienda"
           className="field"
-          placeholder="Ej. Costco, Central de Abastos, Mercado…"
+          placeholder="Ej. Costco, Central de Abastos…"
           value={tienda}
           onChange={(e) => setTienda(e.target.value)}
           list="tiendas-conocidas"
         />
         <datalist id="tiendas-conocidas">
-          {Array.from(
-            new Set(
-              [
-                ...insumos.map((i) => i.proveedorPreferido).filter(Boolean),
-                ...sugerencia.map((s) => s.proveedor).filter(Boolean),
-              ] as string[]
-            )
-          ).map((t) => (
-            <option key={t} value={t} />
+          {tiendas.map((t) => (
+            <option key={t.id || t.nombre} value={t.nombre} />
           ))}
         </datalist>
       </section>
@@ -314,7 +351,7 @@ export default function ComprasPage() {
           </p>
         ) : recomendados.length === 0 ? (
           <p className="empty-state">
-            Sin recomendaciones para esta tienda. Puedes buscar insumos abajo.
+            Sin recomendaciones para esta tienda. Busca insumos abajo.
           </p>
         ) : (
           <ul className="divide-y divide-border border-y border-border">
@@ -329,8 +366,7 @@ export default function ComprasPage() {
                     <p className="font-medium">{s.nombre}</p>
                     <p className="text-xs text-muted-foreground">
                       Sug. {s.cantidadSugerida} {s.unidad} · stock{" "}
-                      {s.stockActual} · {s.motivo.replace("_", " ")}
-                      {s.proveedor ? ` · ${s.proveedor}` : ""}
+                      {s.stockActual} · {String(s.motivo).replace("_", " ")}
                     </p>
                   </div>
                   <Button
@@ -359,7 +395,7 @@ export default function ComprasPage() {
           autoComplete="off"
         />
         {matches.length > 0 && (
-          <ul className="divide-y divide-border border border-border rounded-xl overflow-hidden">
+          <ul className="overflow-hidden rounded-xl border border-border divide-y divide-border">
             {matches.map((i) => (
               <li key={i.id}>
                 <button
@@ -372,7 +408,7 @@ export default function ComprasPage() {
                     <span className="text-muted-foreground">({i.unidad})</span>
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {i.stockActual} en stock
+                    {i.stockActual ?? 0} en stock
                   </span>
                 </button>
               </li>
@@ -524,7 +560,7 @@ export default function ComprasPage() {
           disabled={busy || lineas.length === 0}
           onClick={() => void confirmarCompra()}
         >
-          {busy ? "Registrando…" : "Confirmar compra y registrar gasto"}
+          {busy ? "Cerrando…" : "Cerrar compra y registrar gasto"}
         </Button>
       </section>
     </div>

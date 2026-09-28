@@ -46,14 +46,24 @@ export function AlmacenStock() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/inventario");
+      const res = await apiFetch("/api/almacen");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
-      setInsumos(data.insumos || []);
+      const list = (data.insumos || []).map(
+        (i: Insumo & Record<string, unknown>) => ({
+          ...i,
+          stockActual: Number(i.stockActual ?? i.stock_actual ?? 0),
+          stockMinimo: Number(
+            i.stockMinimo ?? i.stock_minimo ?? i.umbral_pocos ?? 0
+          ),
+          bajoMinimo: Boolean(i.bajoMinimo ?? i.pocos),
+        })
+      ) as Insumo[];
+      setInsumos(list);
       setMovimientos(data.movimientos || []);
-      setAlertas(data.alertas || []);
-      if (!form.insumoId && data.insumos?.[0]) {
-        setForm((f) => ({ ...f, insumoId: data.insumos[0].id }));
+      setAlertas((data.pocos || data.alertas || []) as Alerta[]);
+      if (!form.insumoId && list[0]) {
+        setForm((f) => ({ ...f, insumoId: list[0].id }));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -63,14 +73,14 @@ export function AlmacenStock() {
   }
 
   useEffect(() => {
-    load();
+    void load();
   }, []);
 
   async function registrar() {
     setSaving(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/inventario", {
+      const res = await apiFetch("/api/almacen", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -92,8 +102,22 @@ export function AlmacenStock() {
     }
   }
 
+  async function guardarUmbral(insumoId: string, stockMinimo: number) {
+    setError(null);
+    const res = await apiFetch("/api/almacen/umbral", {
+      method: "PUT",
+      body: JSON.stringify({ insumoId, stockMinimo, umbral_pocos: stockMinimo }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.error || "No se pudo guardar el umbral");
+      return;
+    }
+    await load();
+  }
+
   if (loading) {
-    return <p className="loading-pulse text-muted-foreground">Cargando inventario…</p>;
+    return <p className="loading-pulse text-muted-foreground">Cargando almacén…</p>;
   }
 
   return (
@@ -191,13 +215,16 @@ export function AlmacenStock() {
         <h2 className="font-semibold">Stock actual</h2>
         <ul className="space-y-2">
           {insumos.map((i) => (
-            <li key={i.id} className="flex justify-between gap-3 border-b border-border py-3.5 text-sm first:border-t">
-              <div>
+            <li
+              key={i.id}
+              className="flex flex-wrap items-center justify-between gap-3 border-b border-border py-3.5 text-sm first:border-t"
+            >
+              <div className="min-w-0">
                 <p className="font-medium">
                   {i.nombre}
                   {i.bajoMinimo && (
                     <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-alerta">
-                      Bajo
+                      Pocos
                     </span>
                   )}
                 </p>
@@ -205,9 +232,25 @@ export function AlmacenStock() {
                   {formatoMoneda(i.costoUnitario)} / {i.unidad}
                 </p>
               </div>
-              <p className="font-semibold">
-                {i.stockActual} {i.unidad}
-              </p>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  Mín.
+                  <input
+                    className="field w-16 py-1 text-sm"
+                    type="number"
+                    defaultValue={i.stockMinimo}
+                    onBlur={(e) => {
+                      const v = Number(e.target.value);
+                      if (!Number.isNaN(v) && v !== i.stockMinimo) {
+                        void guardarUmbral(i.id, v);
+                      }
+                    }}
+                  />
+                </label>
+                <p className="font-semibold tabular-nums">
+                  {i.stockActual} {i.unidad}
+                </p>
+              </div>
             </li>
           ))}
         </ul>

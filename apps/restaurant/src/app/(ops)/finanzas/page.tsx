@@ -13,13 +13,25 @@ type Gasto = {
   notas: string | null;
 };
 
+type Ingreso = {
+  id: string;
+  categoria: string;
+  monto: number;
+  fecha: string;
+  metodoPago: string | null;
+  notas: string | null;
+  pedidoId?: string | null;
+  reservaId?: string | null;
+};
+
 type Resumen = {
-  total: number;
-  ventas: number;
-  gastosVsVentas: number | null;
-  porCategoria: Array<{ categoria: string; monto: number }>;
+  totalGastos: number;
+  totalIngresos: number;
+  balance: number;
   desde: string;
   hasta: string;
+  ventasPedidos?: number;
+  anticiposReservas?: number;
 };
 
 type Tab = "gastos" | "ingresos";
@@ -27,12 +39,21 @@ type Tab = "gastos" | "ingresos";
 export default function FinanzasPage() {
   const [tab, setTab] = useState<Tab>("gastos");
   const [gastos, setGastos] = useState<Gasto[]>([]);
+  const [ingresos, setIngresos] = useState<Ingreso[]>([]);
   const [resumen, setResumen] = useState<Resumen | null>(null);
-  const [categorias, setCategorias] = useState<string[]>([]);
+  const [categoriasGasto, setCategoriasGasto] = useState<string[]>([]);
+  const [categoriasIngreso, setCategoriasIngreso] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({
+  const [gastoForm, setGastoForm] = useState({
     categoria: "otros",
+    montoPesos: "",
+    fecha: hoyISO(),
+    metodoPago: "efectivo",
+    notas: "",
+  });
+  const [ingresoForm, setIngresoForm] = useState({
+    categoria: "ventas",
     montoPesos: "",
     fecha: hoyISO(),
     metodoPago: "efectivo",
@@ -44,14 +65,38 @@ export default function FinanzasPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/gastos");
+      const res = await apiFetch("/api/finanzas");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
       setGastos(data.gastos || []);
-      setResumen(data.resumen || null);
-      setCategorias(data.categorias || []);
-      if (data.categorias?.[0]) {
-        setForm((f) => ({ ...f, categoria: f.categoria || data.categorias[0] }));
+      setIngresos(data.ingresos || []);
+      const r = data.resumen || {};
+      setResumen({
+        totalGastos: Number(r.totalGastos ?? r.total_gastos ?? 0),
+        totalIngresos: Number(r.totalIngresos ?? r.total_ingresos ?? 0),
+        balance: Number(r.balance ?? 0),
+        desde: String(r.desde || ""),
+        hasta: String(r.hasta || ""),
+        ventasPedidos: Number(r.ventasPedidos ?? r.ventas_pedidos ?? 0),
+        anticiposReservas: Number(
+          r.anticiposReservas ?? r.anticipos_reservas ?? 0
+        ),
+      });
+      setCategoriasGasto(data.categorias_gasto || data.categoriasGasto || []);
+      setCategoriasIngreso(
+        data.categorias_ingreso || data.categoriasIngreso || []
+      );
+      if ((data.categorias_gasto || [])[0]) {
+        setGastoForm((f) => ({
+          ...f,
+          categoria: f.categoria || data.categorias_gasto[0],
+        }));
+      }
+      if ((data.categorias_ingreso || [])[0]) {
+        setIngresoForm((f) => ({
+          ...f,
+          categoria: f.categoria || data.categorias_ingreso[0],
+        }));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -64,24 +109,23 @@ export default function FinanzasPage() {
     void load();
   }, []);
 
-  async function guardar() {
+  async function guardarGasto() {
     setSaving(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/gastos", {
+      const res = await apiFetch("/api/finanzas/gastos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          categoria: form.categoria,
-          montoPesos: Number(form.montoPesos),
-          fecha: form.fecha,
-          metodoPago: form.metodoPago,
-          notas: form.notas || null,
+          categoria: gastoForm.categoria,
+          montoPesos: Number(gastoForm.montoPesos),
+          fecha: gastoForm.fecha,
+          metodoPago: gastoForm.metodoPago,
+          notas: gastoForm.notas || null,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
-      setForm((f) => ({ ...f, montoPesos: "", notas: "" }));
+      setGastoForm((f) => ({ ...f, montoPesos: "", notas: "" }));
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -90,8 +134,56 @@ export default function FinanzasPage() {
     }
   }
 
-  async function borrar(id: string) {
-    await apiFetch(`/api/gastos?id=${id}`, { method: "DELETE" });
+  async function guardarIngreso() {
+    setSaving(true);
+    setError(null);
+    try {
+      // Prefer /api/ingresos; fallback finanzas/ingresos
+      let res = await apiFetch("/api/ingresos", {
+        method: "POST",
+        body: JSON.stringify({
+          categoria: ingresoForm.categoria,
+          montoPesos: Number(ingresoForm.montoPesos),
+          fecha: ingresoForm.fecha,
+          metodoPago: ingresoForm.metodoPago,
+          notas: ingresoForm.notas || null,
+        }),
+      });
+      if (res.status === 404) {
+        res = await apiFetch("/api/finanzas/ingresos", {
+          method: "POST",
+          body: JSON.stringify({
+            categoria: ingresoForm.categoria,
+            montoPesos: Number(ingresoForm.montoPesos),
+            fecha: ingresoForm.fecha,
+            metodoPago: ingresoForm.metodoPago,
+            notas: ingresoForm.notas || null,
+          }),
+        });
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error");
+      setIngresoForm((f) => ({ ...f, montoPesos: "", notas: "" }));
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function borrarGasto(id: string) {
+    await apiFetch(`/api/finanzas/gastos?id=${id}`, { method: "DELETE" });
+    await load();
+  }
+
+  async function borrarIngreso(id: string) {
+    let res = await apiFetch(`/api/ingresos?id=${id}`, { method: "DELETE" });
+    if (res.status === 404) {
+      res = await apiFetch(`/api/finanzas/ingresos?id=${id}`, {
+        method: "DELETE",
+      });
+    }
     await load();
   }
 
@@ -117,17 +209,27 @@ export default function FinanzasPage() {
       )}
 
       {resumen && (
-        <div className="flex gap-8 border-y border-border py-5">
+        <div className="flex flex-wrap gap-8 border-y border-border py-5">
           <div>
-            <p className="text-xs text-muted-foreground">Gastos (30 días)</p>
+            <p className="text-xs text-muted-foreground">Ingresos</p>
             <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">
-              {formatoMoneda(resumen.total)}
+              {formatoMoneda(resumen.totalIngresos)}
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Ingresos / ventas</p>
+            <p className="text-xs text-muted-foreground">Gastos</p>
             <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">
-              {formatoMoneda(resumen.ventas)}
+              {formatoMoneda(resumen.totalGastos)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Balance</p>
+            <p
+              className={`mt-1 text-3xl font-semibold tabular-nums tracking-tight ${
+                resumen.balance >= 0 ? "text-ok" : "text-error"
+              }`}
+            >
+              {formatoMoneda(resumen.balance)}
             </p>
           </div>
         </div>
@@ -156,47 +258,46 @@ export default function FinanzasPage() {
       </div>
 
       {tab === "ingresos" ? (
-        <section className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Ingresos = ventas de pedidos del período. Las compras confirmadas
-            van como gasto en Finanzas.
-          </p>
-          {resumen ? (
-            <ul className="divide-y divide-border border-y border-border text-sm">
-              <li className="flex justify-between py-3.5">
-                <span>
-                  Ventas ({resumen.desde} → {resumen.hasta})
-                </span>
-                <span className="font-semibold tabular-nums">
-                  {formatoMoneda(resumen.ventas)}
-                </span>
-              </li>
-              {resumen.gastosVsVentas != null && (
-                <li className="flex justify-between py-3.5 text-muted-foreground">
-                  <span>Gastos vs ventas</span>
-                  <span>{resumen.gastosVsVentas}%</span>
-                </li>
-              )}
-            </ul>
-          ) : (
-            <p className="empty-state">Sin datos de ingresos aún.</p>
-          )}
-        </section>
-      ) : (
         <>
+          {resumen &&
+            (resumen.ventasPedidos || resumen.anticiposReservas) && (
+              <ul className="divide-y divide-border border-y border-border text-sm">
+                <li className="flex justify-between py-3">
+                  <span className="text-muted-foreground">Ventas pedidos</span>
+                  <span className="tabular-nums">
+                    {formatoMoneda(resumen.ventasPedidos || 0)}
+                  </span>
+                </li>
+                <li className="flex justify-between py-3">
+                  <span className="text-muted-foreground">
+                    Anticipos reservas
+                  </span>
+                  <span className="tabular-nums">
+                    {formatoMoneda(resumen.anticiposReservas || 0)}
+                  </span>
+                </li>
+              </ul>
+            )}
+
           <section className="space-y-3 border-y border-border py-4">
-            <h2 className="text-sm font-semibold">Nuevo gasto</h2>
+            <h2 className="text-sm font-semibold">Nuevo ingreso</h2>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="label">Categoría</label>
                 <select
                   className="field"
-                  value={form.categoria}
+                  value={ingresoForm.categoria}
                   onChange={(e) =>
-                    setForm({ ...form, categoria: e.target.value })
+                    setIngresoForm({
+                      ...ingresoForm,
+                      categoria: e.target.value,
+                    })
                   }
                 >
-                  {categorias.map((c) => (
+                  {(categoriasIngreso.length
+                    ? categoriasIngreso
+                    : ["ventas", "anticipos", "otros"]
+                  ).map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
@@ -209,9 +310,12 @@ export default function FinanzasPage() {
                   className="field"
                   type="number"
                   step="0.01"
-                  value={form.montoPesos}
+                  value={ingresoForm.montoPesos}
                   onChange={(e) =>
-                    setForm({ ...form, montoPesos: e.target.value })
+                    setIngresoForm({
+                      ...ingresoForm,
+                      montoPesos: e.target.value,
+                    })
                   }
                 />
               </div>
@@ -222,17 +326,22 @@ export default function FinanzasPage() {
                 <input
                   className="field"
                   type="date"
-                  value={form.fecha}
-                  onChange={(e) => setForm({ ...form, fecha: e.target.value })}
+                  value={ingresoForm.fecha}
+                  onChange={(e) =>
+                    setIngresoForm({ ...ingresoForm, fecha: e.target.value })
+                  }
                 />
               </div>
               <div>
                 <label className="label">Pago</label>
                 <select
                   className="field"
-                  value={form.metodoPago}
+                  value={ingresoForm.metodoPago}
                   onChange={(e) =>
-                    setForm({ ...form, metodoPago: e.target.value })
+                    setIngresoForm({
+                      ...ingresoForm,
+                      metodoPago: e.target.value,
+                    })
                   }
                 >
                   <option value="efectivo">Efectivo</option>
@@ -245,15 +354,137 @@ export default function FinanzasPage() {
               <label className="label">Notas</label>
               <input
                 className="field"
-                value={form.notas}
-                onChange={(e) => setForm({ ...form, notas: e.target.value })}
+                value={ingresoForm.notas}
+                onChange={(e) =>
+                  setIngresoForm({ ...ingresoForm, notas: e.target.value })
+                }
               />
             </div>
             <button
               type="button"
               className="btn btn-primary w-full"
-              disabled={saving || !form.montoPesos}
-              onClick={() => void guardar()}
+              disabled={saving || !ingresoForm.montoPesos}
+              onClick={() => void guardarIngreso()}
+            >
+              {saving ? "Guardando…" : "Registrar ingreso"}
+            </button>
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold">Recientes</h2>
+            {ingresos.length === 0 ? (
+              <p className="empty-state">Sin ingresos registrados.</p>
+            ) : (
+              <ul className="divide-y divide-border border-y border-border">
+                {ingresos.slice(0, 30).map((g) => (
+                  <li
+                    key={g.id}
+                    className="flex items-center justify-between gap-2 py-3.5 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium capitalize">{g.categoria}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {g.fecha}
+                        {g.notas ? ` · ${g.notas}` : ""}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold tabular-nums text-ok">
+                        {formatoMoneda(g.monto)}
+                      </p>
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground"
+                        onClick={() => void borrarIngreso(g.id)}
+                      >
+                        Borrar
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      ) : (
+        <>
+          <section className="space-y-3 border-y border-border py-4">
+            <h2 className="text-sm font-semibold">Nuevo gasto</h2>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="label">Categoría</label>
+                <select
+                  className="field"
+                  value={gastoForm.categoria}
+                  onChange={(e) =>
+                    setGastoForm({ ...gastoForm, categoria: e.target.value })
+                  }
+                >
+                  {(categoriasGasto.length
+                    ? categoriasGasto
+                    : ["insumos", "otros"]
+                  ).map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Monto (MXN)</label>
+                <input
+                  className="field"
+                  type="number"
+                  step="0.01"
+                  value={gastoForm.montoPesos}
+                  onChange={(e) =>
+                    setGastoForm({ ...gastoForm, montoPesos: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="label">Fecha</label>
+                <input
+                  className="field"
+                  type="date"
+                  value={gastoForm.fecha}
+                  onChange={(e) =>
+                    setGastoForm({ ...gastoForm, fecha: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label className="label">Pago</label>
+                <select
+                  className="field"
+                  value={gastoForm.metodoPago}
+                  onChange={(e) =>
+                    setGastoForm({ ...gastoForm, metodoPago: e.target.value })
+                  }
+                >
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="tarjeta">Tarjeta</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="label">Notas</label>
+              <input
+                className="field"
+                value={gastoForm.notas}
+                onChange={(e) =>
+                  setGastoForm({ ...gastoForm, notas: e.target.value })
+                }
+              />
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary w-full"
+              disabled={saving || !gastoForm.montoPesos}
+              onClick={() => void guardarGasto()}
             >
               {saving ? "Guardando…" : "Registrar gasto"}
             </button>
@@ -284,7 +515,7 @@ export default function FinanzasPage() {
                       <button
                         type="button"
                         className="text-xs text-muted-foreground"
-                        onClick={() => void borrar(g.id)}
+                        onClick={() => void borrarGasto(g.id)}
                       >
                         Borrar
                       </button>
