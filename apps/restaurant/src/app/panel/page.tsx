@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/reui/badge";
+import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { formatoMoneda } from "@/lib/format";

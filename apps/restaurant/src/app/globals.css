@@ -5,17 +5,17 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Identidad Coditeac — ops densas, misma marca */
+  /* Tostal ops — misma marca, neutros piedra fría */
   --tostal-marca: #9a2e25;
   --tostal-marca-dark: #7a241c;
-  --tostal-marca-deep: #5c1b15;
-  --tostal-ink: #1f1412;
+  --tostal-marca-deep: #4e1712;
+  --tostal-ink: #171513;
   --tostal-crema-logo: #d6d2c4;
-  --tostal-papel: #f3f1ec;
-  --tostal-papel-2: #e6e2da;
-  --tostal-marca-soft: #f0e4e1;
-  --tostal-ok: #2d5a45;
-  --tostal-alerta: #b45309;
+  --tostal-papel: #f3f4f6;
+  --tostal-papel-2: #e4e6ea;
+  --tostal-marca-soft: #f3e8e6;
+  --tostal-ok: #2f6b52;
+  --tostal-alerta: #a85b12;
   --tostal-error: #b42318;
 
   --tostal-cacao: var(--tostal-ink);
@@ -25,7 +25,7 @@
   --tostal-rosa: var(--tostal-marca-soft);
   --tostal-crema: var(--tostal-papel);
   --tostal-arena: var(--tostal-papel-2);
-  /* shadcn/ReUI → marca Tostal */
+  /* shadcn → marca Tostal */
   --background: var(--tostal-papel);
   --foreground: var(--tostal-ink);
   --card: #ffffff;
@@ -37,28 +37,27 @@
   --secondary: var(--tostal-papel-2);
   --secondary-foreground: var(--tostal-ink);
   --muted: var(--tostal-papel-2);
-  --muted-foreground: #6b5f58;
+  --muted-foreground: #5c616a;
   --accent: var(--tostal-marca-soft);
   --accent-foreground: var(--tostal-ink);
   --destructive: var(--tostal-error);
-  --border: #ddd8cf;
-  --input: #ddd8cf;
+  --border: #d2d5da;
+  --input: #d2d5da;
   --ring: var(--tostal-marca);
-  --radius: 1rem;
+  --radius: 0.85rem;
   --tap: 2.75rem;
-  /* ReUI semantic extras */
   --success: var(--tostal-ok);
-  --success-foreground: #f4f2ec;
+  --success-foreground: #f3f4f6;
   --warning: var(--tostal-alerta);
   --warning-foreground: #fff8f0;
   --info: #3b5b7a;
-  --info-foreground: #f4f2ec;
+  --info-foreground: #f3f4f6;
   --invert: var(--tostal-ink);
   --invert-foreground: var(--tostal-crema-logo);
   --chart-1: var(--tostal-marca);
   --chart-2: var(--tostal-ok);
   --chart-3: var(--tostal-alerta);
-  --chart-4: #6b5f58;
+  --chart-4: #5c616a;
   --chart-5: var(--tostal-marca-deep);
   --sidebar: #ffffff;
   --sidebar-foreground: var(--tostal-ink);
@@ -66,7 +65,7 @@
   --sidebar-primary-foreground: var(--tostal-crema-logo);
   --sidebar-accent: var(--tostal-marca-soft);
   --sidebar-accent-foreground: var(--tostal-ink);
-  --sidebar-border: #ddd8cf;
+  --sidebar-border: #d2d5da;
   --sidebar-ring: var(--tostal-marca);
   --destructive-foreground: var(--color-red-800);
 }
@@ -147,10 +146,11 @@ body {
 body {
   background-color: var(--tostal-papel);
   background-image:
-    linear-gradient(180deg, #f7f5f0 0%, var(--tostal-papel) 42%),
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E");
+    radial-gradient(700px 280px at 100% 0%, rgba(154, 46, 37, 0.06), transparent 55%),
+    linear-gradient(180deg, #f7f8fa 0%, var(--tostal-papel) 40%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -159,9 +159,8 @@ a {
   text-decoration: none;
 }
 
-/* Títulos de pantalla: Manrope (no forzar caps) */
 .font-display {
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, sans-serif;
   font-weight: 700;
   letter-spacing: -0.02em;
   text-transform: none;
@@ -268,7 +267,7 @@ a {
   position: sticky;
   bottom: 0;
   z-index: 40;
-  background: color-mix(in srgb, #f7f5f0 94%, transparent);
+  background: color-mix(in srgb, #f3f4f6 94%, transparent);
   border-top: 1px solid var(--border);
   backdrop-filter: blur(14px);
   padding: 0.4rem 0.4rem calc(0.45rem + env(safe-area-inset-bottom));

@@ -7,7 +7,7 @@ import { formatoMoneda, hoyISO } from "@/lib/format";
 import { useRestaurantPedidoEvents } from "@/lib/use-pedido-events";
 import type { PedidoPublico } from "../../../../../../shared/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/reui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

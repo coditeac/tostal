@@ -14,7 +14,7 @@ import {
   UtensilsCrossed,
   Wallet,
 } from "lucide-react";
-import { Badge } from "@/components/reui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 const links = [
@@ -53,7 +53,7 @@ export function AppShell({
 
   return (
     <div className="toastal-shell mx-auto w-full max-w-lg md:max-w-3xl">
-      <header className="sticky top-0 z-40 border-b border-border bg-[color-mix(in_srgb,#f7f5f0_92%,transparent)] px-4 pb-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-border bg-[color-mix(in_srgb,#f3f4f6_92%,transparent)] px-4 pb-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}

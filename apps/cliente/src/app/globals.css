@@ -5,20 +5,21 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Identidad Coditeac — docs/ui-redesign-tostal.md */
+  /* Tostal — auditoría Mobbin 2026-09-28 · solo rojo marca #9A2E25 */
   --tostal-marca: #9a2e25;
   --tostal-marca-dark: #7a241c;
-  --tostal-marca-deep: #5c1b15;
-  --tostal-ink: #1f1412;
+  --tostal-marca-deep: #4e1712;
+  --tostal-ink: #171513;
   --tostal-crema-logo: #d6d2c4;
-  --tostal-papel: #f4f2ec;
-  --tostal-papel-2: #e8e4dc;
-  --tostal-marca-soft: #f0e4e1;
-  --tostal-ok: #2d5a45;
-  --tostal-alerta: #b45309;
+  /* Piedra fría — evita cream+terracota AI (#F4F1EA) */
+  --tostal-papel: #f3f4f6;
+  --tostal-papel-2: #e4e6ea;
+  --tostal-marca-soft: #f3e8e6;
+  --tostal-ok: #2f6b52;
+  --tostal-alerta: #a85b12;
   --tostal-error: #b42318;
 
-  /* Aliases usados en JSX (miel/cacao/crema/…) */
+  /* Aliases JSX legacy (miel/cacao/crema/…) → mismos tokens */
   --tostal-cacao: var(--tostal-ink);
   --tostal-espresso: var(--tostal-marca-deep);
   --tostal-miel: var(--tostal-marca);
@@ -26,7 +27,7 @@
   --tostal-rosa: var(--tostal-marca-soft);
   --tostal-crema: var(--tostal-papel);
   --tostal-arena: var(--tostal-papel-2);
-  /* shadcn/ReUI → marca Tostal */
+  /* shadcn → marca Tostal */
   --background: var(--tostal-papel);
   --foreground: var(--tostal-ink);
   --card: #ffffff;
@@ -38,28 +39,27 @@
   --secondary: var(--tostal-papel-2);
   --secondary-foreground: var(--tostal-ink);
   --muted: var(--tostal-papel-2);
-  --muted-foreground: #6b5f58;
+  --muted-foreground: #5c616a;
   --accent: var(--tostal-marca-soft);
   --accent-foreground: var(--tostal-ink);
   --destructive: var(--tostal-error);
-  --border: #ddd8cf;
-  --input: #ddd8cf;
+  --border: #d2d5da;
+  --input: #d2d5da;
   --ring: var(--tostal-marca);
-  --radius: 1rem;
+  --radius: 0.9rem;
   --tap: 2.75rem;
-  /* ReUI semantic extras */
   --success: var(--tostal-ok);
-  --success-foreground: #f4f2ec;
+  --success-foreground: #f3f4f6;
   --warning: var(--tostal-alerta);
   --warning-foreground: #fff8f0;
   --info: #3b5b7a;
-  --info-foreground: #f4f2ec;
+  --info-foreground: #f3f4f6;
   --invert: var(--tostal-ink);
   --invert-foreground: var(--tostal-crema-logo);
   --chart-1: var(--tostal-marca);
   --chart-2: var(--tostal-ok);
   --chart-3: var(--tostal-alerta);
-  --chart-4: #6b5f58;
+  --chart-4: #5c616a;
   --chart-5: var(--tostal-marca-deep);
   --sidebar: #ffffff;
   --sidebar-foreground: var(--tostal-ink);
@@ -67,7 +67,7 @@
   --sidebar-primary-foreground: var(--tostal-crema-logo);
   --sidebar-accent: var(--tostal-marca-soft);
   --sidebar-accent-foreground: var(--tostal-ink);
-  --sidebar-border: #ddd8cf;
+  --sidebar-border: #d2d5da;
   --sidebar-ring: var(--tostal-marca);
   --destructive-foreground: var(--color-red-800);
 }
@@ -148,11 +148,12 @@ body {
 body {
   background-color: var(--tostal-papel);
   background-image:
-    radial-gradient(880px 400px at 100% -8%, rgba(154, 46, 37, 0.07), transparent 55%),
-    radial-gradient(640px 320px at -8% 18%, rgba(31, 20, 18, 0.03), transparent 50%),
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    radial-gradient(900px 420px at 92% -12%, rgba(154, 46, 37, 0.08), transparent 58%),
+    radial-gradient(720px 360px at -10% 22%, rgba(23, 21, 19, 0.04), transparent 52%),
+    linear-gradient(165deg, #f7f8fa 0%, var(--tostal-papel) 48%, #eef0f3 100%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -347,18 +348,17 @@ a {
 }
 
 .menu-thumb {
-  position: relative;
   flex-shrink: 0;
-  width: 5.5rem;
-  height: 5.5rem;
-  border-radius: 0.9rem;
+  width: 5.25rem;
+  height: 5.25rem;
+  border-radius: 0.85rem;
   overflow: hidden;
   background:
-    linear-gradient(145deg, #c45a4e 0%, var(--tostal-marca) 48%, var(--tostal-marca-deep) 100%);
+    linear-gradient(150deg, #b84a3f 0%, var(--tostal-marca) 52%, var(--tostal-marca-deep) 100%);
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 0.45rem;
+  padding: 0.5rem;
   color: var(--tostal-crema-logo);
   font-size: 0.65rem;
   font-weight: 700;
@@ -366,25 +366,42 @@ a {
   line-height: 1.15;
 }
 
+/* + fuera del thumb — sin overlay flotante sobre media (auditoría) */
 .menu-add {
-  position: absolute;
-  right: 0.35rem;
-  bottom: 0.35rem;
   display: inline-flex;
-  height: 2rem;
-  width: 2rem;
+  height: 2.5rem;
+  width: 2.5rem;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: white;
-  color: var(--tostal-marca);
-  border: 1px solid var(--border);
-  box-shadow: 0 2px 10px rgba(31, 20, 18, 0.14);
+  background: var(--tostal-marca);
+  color: var(--tostal-crema-logo);
+  border: none;
+  box-shadow: 0 4px 14px rgba(154, 46, 37, 0.28);
   cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+  align-self: center;
 }
 
 .menu-add:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
+  background: var(--tostal-marca-dark);
+}
+
+@keyframes cart-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cart-bar-enter {
+  animation: cart-rise 0.35s ease both;
 }
 
 .chip-day {
