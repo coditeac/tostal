@@ -1,4 +1,9 @@
 import { apiFetch } from "@/lib/api";
+import {
+  datetimeLocalCdmxToIso,
+  defaultHoraLimiteIsoCdmx,
+  isoToDatetimeLocalCdmx,
+} from "@/lib/timezone";
 
 /** Contrato Nest: menú del día (con fallback a /api/calendario). */
 
@@ -10,20 +15,14 @@ export type MenuDiaProducto = {
 
 export type MenuDia = {
   fecha: string;
-  horaLimite: string; // ISO datetime
+  horaLimite: string; // ISO datetime (UTC); UI siempre en CDMX
   productos: MenuDiaProducto[];
   fuente: "menu-dia" | "calendario";
 };
 
-function toHoraLocalInput(iso: string, fechaFallback: string): string {
-  const d = iso ? new Date(iso) : new Date(`${fechaFallback}T18:00:00`);
-  if (Number.isNaN(d.getTime())) return `${fechaFallback}T18:00`;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
+/** Valor del input datetime-local en hora CDMX. */
 export function horaLimiteInputValue(menu: MenuDia | null, fecha: string): string {
-  return toHoraLocalInput(menu?.horaLimite || `${fecha}T18:00:00`, fecha);
+  return isoToDatetimeLocalCdmx(menu?.horaLimite, fecha);
 }
 
 async function fromMenuDia(fecha: string): Promise<MenuDia | null> {
@@ -44,7 +43,7 @@ async function fromMenuDia(fecha: string): Promise<MenuDia | null> {
       data.hora_limite ||
       data.horaLimite ||
       data.deadlinePedido ||
-      `${fecha}T18:00:00.000Z`,
+      defaultHoraLimiteIsoCdmx(fecha),
     productos: (productosRaw as Array<Record<string, unknown>>).map((p) => ({
       productoId: String(p.productoId || p.producto_id || p.id || ""),
       productoNombre: String(
@@ -72,7 +71,7 @@ async function fromCalendario(fecha: string): Promise<MenuDia> {
   return {
     fecha,
     horaLimite:
-      data.dia?.deadlinePedido || `${fecha}T18:00:00.000Z`,
+      data.dia?.deadlinePedido || defaultHoraLimiteIsoCdmx(fecha),
     productos: disp.map((d) => ({
       productoId: d.productoId,
       productoNombre: d.productoNombre,
@@ -94,11 +93,12 @@ export async function getMenuDia(fecha: string): Promise<MenuDia> {
 
 export async function saveMenuDia(input: {
   fecha: string;
+  /** datetime-local interpretado en CDMX */
   horaLimiteLocal: string;
   productos: MenuDiaProducto[];
   fuente?: MenuDia["fuente"];
 }): Promise<MenuDia> {
-  const horaLimiteIso = new Date(input.horaLimiteLocal).toISOString();
+  const horaLimiteIso = datetimeLocalCdmxToIso(input.horaLimiteLocal);
 
   // Contrato nuevo
   const putRes = await apiFetch(`/api/menu-dia/${input.fecha}`, {
