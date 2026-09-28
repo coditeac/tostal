@@ -4,7 +4,26 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+  ArchTH = familia tipográfica de marca (Typomancer Arch Condensed).
+  OTF nameID: family Mac "Arch" / Win "Arch Cond"; subfamily Condensed;
+  full "Arch Condensed"; PostScript "Arch-Cond".
+*/
+@font-face {
+  font-family: "Arch Condensed";
+  src:
+    url("/fonts/arch-9.woff2") format("woff2"),
+    url("/fonts/arch-9.otf") format("opentype");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
+  /* Tipografía de marca ArchTH — font-family exacto del OTF */
+  --font-archth: "Arch Condensed", "Arch Cond", sans-serif;
+  --font-sans: var(--font-archth);
+  --font-brand: var(--font-archth);
   /* Tostal ops — misma marca, neutros piedra fría */
   --tostal-marca: #9a2e25;
   --tostal-marca-dark: #7a241c;
@@ -86,9 +105,9 @@
   --color-ok: var(--tostal-ok);
   --color-alerta: var(--tostal-alerta);
   --color-error: var(--tostal-error);
-  --font-sans: var(--font-sans);
-  --font-display: var(--font-brand);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-archth);
+  --font-display: var(--font-archth);
+  --font-heading: var(--font-archth);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -150,7 +169,7 @@ body {
     linear-gradient(180deg, #f7f8fa 0%, var(--tostal-papel) 40%),
     url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
   color: var(--foreground);
-  font-family: var(--font-sans), ui-sans-serif, sans-serif;
+  font-family: var(--font-archth);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -160,7 +179,7 @@ a {
 }
 
 .font-display {
-  font-family: var(--font-sans), ui-sans-serif, sans-serif;
+  font-family: var(--font-archth);
   font-weight: 700;
   letter-spacing: -0.02em;
   text-transform: none;
@@ -168,7 +187,7 @@ a {
 
 /* Solo wordmark / marca */
 .font-brand {
-  font-family: var(--font-brand), "Arial Narrow", sans-serif;
+  font-family: var(--font-archth);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
