@@ -5,36 +5,26 @@ import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
+  CalendarDays,
+  ClipboardList,
   LogOut,
-  MessageCircle,
   Package,
-  ShoppingCart,
-  Store,
+  Settings,
+  ShoppingBag,
   UtensilsCrossed,
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+/** Únicos módulos del nav (contrato 6 módulos). */
 const links = [
-  { href: "/panel", label: "Inicio", icon: LayoutDashboard },
-  { href: "/produccion", label: "Cocina", icon: UtensilsCrossed },
-  { href: "/inventario", label: "Stock", icon: Package },
-  { href: "/compras", label: "Compras", icon: ShoppingCart },
-  { href: "/gastos", label: "Gastos", icon: Wallet },
-  { href: "/caja", label: "Caja", icon: Store },
-  { href: "/avisos", label: "Avisos", icon: MessageCircle },
-];
-
-const moreLinks = [
-  { href: "/costos", label: "Costos" },
-  { href: "/panel/pedidos", label: "Pedidos" },
-  { href: "/panel/reservas", label: "Reservas" },
-  { href: "/panel/productos", label: "Menú" },
-  { href: "/panel/calendario", label: "Día" },
-  { href: "/panel/usuarios", label: "Personal" },
-  { href: "/panel/config", label: "Config" },
-];
+  { href: "/productos", label: "Productos", icon: UtensilsCrossed },
+  { href: "/almacen", label: "Almacén", icon: Package },
+  { href: "/compras", label: "Compras", icon: ShoppingBag },
+  { href: "/finanzas", label: "Finanzas", icon: Wallet },
+  { href: "/pedidos", label: "Pedidos", icon: ClipboardList },
+  { href: "/reservaciones", label: "Reservas", icon: CalendarDays },
+] as const;
 
 export function AppShell({
   children,
@@ -69,59 +59,49 @@ export function AppShell({
               {userNombre}
             </p>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={salir}
-            className="text-muted-foreground"
-            aria-label="Cerrar sesión"
-          >
-            <LogOut size={16} strokeWidth={1.75} />
-            Salir
-          </Button>
+          <div className="flex items-center gap-1">
+            <Link
+              href="/ajustes"
+              aria-label="Ajustes"
+              className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Settings size={16} strokeWidth={1.75} />
+            </Link>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={salir}
+              className="text-muted-foreground"
+              aria-label="Cerrar sesión"
+            >
+              <LogOut size={16} strokeWidth={1.75} />
+              Salir
+            </Button>
+          </div>
         </div>
-        <nav className="mt-3 flex gap-4 overflow-x-auto border-b border-transparent pb-0.5 text-sm">
-          {moreLinks.map((l) => {
-            const active = pathname.startsWith(l.href);
-            return (
-              <Link
-                key={l.href}
-                href={l.href}
-                className={`shrink-0 border-b-2 pb-2 transition-colors ${
-                  active
-                    ? "border-miel font-medium text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {l.label}
-              </Link>
-            );
-          })}
-        </nav>
       </header>
 
       <main className="flex-1 px-5 py-6 pb-28">{children}</main>
 
-      <nav className="nav-bottom">
-        <div className="mx-auto grid max-w-lg grid-cols-4 gap-0.5 sm:grid-cols-7">
+      <nav className="nav-bottom" aria-label="Módulos">
+        <div className="mx-auto grid max-w-lg grid-cols-6 gap-0.5">
           {links.map((l) => {
             const active =
-              pathname === l.href ||
-              (l.href !== "/panel" && pathname.startsWith(l.href));
+              pathname === l.href || pathname.startsWith(`${l.href}/`);
             const Icon = l.icon;
             return (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`flex min-h-[3.1rem] flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-[10px] font-medium transition-colors sm:text-[11px] ${
+                className={`flex min-h-[3.1rem] flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 py-1.5 text-[9px] font-medium transition-colors sm:text-[11px] ${
                   active
                     ? "bg-secondary text-miel"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Icon size={18} strokeWidth={active ? 2.2 : 1.65} />
-                <span>{l.label}</span>
+                <span className="truncate">{l.label}</span>
               </Link>
             );
           })}
