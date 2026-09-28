@@ -128,10 +128,14 @@ export async function listReservas(): Promise<{
   disponible: boolean;
   mensaje?: string;
 }> {
-  const res = await apiFetch("/api/reservas");
+  // Contrato 6 módulos: /api/reservaciones (alias /api/reservas).
+  let res = await apiFetch("/api/reservaciones");
+  if (res.status === 404) {
+    res = await apiFetch("/api/reservas");
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || "No se pudieron cargar las reservas");
+    throw new Error(data.error || "No se pudieron cargar las reservaciones");
   }
   const list = (data.reservas || []) as Array<Record<string, unknown>>;
   return {

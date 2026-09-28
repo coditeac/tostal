@@ -14,7 +14,8 @@ type Producto = {
   alergenos: string | null;
   categoriaId: string | null;
   categoriaNombre: string | null;
-  costoTeorico: number;
+  /** Costo auto desde receta (API: costo_calculado). */
+  costoCalculado: number;
   margenPct: number;
   reservaHabilitada?: boolean;
   anticipoTipo?: "porcentaje" | "monto" | null;
@@ -70,6 +71,10 @@ export function ProductosCatalogo() {
       const list = (pData.productos || []).map(
         (p: Producto & Record<string, unknown>) => ({
           ...p,
+          precio: Number(p.precio ?? p.precio_venta ?? 0),
+          costoCalculado: Number(
+            p.costoCalculado ?? p.costo_calculado ?? p.costoTeorico ?? 0
+          ),
           reservaHabilitada: Boolean(
             p.reservaHabilitada ?? p.reserva_habilitada ?? false
           ),
@@ -468,7 +473,7 @@ export function ProductosCatalogo() {
                 <p className="font-semibold">{formatoMoneda(p.precio)}</p>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
-                Costo teórico {formatoMoneda(p.costoTeorico)} · margen{" "}
+                Costo calculado {formatoMoneda(p.costoCalculado)} · margen{" "}
                 {p.margenPct}%
                 {p.reservaHabilitada
                   ? ` · anticipo ${
