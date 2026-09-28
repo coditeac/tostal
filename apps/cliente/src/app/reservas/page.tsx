@@ -227,7 +227,7 @@ export default function ReservasPage() {
                 className="max-w-xs"
               />
               <p className="text-xs text-muted-foreground">
-                Desde mañana · {labelFecha(fecha)}
+                Desde mañana (calendario CDMX) · {labelFecha(fecha)}
               </p>
             </section>
 
