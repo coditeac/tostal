@@ -1,9 +1,9 @@
 "use client";
 
 import { apiFetch } from "@/lib/api";
-
 import { useEffect, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
+import { Switch } from "@/components/ui/switch";
 
 type Producto = {
   id: string;
@@ -16,6 +16,9 @@ type Producto = {
   categoriaNombre: string | null;
   costoTeorico: number;
   margenPct: number;
+  reservaHabilitada?: boolean;
+  anticipoTipo?: "porcentaje" | "monto" | null;
+  anticipoValor?: number | null;
   duraciones?: Array<{ id: string; etiqueta: string }> | null;
   receta: Array<{
     id: string;
@@ -44,6 +47,9 @@ export default function ProductosPage() {
     alergenos: "",
     activoCatalogo: true,
     duracionesTexto: "",
+    reservaHabilitada: false,
+    anticipoTipo: "porcentaje" as "porcentaje" | "monto",
+    anticipoValor: "",
   });
   const [recetaDraft, setRecetaDraft] = useState<
     Array<{ insumoId: string; cantidad: string }>
@@ -61,7 +67,25 @@ export default function ProductosPage() {
       const pData = await pRes.json();
       const iData = await iRes.json();
       if (!pRes.ok) throw new Error(pData.error || "Error al cargar");
-      setProductos(pData.productos || []);
+      const list = (pData.productos || []).map(
+        (p: Producto & Record<string, unknown>) => ({
+          ...p,
+          reservaHabilitada: Boolean(
+            p.reservaHabilitada ?? p.reserva_habilitada ?? false
+          ),
+          anticipoTipo:
+            (p.anticipoTipo as Producto["anticipoTipo"]) ??
+            (p.anticipo_tipo as Producto["anticipoTipo"]) ??
+            null,
+          anticipoValor:
+            p.anticipoValor != null
+              ? Number(p.anticipoValor)
+              : p.anticipo_valor != null
+                ? Number(p.anticipo_valor)
+                : null,
+        })
+      ) as Producto[];
+      setProductos(list);
       setCategorias(pData.categorias || []);
       setInsumos(iData.insumos || []);
     } catch (e) {
@@ -85,12 +109,22 @@ export default function ProductosPage() {
       alergenos: "",
       activoCatalogo: true,
       duracionesTexto: "",
+      reservaHabilitada: false,
+      anticipoTipo: "porcentaje",
+      anticipoValor: "30",
     });
     setRecetaDraft([{ insumoId: insumos[0]?.id || "", cantidad: "" }]);
   }
 
   function startEdit(p: Producto) {
     setEditId(p.id);
+    const anticipoEsMonto = p.anticipoTipo === "monto";
+    const anticipoMostrar =
+      p.anticipoValor == null
+        ? ""
+        : anticipoEsMonto
+          ? String(p.anticipoValor / 100)
+          : String(p.anticipoValor);
     setForm({
       nombre: p.nombre,
       descripcion: p.descripcion || "",
@@ -99,6 +133,9 @@ export default function ProductosPage() {
       alergenos: p.alergenos || "",
       activoCatalogo: p.activoCatalogo,
       duracionesTexto: (p.duraciones || []).map((d: { etiqueta: string }) => d.etiqueta).join(", "),
+      reservaHabilitada: Boolean(p.reservaHabilitada),
+      anticipoTipo: p.anticipoTipo === "monto" ? "monto" : "porcentaje",
+      anticipoValor: anticipoMostrar || (p.reservaHabilitada ? "30" : ""),
     });
     setRecetaDraft(
       p.receta.length
@@ -114,6 +151,11 @@ export default function ProductosPage() {
     setSaving(true);
     setError(null);
     try {
+      const anticipoValorNum = Number(form.anticipoValor || 0);
+      const anticipoValorPayload =
+        form.anticipoTipo === "monto"
+          ? Math.round(anticipoValorNum * 100)
+          : anticipoValorNum;
       const payload = {
         id: editId === "nuevo" ? undefined : editId,
         nombre: form.nombre,
@@ -123,6 +165,12 @@ export default function ProductosPage() {
         alergenos: form.alergenos || null,
         activoCatalogo: form.activoCatalogo,
         duracionesTexto: form.duracionesTexto,
+        reserva_habilitada: form.reservaHabilitada,
+        reservaHabilitada: form.reservaHabilitada,
+        anticipo_tipo: form.reservaHabilitada ? form.anticipoTipo : null,
+        anticipoTipo: form.reservaHabilitada ? form.anticipoTipo : null,
+        anticipo_valor: form.reservaHabilitada ? anticipoValorPayload : null,
+        anticipoValor: form.reservaHabilitada ? anticipoValorPayload : null,
         receta: recetaDraft
           .filter((r) => r.insumoId && Number(r.cantidad) > 0)
           .map((r) => ({
@@ -130,11 +178,26 @@ export default function ProductosPage() {
             cantidad: Number(r.cantidad),
           })),
       };
-      const res = await apiFetch("/api/productos", {
-        method: editId === "nuevo" ? "POST" : "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+
+      let res: Response;
+      if (editId !== "nuevo") {
+        // Contrato: PATCH /api/productos/:id — fallback PUT /api/productos
+        res = await apiFetch(`/api/productos/${editId}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+        if (res.status === 404) {
+          res = await apiFetch("/api/productos", {
+            method: "PUT",
+            body: JSON.stringify(payload),
+          });
+        }
+      } else {
+        res = await apiFetch("/api/productos", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "No se pudo guardar");
       setEditId(null);
@@ -255,6 +318,64 @@ export default function ProductosPage() {
             Activo en catálogo
           </label>
 
+          <div className="space-y-3 border-t border-border pt-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">Reserva / bajo pedido</p>
+                <p className="text-xs text-muted-foreground">
+                  El cliente elige fecha y paga anticipo
+                </p>
+              </div>
+              <Switch
+                checked={form.reservaHabilitada}
+                onCheckedChange={(checked) =>
+                  setForm({
+                    ...form,
+                    reservaHabilitada: checked,
+                    anticipoValor:
+                      checked && !form.anticipoValor ? "30" : form.anticipoValor,
+                  })
+                }
+                aria-label="Habilitar reserva"
+              />
+            </div>
+            {form.reservaHabilitada && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Tipo de anticipo</label>
+                  <select
+                    className="field"
+                    value={form.anticipoTipo}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        anticipoTipo: e.target.value as "porcentaje" | "monto",
+                      })
+                    }
+                  >
+                    <option value="porcentaje">Porcentaje %</option>
+                    <option value="monto">Monto fijo (MXN)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">
+                    {form.anticipoTipo === "monto" ? "Anticipo MXN" : "Anticipo %"}
+                  </label>
+                  <input
+                    className="field"
+                    type="number"
+                    min="0"
+                    step={form.anticipoTipo === "monto" ? "0.01" : "1"}
+                    value={form.anticipoValor}
+                    onChange={(e) =>
+                      setForm({ ...form, anticipoValor: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           <div>
             <div className="mb-2 flex items-center justify-between">
               <p className="label mb-0">Receta (insumos)</p>
@@ -339,6 +460,7 @@ export default function ProductosPage() {
                   <p className="text-xs text-muted-foreground">
                     {p.categoriaNombre || "Sin categoría"}
                     {!p.activoCatalogo ? " · oculto" : ""}
+                    {p.reservaHabilitada ? " · reserva" : ""}
                   </p>
                   {p.descripcion && (
                     <p className="mt-1 text-sm text-muted-foreground">{p.descripcion}</p>
@@ -349,6 +471,13 @@ export default function ProductosPage() {
               <p className="mt-2 text-xs text-muted-foreground">
                 Costo teórico {formatoMoneda(p.costoTeorico)} · margen{" "}
                 {p.margenPct}%
+                {p.reservaHabilitada
+                  ? ` · anticipo ${
+                      p.anticipoTipo === "monto"
+                        ? formatoMoneda(p.anticipoValor || 0)
+                        : `${p.anticipoValor ?? 0}%`
+                    }`
+                  : ""}
               </p>
               {p.receta.length > 0 && (
                 <p className="mt-1 text-xs text-muted-foreground">

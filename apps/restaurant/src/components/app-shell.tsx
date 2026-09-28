@@ -29,8 +29,10 @@ const links = [
 const moreLinks = [
   { href: "/costos", label: "Costos" },
   { href: "/panel/pedidos", label: "Pedidos" },
+  { href: "/panel/reservas", label: "Reservas" },
   { href: "/panel/productos", label: "Menú" },
-  { href: "/panel/calendario", label: "Días" },
+  { href: "/panel/calendario", label: "Día" },
+  { href: "/panel/usuarios", label: "Personal" },
   { href: "/panel/config", label: "Config" },
 ];
 

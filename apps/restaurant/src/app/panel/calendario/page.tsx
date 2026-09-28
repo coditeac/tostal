@@ -1,161 +1,145 @@
 "use client";
 
-import { apiFetch } from "@/lib/api";
-
 import { useEffect, useMemo, useState } from "react";
-import { hoyISO, labelFecha } from "@/lib/format";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { hoyISO, labelFecha, sumarDias } from "@/lib/utils";
+import {
+  getMenuDia,
+  horaLimiteInputValue,
+  programarMenuDia,
+  saveMenuDia,
+  type MenuDia,
+  type MenuDiaProducto,
+} from "@/lib/menu-dia";
 
-type Dia = {
-  id: string;
-  fecha: string;
-  abierto: boolean;
-  deadlinePedido: string;
-  cupoMaximo: number | null;
-  notas: string | null;
-};
-
-type Disp = {
-  productoId: string;
-  disponible: boolean;
-  productoNombre: string;
-};
-
-export default function CalendarioPage() {
-  const [dias, setDias] = useState<Dia[]>([]);
-  const [fecha, setFecha] = useState(hoyISO());
-  const [dia, setDia] = useState<Dia | null>(null);
-  const [disp, setDisp] = useState<Disp[]>([]);
+export default function MenuDiaPage() {
+  const hoy = hoyISO();
+  const manana = sumarDias(hoy, 1);
+  const [fecha, setFecha] = useState(manana);
+  const [menu, setMenu] = useState<MenuDia | null>(null);
+  const [productos, setProductos] = useState<MenuDiaProducto[]>([]);
+  const [horaLimite, setHoraLimite] = useState(`${manana}T18:00`);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [deadlineLocal, setDeadlineLocal] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [okMsg, setOkMsg] = useState<string | null>(null);
 
-  const proximos = useMemo(() => {
-    return Array.from({ length: 14 }, (_, i) => {
-      const d = new Date(`${hoyISO()}T12:00:00`);
-      d.setDate(d.getDate() + i);
-      return d.toISOString().slice(0, 10);
-    });
-  }, []);
+  const fechas = useMemo(() => {
+    return Array.from({ length: 10 }, (_, i) => sumarDias(hoy, i));
+  }, [hoy]);
 
-  async function loadLista() {
-    const res = await apiFetch("/api/calendario");
-    const data = await res.json();
-    if (res.ok) setDias(data.dias || []);
-  }
+  const activos = productos.filter((p) => p.activo).length;
 
-  async function loadDia(f: string) {
+  async function load(f: string) {
     setLoading(true);
     setError(null);
+    setOkMsg(null);
     try {
-      const res = await apiFetch(`/api/calendario?fecha=${f}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error");
-      setDia(data.dia);
-      setDisp(data.disponibilidad || []);
-      if (data.dia?.deadlinePedido) {
-        const d = new Date(data.dia.deadlinePedido);
-        const pad = (n: number) => String(n).padStart(2, "0");
-        setDeadlineLocal(
-          `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-        );
-      } else {
-        setDeadlineLocal(`${f}T18:00`);
-      }
+      const data = await getMenuDia(f);
+      setMenu(data);
+      setProductos(data.productos);
+      setHoraLimite(horaLimiteInputValue(data, f));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      setError(e instanceof Error ? e.message : "Error al cargar");
+      setMenu(null);
+      setProductos([]);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadLista();
-    loadDia(fecha);
+    void load(fecha);
   }, [fecha]);
 
   async function guardar() {
     setSaving(true);
     setError(null);
+    setOkMsg(null);
     try {
-      const deadlineIso = new Date(deadlineLocal).toISOString();
-      const res = await apiFetch("/api/calendario", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fecha,
-          abierto: dia?.abierto ?? true,
-          deadlinePedido: deadlineIso,
-          cupoMaximo: dia?.cupoMaximo ?? 20,
-          notas: dia?.notas ?? null,
-          disponibilidad: disp.map((d) => ({
-            productoId: d.productoId,
-            disponible: d.disponible,
-          })),
-        }),
+      const saved = await saveMenuDia({
+        fecha,
+        horaLimiteLocal: horaLimite,
+        productos,
+        fuente: menu?.fuente,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "No se pudo guardar");
-      setDia(data.dia);
-      setDisp(data.disponibilidad || []);
-      await loadLista();
+      setMenu(saved);
+      setProductos(saved.productos);
+      setHoraLimite(horaLimiteInputValue(saved, fecha));
+      setOkMsg(
+        `Menú del ${labelFecha(fecha)} guardado · ${activos} productos activos`
+      );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      setError(e instanceof Error ? e.message : "Error al guardar");
     } finally {
       setSaving(false);
     }
   }
 
-  async function copiarAnterior() {
-    const idx = proximos.indexOf(fecha);
-    if (idx <= 0) return;
-    const desde = proximos[idx - 1];
+  async function programarManana() {
     setSaving(true);
+    setError(null);
+    setOkMsg(null);
     try {
-      const res = await apiFetch("/api/calendario", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fecha, copiarDesde: desde }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error");
-      setDisp(data.disponibilidad || []);
+      setFecha(manana);
+      const data = await programarMenuDia(manana, hoy);
+      setMenu(data);
+      setProductos(data.productos);
+      setHoraLimite(horaLimiteInputValue(data, manana));
+      setOkMsg(`Menú de mañana (${labelFecha(manana)}) listo para revisar`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      setError(e instanceof Error ? e.message : "Error al programar");
     } finally {
       setSaving(false);
     }
+  }
+
+  function toggleTodos(activo: boolean) {
+    setProductos((list) => list.map((p) => ({ ...p, activo })));
   }
 
   return (
-    <div className="space-y-4 rise-in">
-      <div>
-        <h1 className="font-display text-3xl">Calendario</h1>
-        <p className="text-sm text-muted-foreground">
-          Disponibilidad por día y deadline de pedido
-        </p>
+    <div className="space-y-6 rise-in">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Menú del día</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Activa productos y define la hora límite de pedidos. Suele
+            programarse D+1.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={saving}
+          onClick={() => void programarManana()}
+        >
+          Programar mañana
+        </Button>
       </div>
 
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-        {proximos.map((f) => {
-          const info = dias.find((d) => d.fecha === f);
+        {fechas.map((f) => {
           const active = f === fecha;
+          const esHoy = f === hoy;
+          const esManana = f === manana;
           return (
             <button
               key={f}
               type="button"
               onClick={() => setFecha(f)}
-              className={`min-w-[4.5rem] rounded-2xl px-3 py-2 text-left text-sm ${
+              className={`min-w-[4.4rem] rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
                 active
-                  ? "bg-cacao text-crema"
-                  : "surface text-cacao"
+                  ? "bg-miel text-primary-foreground"
+                  : "bg-secondary text-foreground hover:bg-muted"
               }`}
             >
-              <p className="text-[11px] opacity-80">{labelFecha(f)}</p>
-              <p className="font-semibold">{f.slice(8)}</p>
-              <p className="text-[10px] opacity-70">
-                {info?.abierto === false ? "cerrado" : "abierto"}
+              <p className="text-[11px] opacity-80">
+                {esHoy ? "Hoy" : esManana ? "Mañana" : labelFecha(f)}
               </p>
+              <p className="font-semibold tabular-nums">{f.slice(8)}</p>
             </button>
           );
         })}
@@ -166,117 +150,114 @@ export default function CalendarioPage() {
           {error}
         </p>
       )}
+      {okMsg && (
+        <p className="rounded-xl bg-[color-mix(in_srgb,var(--tostal-ok)_12%,white)] px-3 py-2 text-sm text-ok">
+          {okMsg}
+        </p>
+      )}
 
       {loading ? (
-        <p className="loading-pulse text-muted-foreground">Cargando día…</p>
+        <p className="loading-pulse text-sm text-muted-foreground">
+          Cargando menú…
+        </p>
       ) : (
-        <section className="surface space-y-4 p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold">{labelFecha(fecha)}</h2>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={dia?.abierto ?? true}
-                onChange={(e) =>
-                  setDia((d) =>
-                    d
-                      ? { ...d, abierto: e.target.checked }
-                      : {
-                          id: "",
-                          fecha,
-                          abierto: e.target.checked,
-                          deadlinePedido: new Date(deadlineLocal).toISOString(),
-                          cupoMaximo: 20,
-                          notas: null,
-                        }
-                  )
-                }
-              />
-              Día abierto
-            </label>
-          </div>
-
-          <div>
-            <label className="label">Deadline para pedir (fecha y hora)</label>
-            <input
-              type="datetime-local"
-              className="field"
-              value={deadlineLocal}
-              onChange={(e) => setDeadlineLocal(e.target.value)}
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Si ya pasó, el cliente no puede ordenar para este día.
-            </p>
-          </div>
-
-          <div>
-            <label className="label">Cupo máximo de pedidos</label>
-            <input
-              type="number"
-              className="field"
-              value={dia?.cupoMaximo ?? 20}
-              onChange={(e) =>
-                setDia((d) =>
-                  d
-                    ? { ...d, cupoMaximo: Number(e.target.value) }
-                    : null
-                )
-              }
-            />
-          </div>
-
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="font-semibold">Productos disponibles</p>
-              <button
-                type="button"
-                className="text-sm font-semibold text-miel-dark"
-                onClick={copiarAnterior}
-              >
-                Copiar día anterior
-              </button>
+        <div className="space-y-6">
+          <section className="space-y-3 border-y border-border py-4">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Fecha
+                </p>
+                <p className="mt-0.5 font-semibold">{labelFecha(fecha)}</p>
+              </div>
+              <p className="text-sm text-muted-foreground tabular-nums">
+                {activos}/{productos.length} activos
+              </p>
             </div>
-            {disp.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No hay productos en catálogo.</p>
+
+            <div>
+              <label className="label" htmlFor="hora-limite">
+                Hora límite de pedidos
+              </label>
+              <input
+                id="hora-limite"
+                type="datetime-local"
+                className="field"
+                value={horaLimite}
+                onChange={(e) => setHoraLimite(e.target.value)}
+              />
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Pasada esa hora, el cliente ya no puede pedir para este día.
+              </p>
+            </div>
+          </section>
+
+          <section>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">Productos del día</h2>
+              <div className="flex gap-3 text-xs font-semibold">
+                <button
+                  type="button"
+                  className="text-miel"
+                  onClick={() => toggleTodos(true)}
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  className="text-muted-foreground"
+                  onClick={() => toggleTodos(false)}
+                >
+                  Ninguno
+                </button>
+              </div>
+            </div>
+
+            {productos.length === 0 ? (
+              <p className="empty-state">
+                No hay productos en catálogo. Créalos en Menú y vuelve aquí.
+              </p>
             ) : (
-              <ul className="space-y-2">
-                {disp.map((item) => (
+              <ul className="divide-y divide-border border-y border-border">
+                {productos.map((p) => (
                   <li
-                    key={item.productoId}
-                    className="flex items-center justify-between rounded-xl bg-white/80 px-3 py-2"
+                    key={p.productoId}
+                    className="flex items-center justify-between gap-3 py-3.5"
                   >
-                    <span className="text-sm">{item.productoNombre}</span>
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={item.disponible}
-                        onChange={(e) =>
-                          setDisp((list) =>
+                    <span className="text-sm font-medium">{p.productoNombre}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {p.activo ? "Activo" : "Off"}
+                      </span>
+                      <Switch
+                        checked={p.activo}
+                        onCheckedChange={(checked) =>
+                          setProductos((list) =>
                             list.map((x) =>
-                              x.productoId === item.productoId
-                                ? { ...x, disponible: e.target.checked }
+                              x.productoId === p.productoId
+                                ? { ...x, activo: checked }
                                 : x
                             )
                           )
                         }
+                        aria-label={`Activar ${p.productoNombre}`}
                       />
-                      Disponible
-                    </label>
+                    </div>
                   </li>
                 ))}
               </ul>
             )}
-          </div>
+          </section>
 
-          <button
+          <Button
             type="button"
-            className="btn btn-primary w-full"
-            disabled={saving}
-            onClick={guardar}
+            className="w-full"
+            disabled={saving || productos.length === 0}
+            onClick={() => void guardar()}
           >
-            {saving ? "Guardando…" : "Guardar día"}
-          </button>
-        </section>
+            {saving ? "Guardando…" : "Guardar menú del día"}
+          </Button>
+        </div>
       )}
     </div>
   );
