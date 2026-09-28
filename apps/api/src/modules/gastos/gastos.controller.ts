@@ -41,7 +41,7 @@ export class GastosController {
   @HttpCode(201)
   async post(@Req() req: Request, @Body() body: Record<string, unknown>) {
     await requireUser(req, ["admin"]);
-    if (!body?.categoria || body.monto == null) {
+    if (!body?.categoria || (body.monto == null && body.montoPesos == null)) {
       throw new BadRequestException("Categoría y monto son obligatorios.");
     }
     const monto =

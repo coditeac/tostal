@@ -12,9 +12,14 @@ import { PagosController } from "./modules/pagos/pagos.controller";
 import { ProductosController } from "./modules/productos/productos.controller";
 import { InsumosController } from "./modules/productos/insumos.controller";
 import { InventarioController } from "./modules/inventario/inventario.controller";
+import { AlmacenController } from "./modules/almacen/almacen.controller";
 import { CalendarioController } from "./modules/calendario/calendario.controller";
 import { ComprasController } from "./modules/compras/compras.controller";
 import { GastosController } from "./modules/gastos/gastos.controller";
+import {
+  FinanzasController,
+  IngresosController,
+} from "./modules/finanzas/finanzas.controller";
 import { ProduccionController } from "./modules/produccion/produccion.controller";
 import { AvisosController } from "./modules/avisos/avisos.controller";
 import { CajaController } from "./modules/caja/caja.controller";
@@ -40,10 +45,13 @@ import { MenuDiaController } from "./modules/menu-dia/menu-dia.controller";
     ProductosController,
     InsumosController,
     InventarioController,
+    AlmacenController,
     MenuDiaController,
     CalendarioController,
     ComprasController,
     GastosController,
+    FinanzasController,
+    IngresosController,
     ProduccionController,
     AvisosController,
     CajaController,

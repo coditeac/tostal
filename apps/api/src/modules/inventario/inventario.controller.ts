@@ -35,6 +35,8 @@ export class InventarioController {
       insumos: (await listInsumos()).map((i) => ({
         ...i,
         bajoMinimo: i.stockActual <= i.stockMinimo,
+        pocos: i.stockActual <= i.stockMinimo,
+        umbral_pocos: i.stockMinimo,
       })),
       alertas: await alertasStock(),
       movimientos: await listMovimientos({ insumoId, limit: 60 }),

@@ -86,6 +86,9 @@ export class ProductosController {
         anticipo_tipo: p.anticipoTipo,
         anticipo_valor: p.anticipoValor,
         costoTeorico: costo,
+        costo_calculado: costo,
+        costoCalculado: costo,
+        precio_venta: p.precio,
         margenPct: margen,
         receta: await getReceta(p.id),
       });
@@ -103,7 +106,11 @@ export class ProductosController {
         ? body.precio > 1000
           ? Math.round(body.precio)
           : aCentavos(body.precio)
-        : aCentavos(Number(body.precioPesos || 0));
+        : body.precio_venta != null
+          ? typeof body.precio_venta === "number" && body.precio_venta > 1000
+            ? Math.round(Number(body.precio_venta))
+            : aCentavos(Number(body.precio_venta))
+          : aCentavos(Number(body.precioPesos || 0));
     const reserva = parseReservaFields(body);
 
     const producto = await upsertProducto({
@@ -130,7 +137,20 @@ export class ProductosController {
       );
     }
 
-    return { producto, receta: await getReceta(producto.id) };
+    const costo = await costoTeoricoProducto(producto.id);
+    return {
+      producto: {
+        ...producto,
+        reserva_habilitada: producto.reservaHabilitada,
+        anticipo_tipo: producto.anticipoTipo,
+        anticipo_valor: producto.anticipoValor,
+        precio_venta: producto.precio,
+      },
+      receta: await getReceta(producto.id),
+      costoTeorico: costo,
+      costo_calculado: costo,
+      costoCalculado: costo,
+    };
   }
 
   @Put()
@@ -189,9 +209,14 @@ export class ProductosController {
           : body.precio < 1000 && body.precio % 1 !== 0
             ? aCentavos(body.precio)
             : Math.round(body.precio)
-        : body.precioPesos != null
-          ? aCentavos(Number(body.precioPesos))
-          : existing.precio;
+        : body.precio_venta != null
+          ? typeof body.precio_venta === "number" &&
+            Number(body.precio_venta) > 1000
+            ? Math.round(Number(body.precio_venta))
+            : aCentavos(Number(body.precio_venta))
+          : body.precioPesos != null
+            ? aCentavos(Number(body.precioPesos))
+            : existing.precio;
 
     const reserva = parseReservaFields(body);
     const producto = await upsertProducto({
@@ -231,15 +256,19 @@ export class ProductosController {
       );
     }
 
+    const costo = await costoTeoricoProducto(producto.id);
     return {
       producto: {
         ...producto,
         reserva_habilitada: producto.reservaHabilitada,
         anticipo_tipo: producto.anticipoTipo,
         anticipo_valor: producto.anticipoValor,
+        precio_venta: producto.precio,
       },
       receta: await getReceta(producto.id),
-      costoTeorico: await costoTeoricoProducto(producto.id),
+      costoTeorico: costo,
+      costo_calculado: costo,
+      costoCalculado: costo,
     };
   }
 }
