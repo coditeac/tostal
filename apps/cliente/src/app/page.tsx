@@ -112,8 +112,8 @@ export default function ClienteHome() {
               }`}
             >
               {menu.aceptaPedidos
-                ? `Pedidos abiertos hasta las ${labelDeadline(menu.horaLimite)}`
-                : `Cerramos pedidos a las ${labelDeadline(menu.horaLimite)}. Vuelve mañana o haz una reserva.`}
+                ? `Pedidos abiertos hasta las ${labelDeadline(menu.horaLimite)} (hora CDMX)`
+                : `Cerramos pedidos a las ${labelDeadline(menu.horaLimite)} (hora CDMX). Vuelve mañana o haz una reserva.`}
             </p>
           )}
           {cerrado && !menu?.horaLimite && (

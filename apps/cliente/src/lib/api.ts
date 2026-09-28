@@ -122,27 +122,39 @@ export function formatoMoneda(centavos: number, moneda = "MXN"): string {
   }).format(centavos / 100);
 }
 
-export function hoyISO(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+/** Zona operativa Tostal — menú “hoy” y hora límite siempre en CDMX. */
+export const TZ_CDMX = "America/Mexico_City";
+
+/** YYYY-MM-DD del calendario en America/Mexico_City (no TZ del browser). */
+export function hoyISO(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ_CDMX,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
 }
 
-/** Fecha mínima de reserva: mañana (no mismo día del menú). */
-export function mananaISO(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+/** Suma días a una fecha calendario YYYY-MM-DD (sin depender del browser TZ). */
+export function sumarDiasISO(fecha: string, dias: number): string {
+  const [y, m, d] = fecha.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + dias));
+  const yy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getUTCDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
+/** Fecha mínima de reserva: mañana CDMX (no mismo día del menú). */
+export function mananaISO(now: Date = new Date()): string {
+  return sumarDiasISO(hoyISO(now), 1);
 }
 
 export function labelFecha(fecha: string): string {
-  const d = new Date(`${fecha}T12:00:00`);
+  // Mediodía CDMX (UTC−6 fijo post-DST) para etiquetar el día calendario.
+  const d = new Date(`${fecha}T12:00:00-06:00`);
   return d.toLocaleDateString("es-MX", {
+    timeZone: TZ_CDMX,
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -151,6 +163,7 @@ export function labelFecha(fecha: string): string {
 
 export function labelDeadline(iso: string): string {
   return new Date(iso).toLocaleTimeString("es-MX", {
+    timeZone: TZ_CDMX,
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -158,6 +171,7 @@ export function labelDeadline(iso: string): string {
 
 export function labelDeadlineLargo(iso: string): string {
   return new Date(iso).toLocaleString("es-MX", {
+    timeZone: TZ_CDMX,
     weekday: "short",
     day: "numeric",
     month: "short",
