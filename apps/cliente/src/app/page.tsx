@@ -55,7 +55,7 @@ export default function ClienteHome() {
           setError(
             e instanceof Error
               ? e.message
-              : "No se pudo cargar el calendario. ¿Está corriendo la App Restaurant?"
+              : "No se pudo cargar el calendario. Revisa la conexión con la API."
           );
         }
       }
@@ -133,26 +133,23 @@ export default function ClienteHome() {
           height={240}
         />
         {menu?.config.direccionRetiro && (
-          <p className="relative z-10 mt-5 max-w-[20rem] text-[11px] leading-snug text-[#d6d2c4]/80">
+          <p className="relative z-10 mt-6 max-w-[18rem] text-[11px] leading-relaxed text-[#d6d2c4]/75">
             Retiro: {menu.config.direccionRetiro}
           </p>
         )}
       </header>
 
-      <div className="px-5 pt-4">
+      <div className="px-6 pt-5">
         <SiteHeader compact />
       </div>
 
-      <main className="space-y-6 px-5 pb-32 pt-4">
-        <section
-          className="rise-in"
-          style={{ animationDelay: "80ms" }}
-        >
-          <h2 className="text-lg font-semibold tracking-tight">¿Para qué día?</h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+      <main className="space-y-10 px-6 pb-36 pt-6">
+        <section className="section-block rise-in" style={{ animationDelay: "80ms" }}>
+          <h2 className="section-title">¿Para qué día?</h2>
+          <p className="section-lead">
             El menú solo muestra lo disponible ese día.
           </p>
-          <div className="-mx-1 mt-4 flex gap-2.5 overflow-x-auto px-1 pb-1">
+          <div className="-mx-1 mt-5 flex gap-2 overflow-x-auto px-1 pb-1">
             {diasUi.map((d) => {
               const active = d.fecha === fecha;
               return (
@@ -167,13 +164,13 @@ export default function ClienteHome() {
                   <p className="text-[11px] opacity-80">
                     {labelFecha(d.fecha)}
                   </p>
-                  <p className="font-semibold">{d.fecha.slice(8)}</p>
+                  <p className="font-semibold tabular-nums">{d.fecha.slice(8)}</p>
                 </button>
               );
             })}
           </div>
           {menu && (
-            <p className="mt-3.5 text-xs leading-relaxed text-muted-foreground">
+            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
               {menu.abierto && menu.deadlineVigente
                 ? `Pedidos abiertos hasta ${labelDeadline(menu.deadlinePedido)}`
                 : "Ya cerramos pedidos para este día"}
@@ -185,8 +182,8 @@ export default function ClienteHome() {
           <Badge
             variant="default"
             size="xl"
-            radius="full"
-            className="fixed left-1/2 top-[max(1rem,env(safe-area-inset-top))] z-50 -translate-x-1/2 px-4 py-2.5 text-sm shadow-lg"
+            radius="default"
+            className="fixed left-1/2 top-[max(1rem,env(safe-area-inset-top))] z-50 -translate-x-1/2 px-4 py-2.5 text-sm"
           >
             {toast}
           </Badge>
@@ -199,26 +196,27 @@ export default function ClienteHome() {
         )}
 
         {loading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
+          <div className="space-y-5">
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-16 w-full rounded-lg" />
+            <Skeleton className="h-16 w-full rounded-lg" />
+            <Skeleton className="h-16 w-full rounded-lg" />
           </div>
         ) : !menu ? null : !menu.config.canalRemotoActivo ? (
-          <p className="surface p-4 text-sm text-muted-foreground">
+          <p className="empty-state">
             Por ahora no estamos tomando pedidos en línea.
           </p>
         ) : !menu.abierto || !menu.deadlineVigente ? (
-          <p className="surface p-4 text-sm text-muted-foreground">
+          <p className="empty-state">
             Ya cerramos pedidos para este día. Elige otra fecha.
           </p>
         ) : menu.productos.length === 0 ? (
-          <p className="surface p-4 text-sm text-muted-foreground">
+          <p className="empty-state">
             No hay productos disponibles para este día.
           </p>
         ) : (
-          <>
-            <div className="-mx-1 flex gap-2 overflow-x-auto px-1">
+          <section className="section-block">
+            <div className="-mx-1 flex gap-0 overflow-x-auto border-b border-border px-1">
               <button
                 type="button"
                 onClick={() => setCategoria("todas")}
@@ -242,22 +240,19 @@ export default function ClienteHome() {
               ))}
             </div>
 
-            <ul className="divide-y divide-border overflow-hidden rounded-[0.9rem] border border-border bg-white/90">
+            <ul className="list-plain mt-1">
               {productosFiltrados.map((p, idx) => (
                 <li
                   key={p.id}
-                  className="rise-in flex items-center gap-3 p-3.5"
-                  style={{ animationDelay: `${80 + idx * 35}ms` }}
+                  className="rise-in flex items-center gap-3.5 py-4"
+                  style={{ animationDelay: `${60 + idx * 30}ms` }}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold leading-tight">{p.nombre}</p>
-                    {p.categoriaNombre && (
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {p.categoriaNombre}
-                      </p>
-                    )}
+                    <p className="font-semibold leading-snug tracking-tight">
+                      {p.nombre}
+                    </p>
                     {p.descripcion && (
-                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                      <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
                         {p.descripcion}
                       </p>
                     )}
@@ -266,7 +261,7 @@ export default function ClienteHome() {
                         Alérgenos: {p.alergenos}
                       </p>
                     )}
-                    <p className="mt-2 font-semibold">
+                    <p className="mt-2.5 text-[0.95rem] font-semibold tabular-nums">
                       {formatoMoneda(p.precio, menu.config.moneda)}
                     </p>
                   </div>
@@ -279,15 +274,15 @@ export default function ClienteHome() {
                     onClick={() => add(p)}
                     aria-label={`Agregar ${p.nombre}`}
                   >
-                    <Plus size={18} strokeWidth={2.5} />
+                    <Plus size={18} strokeWidth={2.25} />
                   </button>
                 </li>
               ))}
             </ul>
-          </>
+          </section>
         )}
 
-        <p className="pb-2 pt-2 text-center text-sm text-muted-foreground">
+        <p className="pb-2 text-center text-sm text-muted-foreground">
           ¿Ya pediste?{" "}
           <Link href="/seguimiento" className="font-semibold text-miel">
             Sigue tu pedido
@@ -300,14 +295,14 @@ export default function ClienteHome() {
           <Button
             asChild
             size="lg"
-            className="mx-auto flex w-full max-w-lg justify-between shadow-[0_10px_28px_rgba(154,46,37,0.28)]"
+            className="mx-auto flex w-full max-w-lg justify-between"
           >
             <Link href="/carrito">
               <span className="inline-flex items-center gap-2">
                 <ShoppingBag size={18} />
                 Ver carrito · {cart.totalItems}
               </span>
-              <span>{formatoMoneda(cart.subtotal)}</span>
+              <span className="tabular-nums">{formatoMoneda(cart.subtotal)}</span>
             </Link>
           </Button>
         </div>

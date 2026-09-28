@@ -2,8 +2,9 @@
 
 **Marca:** Tostal · *Sabores que unen culturas*  
 **Apps:** Cliente (pedir) · Restaurant (operar)  
-**Owner visual:** Coditeac · auditoría Mobbin 2026-09-28 · **shadcn/ui** · mobile first · español  
-**Doc auditoría:** `docs/auditoria-ui-restaurantes.md`
+**Owner visual:** Coditeac · **HeroUI-inspired** (look & feel) · **shadcn/ui** · mobile first · español  
+**Referencia estética:** [heroui.com](https://heroui.com) — tipografía limpia, mucho aire, bordes suaves, superficies planas, CTAs claros, motion sutil. **No** se usa el package HeroUI/NextUI.  
+**Doc auditoría (patrones menú/ops):** `docs/auditoria-ui-restaurantes.md`
 
 ---
 
@@ -29,93 +30,99 @@ Wordmark tipográfico **solo** (TOSTAL + eslogan) sobre **fondo transparente**. 
 
 ---
 
-## 2. Neutros (redefinidos 2026-09-28)
+## 2. Neutros HeroUI-inspired (2026-09-28)
 
-Lejos del look AI cream + terracota + serif (`#F4F1EA`).
+Lejos del look AI cream+terracota+serif (`#F4F1EA`) y del purple glow.
 
 | Token | Valor | Uso |
 |---|---|---|
-| `--tostal-papel` | `#F3F4F6` | Fondo piedra fría |
-| `--tostal-papel-2` | `#E4E6EA` | Wash idle / nav |
-| `--tostal-marca-soft` | `#F3E8E6` | Wash acento suave |
-| `--tostal-ink` | `#171513` | Texto |
+| `--tostal-papel` | `#FAFAFA` | Fondo claro casi blanco |
+| `--tostal-papel-2` | `#F4F4F5` | Wash idle / nav active |
+| `--tostal-marca-soft` | `#F5EBE9` | Wash acento suave |
+| `--tostal-ink` | `#111113` | Texto alto contraste |
 | `--tostal-marca-dark` | `#7A241C` | Hover |
 | `--tostal-marca-deep` | `#4E1712` | Contraste profundo |
-| `--border` | `#D2D5DA` | Separadores |
+| `--border` | `#E4E4E7` | Separadores suaves |
+| `--muted-foreground` | `#71717A` | Texto secundario |
+| `--radius` | `0.75rem` | Bordes suaves (no pills densas) |
 | `--tostal-ok` | `#2F6B52` | Listo |
 | `--tostal-alerta` | `#A85B12` | Deadline / stock |
 
-**Atmósfera:** papel + grano SVG + wash radial marca (≤8%). Sin purple glow.
+**Atmósfera:** un wash radial marca ≤5%. Sin grano denso. Sin purple glow.
 
 **Tipografía**
 
-- Brand: **Oswald** condensed bold all-caps  
-- UI: **Plus Jakarta Sans** (no Inter / Roboto / Manrope / system)
+- **UI global:** **Geist** (`next/font/google` → `--font-geist`) — body, headings, nav, botones, precios, menú, shadcn.  
+- **Solo logo / wordmark texto “Tostal”:** **Arch Condensed** (`arch-9`) vía `.font-brand` / `.hero-wordmark`.  
+- PNG de logo: no se fuerza Arch.
 
 ---
 
-## 3. Anclas Mobbin (resumen)
+## 3. Principios HeroUI → Tostal
 
-| Uso | Referencia | Adoptar |
-|---|---|---|
-| Menú lista | Blue Bottle · Bolt Food · Honest Greens | Texto izq., thumb der., sin cards |
-| Sticky bag | Blue Bottle · CHOPT | CTA full-width thumb-zone |
-| Checkout | Uber Eats · CHOPT | Tabs retiro/envío · un CTA |
-| Hero marca | sweetgreen · Monte | Brand hero-level, no dashboard |
-| Ops / stock | Shopify · alias · Posh | Densidad, bottom nav, empty states |
-
-**Evitar:** badges flotantes sobre media/hero · cream+seriff · upsells apilados · broadsheet · mezclar checkout con backoffice.
-
-Detalle: `docs/auditoria-ui-restaurantes.md`.
+1. **Mucho aire** — secciones con `space-y-8…10`, tipografía respirada, menos densidad visual en Cliente.  
+2. **Superficies planas** — sin sombras decorativas; bordes 1px suaves o solo divisores.  
+3. **Pocas cards** — sin cards en heroes; cards/superficies **solo** cuando son contenedor de interacción real. Preferir listas tipográficas (`.list-plain`), underline tabs, separadores.  
+4. **CTAs claros** — un primario marca; secundarios outline/ghost flat.  
+5. **Motion sutil** — `rise-in`, press `scale(0.98)`, `cart-rise`. Sin glow animado agresivo.  
+6. **Categorías underline** — estilo docs (borde inferior marca), no pills rellenas.  
+7. **Day chips** — idle = borde sutil / fondo transparente; activo = fill marca.
 
 ---
 
-## 4. Componentes
+## 4. Anclas de flujo (auditoría Mobbin, vigente)
 
-- **Única librería:** shadcn/ui (Button, Input, Dialog, Sheet, Tabs, Badge, Alert, Select, Separator, Skeleton…).
-- ReUI **retirado** (Badge/Frame/Stepper migrados).
-- Cards solo donde hay interacción (fila menú / fila ops).
+| Uso | Adoptar |
+|---|---|
+| Menú lista | Texto izq., thumb der., `+` al lado (no overlay), sin caja card envolvente |
+| Sticky bag | CTA full-width thumb-zone |
+| Checkout | Tabs retiro/envío · un CTA · secciones con Separator, no cajas apiladas |
+| Hero marca | Full-bleed `#9A2E25` + logo crema · una composición |
+| Ops | Filas + divisores · bottom nav · empty states tipográficos |
 
 ---
 
-## 5. Patrones por app
+## 5. Componentes
+
+- **Única librería:** shadcn/ui.  
+- **No** HeroUI / NextUI / ReUI.  
+- Utilidades locales: `.list-plain`, `.empty-state`, `.section-title`, `.section-lead`, `.hero-brand`.
+
+---
+
+## 6. Patrones por app
 
 ### Cliente · tostal.cafe
 
-1. Hero full-bleed `#9A2E25` + logo crema transparente.  
-2. Chips de día; categorías underline/chip marca.  
-3. Lista menú + botón `+` **al lado** del thumb (no overlay).  
-4. Sticky **Ver carrito** con animación `cart-rise`.  
-5. Seguimiento: timeline CSS + un CTA.
+1. Hero full-bleed `#9A2E25` + logo crema.  
+2. Chips de día (activo marca).  
+3. Categorías underline.  
+4. Lista menú sin card envolvente + `+` al lado del thumb.  
+5. Sticky **Ver carrito**.  
+6. Checkout / seguimiento: tipografía + divisores.
 
 ### Restaurant · app.tostal.cafe
 
-1. Login: bloque `#9A2E25` + wordmark crema.  
-2. Shell: bottom nav; active = wash piedra + tinta marca.  
-3. Home: cifras del día + accesos densos.  
-4. Pedidos/cocina/stock: filas + chips estado.
-
-### Motion
-
-1. `rise-in` al cargar  
-2. Press `scale(0.98)`  
-3. `cart-rise` en sticky bag  
+1. Login: brand plane full-bleed + formulario debajo (**sin** card envolvente).  
+2. Shell: bottom nav; top links underline; active = wash piedra.  
+3. Home: cifras tipográficas + accesos en lista.  
+4. Pedidos/cocina/stock: filas + CTAs de acción (interacción real).
 
 ---
 
-## 6. Qué no hacer
+## 7. Qué no hacer
 
 - Sustituir `#9A2E25` / `#D6D2C4`.  
 - Volver a cream `#F4F1EA` + serif editorial.  
-- PNG con bloque rojo sobre hero ya rojo.  
-- Segunda librería de componentes.  
+- Instalar HeroUI/NextUI.  
+- Cards en heroes o cajas decorativas en listas.  
 - Purple / glow / dark-mode forzado.  
 - Dashboard en el primer viewport del Cliente.
 
 ---
 
-## 7. Entrega
+## 8. Entrega
 
-- Tokens + Oswald/Jakarta + shadcn en `apps/cliente` y `apps/restaurant`.  
-- Contratos API intactos; Railway solo `production`.  
+- Tokens HeroUI-inspired + Geist (UI) + Arch Condensed (solo wordmark) + shadcn.  
+- Contratos API / auth / Resend / superadmin intactos.  
 - URLs: https://tostal.cafe · https://app.tostal.cafe  

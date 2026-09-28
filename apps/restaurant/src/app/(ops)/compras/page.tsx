@@ -157,13 +157,13 @@ export default function ComprasPage() {
       <section className="space-y-2">
         <h2 className="font-semibold">Lista sugerida</h2>
         {sugerencia.length === 0 ? (
-          <p className="surface p-4 text-sm text-muted-foreground">
+          <p className="empty-state">
             Todo en orden: no hay faltantes ni demanda pendiente.
           </p>
         ) : (
           <ul className="space-y-2">
             {sugerencia.map((s) => (
-              <li key={s.insumoId} className="surface p-3">
+              <li key={s.insumoId} className="border-b border-border py-3.5 first:border-t">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-medium">{s.nombre}</p>
@@ -252,7 +252,7 @@ export default function ComprasPage() {
           <h2 className="font-semibold">Historial</h2>
           <ul className="space-y-1 text-sm">
             {carritos.slice(0, 8).map((c) => (
-              <li key={c.id} className="surface flex justify-between p-3">
+              <li key={c.id} className="flex justify-between border-b border-border py-3.5 first:border-t">
                 <span>
                   {c.proveedor || "Proveedor"} · {c.estado}
                 </span>

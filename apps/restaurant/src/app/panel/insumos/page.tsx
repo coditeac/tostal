@@ -244,7 +244,7 @@ export default function InsumosPage() {
       ) : (
         <ul className="space-y-2">
           {insumos.map((i) => (
-            <li key={i.id} className="surface flex items-center justify-between gap-3 p-4">
+            <li key={i.id} className="flex items-center justify-between gap-3 border-b border-border py-4 first:border-t">
               <div>
                 <p className="font-semibold">
                   {i.nombre}

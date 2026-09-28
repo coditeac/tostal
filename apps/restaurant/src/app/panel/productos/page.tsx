@@ -332,7 +332,7 @@ export default function ProductosPage() {
       ) : (
         <ul className="space-y-3">
           {productos.map((p) => (
-            <li key={p.id} className="surface p-4">
+            <li key={p.id} className="border-b border-border py-4 first:border-t">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold">{p.nombre}</p>

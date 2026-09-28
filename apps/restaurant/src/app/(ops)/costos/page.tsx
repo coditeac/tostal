@@ -63,7 +63,7 @@ export default function CostosPage() {
       ) : (
         <ul className="space-y-2">
           {productos.map((p) => (
-            <li key={p.id} className="surface p-4">
+            <li key={p.id} className="border-b border-border py-4 first:border-t">
               <button
                 type="button"
                 className="flex w-full items-start justify-between gap-3 text-left"

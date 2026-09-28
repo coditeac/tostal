@@ -80,10 +80,10 @@ export default function ProduccionPage() {
   }
 
   return (
-    <div className="space-y-4 rise-in">
+    <div className="space-y-6 rise-in">
       <div>
-        <h1 className="font-display text-3xl">Producción</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight">Producción</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Cola de cocina · al iniciar se descuentan insumos
           {live ? (
             <span className="ml-2 text-xs font-medium text-ok">● En vivo</span>
@@ -102,39 +102,37 @@ export default function ProduccionPage() {
       </div>
 
       {toast && (
-        <p className="rounded-xl bg-green-50 px-3 py-2 text-sm text-ok">{toast}</p>
+        <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-ok">{toast}</p>
       )}
       {error && (
-        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error">{error}</p>
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-error">{error}</p>
       )}
 
       {loading ? (
         <p className="loading-pulse text-muted-foreground">Cargando cola…</p>
       ) : pedidos.length === 0 ? (
-        <p className="surface p-4 text-sm text-muted-foreground">
-          No hay pedidos en cola para esta fecha.
-        </p>
+        <p className="empty-state">No hay pedidos en cola para esta fecha.</p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="list-plain">
           {pedidos.map((p) => (
-            <li key={p.id} className="surface space-y-3 p-4">
+            <li key={p.id} className="space-y-3 py-4">
               <div className="flex justify-between gap-2">
-                <div>
-                  <p className="font-semibold">{p.codigo}</p>
-                  <p className="text-sm text-muted-foreground">
+                <div className="min-w-0">
+                  <p className="font-semibold tracking-tight">{p.codigo}</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
                     {p.clienteNombre} · {p.canal}
                   </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                     {p.lineas
                       .map((l) => `${l.cantidad}× ${l.productoNombre}`)
                       .join(" · ")}
                   </p>
                 </div>
-                <div className="text-right">
+                <div className="shrink-0 text-right">
                   <p className="text-sm font-medium capitalize">
                     {p.estado.replace("_", " ")}
                   </p>
-                  <p className="text-sm">{formatoMoneda(p.total)}</p>
+                  <p className="text-sm tabular-nums">{formatoMoneda(p.total)}</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">

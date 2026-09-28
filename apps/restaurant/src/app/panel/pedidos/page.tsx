@@ -144,13 +144,13 @@ export default function PedidosPage() {
           <Skeleton className="h-28 w-full rounded-xl" />
         </div>
       ) : pedidos.length === 0 ? (
-        <p className="surface p-4 text-sm text-muted-foreground">
+        <p className="empty-state">
           No hay pedidos para esta fecha.
         </p>
       ) : (
         <ul className="space-y-3">
           {pedidos.map((p) => (
-            <li key={p.id} className="surface space-y-3 p-4">
+            <li key={p.id} className="space-y-3 border-b border-border py-4 first:border-t">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold">{p.codigo}</p>

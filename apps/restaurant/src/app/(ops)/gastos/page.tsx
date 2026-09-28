@@ -212,7 +212,7 @@ export default function GastosPage() {
         ) : (
           <ul className="space-y-2">
             {gastos.slice(0, 30).map((g) => (
-              <li key={g.id} className="surface flex items-center justify-between gap-2 p-3 text-sm">
+              <li key={g.id} className="flex items-center justify-between gap-2 border-b border-border py-3.5 text-sm first:border-t">
                 <div>
                   <p className="font-medium capitalize">{g.categoria}</p>
                   <p className="text-xs text-muted-foreground">

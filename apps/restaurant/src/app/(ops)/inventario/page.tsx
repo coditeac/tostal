@@ -204,7 +204,7 @@ export default function InventarioPage() {
         <h2 className="font-semibold">Stock actual</h2>
         <ul className="space-y-2">
           {insumos.map((i) => (
-            <li key={i.id} className="surface flex justify-between gap-3 p-3 text-sm">
+            <li key={i.id} className="flex justify-between gap-3 border-b border-border py-3.5 text-sm first:border-t">
               <div>
                 <p className="font-medium">
                   {i.nombre}
@@ -233,7 +233,7 @@ export default function InventarioPage() {
         ) : (
           <ul className="space-y-2">
             {movimientos.map((m) => (
-              <li key={m.id} className="surface p-3 text-sm">
+              <li key={m.id} className="border-b border-border py-3.5 text-sm first:border-t">
                 <p className="font-medium">
                   {m.tipo}: {m.cantidad} {m.unidad} · {m.insumoNombre}
                 </p>
