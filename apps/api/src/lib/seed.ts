@@ -1,289 +1,329 @@
+/**
+ * Bootstrap de arranque (sin catálogo demo).
+ * - Config mínima de marca.
+ * - Superadmin desde SUPERADMIN_EMAIL + SUPERADMIN_PASSWORD (one-shot / upsert controlado).
+ * - Purga idempotente de datos demo legados.
+ */
 import bcrypt from "bcryptjs";
-import { sqlGet, sqlRun, sqlTransaction } from "./db";
+import { sqlGet, sqlRun, sqlAll, sqlTransaction } from "./db";
 import { id } from "./id";
-import { aCentavos, hoyISO, sumarDias } from "./utils";
 
-const SEED_FLAG = "seed_version";
-const SEED_VERSION = "1";
+const BOOTSTRAP_FLAG = "bootstrap_version";
+const BOOTSTRAP_VERSION = "2";
+const DEMO_PURGE_FLAG = "demo_purged_v1";
 
+const DEMO_PRODUCT_NAMES = [
+  "Tres leches clásica",
+  "Chocolate mestizo",
+  "Brownie nikkei",
+  "Cheesecake de guava",
+  "Alfajor Tostal",
+  "Café de olla frío",
+  "Chocolate espumoso",
+] as const;
+
+const DEMO_CATEGORY_NAMES = [
+  "Tortas y pasteles",
+  "Individuales",
+  "Bebidas",
+] as const;
+
+const DEMO_INSUMO_NAMES = [
+  "Harina de trigo",
+  "Azúcar",
+  "Huevos",
+  "Mantequilla",
+  "Chocolate cobertura",
+  "Leche",
+  "Café",
+  "Fresas",
+] as const;
+
+const DEMO_ZONA_NAMES = ["Centro", "Sur cercano"] as const;
+const DEMO_ADMIN_EMAIL = "admin@tostal.mx";
+
+/** Compat: callers históricos siguen usando ensureSeed(). */
 export async function ensureSeed() {
+  await ensureBootstrap();
+}
+
+export async function ensureBootstrap() {
+  await ensureMinimalConfig();
+  await ensureSuperadminFromEnv();
+  await purgeDemoDataOnce();
+
   const row = await sqlGet<{ valor: string }>(
     "SELECT valor FROM configuracion WHERE clave = ?",
-    SEED_FLAG
+    BOOTSTRAP_FLAG
   );
-  if (row?.valor === SEED_VERSION) return;
+  if (row?.valor === BOOTSTRAP_VERSION) return;
 
+  await sqlRun(
+    `INSERT INTO configuracion (clave, valor) VALUES (?, ?)
+     ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor`,
+    BOOTSTRAP_FLAG,
+    BOOTSTRAP_VERSION
+  );
+}
+
+async function ensureMinimalConfig() {
+  const configs: Record<string, string> = {
+    marca: "Tostal",
+    eslogan: "Sabores que unen culturas",
+    moneda: "MXN",
+    canal_remoto_activo: "1",
+    canal_mostrador_activo: "0",
+    plantilla_deadline_horas: "24",
+    stripe_mode: "mock",
+    checkout_requiere_cuenta: "0",
+    checkout_recomienda_cuenta: "1",
+  };
+  for (const [k, v] of Object.entries(configs)) {
+    await sqlRun(
+      `INSERT INTO configuracion (clave, valor) VALUES (?, ?)
+       ON CONFLICT(clave) DO NOTHING`,
+      k,
+      v
+    );
+  }
+}
+
+/**
+ * Crea el superadmin inicial desde env.
+ * - Requiere SUPERADMIN_EMAIL + SUPERADMIN_PASSWORD.
+ * - Si no hay ningún superadmin → crea con ese email/password.
+ * - Si SUPERADMIN_FORCE_RESET=1 → actualiza password (y nombre) del email indicado,
+ *   o crea si no existe. Útil para rotar credenciales en Railway.
+ */
+export async function ensureSuperadminFromEnv() {
+  const email = (process.env.SUPERADMIN_EMAIL || "").trim().toLowerCase();
+  const password = process.env.SUPERADMIN_PASSWORD || "";
+  const force = process.env.SUPERADMIN_FORCE_RESET === "1";
+
+  if (!email || !password) {
+    const any = await sqlGet<{ id: string }>(
+      `SELECT id FROM usuarios WHERE rol = 'superadmin' AND activo = 1 LIMIT 1`
+    );
+    if (!any) {
+      console.warn(
+        "[bootstrap] Sin SUPERADMIN_EMAIL/SUPERADMIN_PASSWORD y no hay superadmin. " +
+          "Define esas vars en Railway y redespliega (o setea SUPERADMIN_FORCE_RESET=1)."
+      );
+    }
+    return;
+  }
+
+  if (password.length < 8) {
+    console.error(
+      "[bootstrap] SUPERADMIN_PASSWORD debe tener al menos 8 caracteres. No se creó/actualizó."
+    );
+    return;
+  }
+
+  const existingSuper = await sqlGet<{ id: string; email: string }>(
+    `SELECT id, email FROM usuarios WHERE rol = 'superadmin' LIMIT 1`
+  );
+  const byEmail = await sqlGet<{
+    id: string;
+    email: string;
+    rol: string;
+  }>(`SELECT id, email, rol FROM usuarios WHERE email = ?`, email);
+
+  const hash = await bcrypt.hash(password, 10);
+  const nombre =
+    (process.env.SUPERADMIN_NOMBRE || "").trim() || "Superadmin Tostal";
   const now = new Date().toISOString();
-  const adminId = id();
-  const hash = bcrypt.hashSync("tostal123", 10);
+
+  if (byEmail) {
+    if (force || byEmail.rol !== "superadmin" || !existingSuper) {
+      await sqlRun(
+        `UPDATE usuarios SET nombre = ?, rol = 'superadmin', password_hash = ?, activo = 1 WHERE id = ?`,
+        nombre,
+        hash,
+        byEmail.id
+      );
+      console.info(
+        `[bootstrap] Superadmin actualizado: ${email}${force ? " (FORCE_RESET)" : ""}`
+      );
+    }
+    return;
+  }
+
+  if (existingSuper && !force) {
+    // Ya hay un superadmin distinto; no crear otro sin force.
+    console.info(
+      `[bootstrap] Ya existe superadmin (${existingSuper.email}). ` +
+        `Para forzar con SUPERADMIN_EMAIL=${email}, setea SUPERADMIN_FORCE_RESET=1.`
+    );
+    return;
+  }
+
+  if (existingSuper && force && existingSuper.email !== email) {
+    // Promueve el nuevo email y deja el anterior como admin (sin borrar).
+    await sqlRun(
+      `UPDATE usuarios SET rol = 'admin' WHERE id = ?`,
+      existingSuper.id
+    );
+  }
+
+  await sqlRun(
+    `INSERT INTO usuarios (id, email, nombre, rol, password_hash, activo, creado_en)
+     VALUES (?, ?, ?, 'superadmin', ?, 1, ?)`,
+    id(),
+    email,
+    nombre,
+    hash,
+    now
+  );
+  console.info(`[bootstrap] Superadmin creado: ${email}`);
+}
+
+/**
+ * One-shot idempotente: elimina catálogo/usuario demo del seed v1.
+ * No toca pedidos reales; productos referenciados solo se desactivan.
+ */
+export async function purgeDemoDataOnce() {
+  const flag = await sqlGet<{ valor: string }>(
+    "SELECT valor FROM configuracion WHERE clave = ?",
+    DEMO_PURGE_FLAG
+  );
+  if (flag?.valor === "1") return;
 
   await sqlTransaction(async () => {
-    // Carrera entre workers de build/prerender: solo uno siembra.
     const again = await sqlGet<{ valor: string }>(
       "SELECT valor FROM configuracion WHERE clave = ?",
-      SEED_FLAG
+      DEMO_PURGE_FLAG
     );
-    if (again?.valor === SEED_VERSION) return;
+    if (again?.valor === "1") return;
 
+    await sqlRun(`DELETE FROM usuarios WHERE email = ?`, DEMO_ADMIN_EMAIL);
+
+    // Quitar placeholders obvios de demo
     await sqlRun(
-      `INSERT OR IGNORE INTO usuarios (id, email, nombre, rol, password_hash, activo, creado_en)
-       VALUES (?, ?, ?, ?, ?, 1, ?)`,
-      adminId,
-      "admin@tostal.mx",
-      "Coditeac",
-      "admin",
-      hash,
-      now
+      `DELETE FROM configuracion WHERE clave = 'telefono_whatsapp' AND valor = ?`,
+      "5215512345678"
+    );
+    await sqlRun(
+      `DELETE FROM configuracion WHERE clave = 'direccion_retiro' AND valor = ?`,
+      "Av. de los Sabores 12, Ciudad de México"
+    );
+    await sqlRun(
+      `DELETE FROM dias_operativos WHERE notas = ?`,
+      "Día de demostración"
     );
 
-    const configs: Record<string, string> = {
-      marca: "Tostal",
-      eslogan: "Sabores que unen culturas",
-      moneda: "MXN",
-      canal_remoto_activo: "1",
-      canal_mostrador_activo: "0",
-      telefono_whatsapp: "5215512345678",
-      direccion_retiro: "Av. de los Sabores 12, Ciudad de México",
-      plantilla_deadline_horas: "24",
-      stripe_mode: "mock",
-      // Guest+email OK; UI recomienda cuenta. Admin puede forzar con checkout_requiere_cuenta=1
-      checkout_requiere_cuenta: "0",
-      checkout_recomienda_cuenta: "1",
-      [SEED_FLAG]: SEED_VERSION,
-    };
-    for (const [k, v] of Object.entries(configs)) {
+    const productPlaceholders = DEMO_PRODUCT_NAMES.map(() => "?").join(",");
+    const demoProducts = await sqlAll<{ id: string }>(
+      `SELECT id FROM productos WHERE nombre IN (${productPlaceholders})`,
+      ...DEMO_PRODUCT_NAMES
+    );
+    const productIds = demoProducts.map((p) => p.id);
+
+    if (productIds.length) {
+      const ph = productIds.map(() => "?").join(",");
       await sqlRun(
-        `INSERT INTO configuracion (clave, valor) VALUES (?, ?)
-         ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor`,
-        k,
-        v
+        `DELETE FROM disponibilidad_producto_dia WHERE producto_id IN (${ph})`,
+        ...productIds
       );
+      await sqlRun(
+        `DELETE FROM receta_lineas WHERE producto_id IN (${ph})`,
+        ...productIds
+      );
+      try {
+        await sqlRun(
+          `DELETE FROM vitrina_stock WHERE producto_id IN (${ph})`,
+          ...productIds
+        );
+      } catch {
+        /* tabla puede no existir en installs viejos */
+      }
+      try {
+        await sqlRun(
+          `DELETE FROM vitrina_movimientos WHERE producto_id IN (${ph})`,
+          ...productIds
+        );
+      } catch {
+        /* ignore */
+      }
+
+      // Productos sin líneas de pedido → borrar; con pedidos → desactivar
+      for (const pid of productIds) {
+        const used = await sqlGet<{ c: number }>(
+          `SELECT COUNT(*) as c FROM pedido_lineas WHERE producto_id = ?`,
+          pid
+        );
+        if (Number(used?.c || 0) > 0) {
+          await sqlRun(
+            `UPDATE productos SET activo_catalogo = 0 WHERE id = ?`,
+            pid
+          );
+        } else {
+          await sqlRun(`DELETE FROM productos WHERE id = ?`, pid);
+        }
+      }
     }
 
-    const catTortas = id();
-    const catInd = id();
-    const catBeb = id();
-    await sqlRun(
-      `INSERT INTO categorias (id, nombre, orden, activa) VALUES (?, ?, ?, 1)`,
-      catTortas,
-      "Tortas y pasteles",
-      1
+    const catPh = DEMO_CATEGORY_NAMES.map(() => "?").join(",");
+    const cats = await sqlAll<{ id: string }>(
+      `SELECT id FROM categorias WHERE nombre IN (${catPh})`,
+      ...DEMO_CATEGORY_NAMES
     );
-    await sqlRun(
-      `INSERT INTO categorias (id, nombre, orden, activa) VALUES (?, ?, ?, 1)`,
-      catInd,
-      "Individuales",
-      2
-    );
-    await sqlRun(
-      `INSERT INTO categorias (id, nombre, orden, activa) VALUES (?, ?, ?, 1)`,
-      catBeb,
-      "Bebidas",
-      3
-    );
+    for (const c of cats) {
+      const left = await sqlGet<{ c: number }>(
+        `SELECT COUNT(*) as c FROM productos WHERE categoria_id = ?`,
+        c.id
+      );
+      if (!Number(left?.c || 0)) {
+        await sqlRun(`DELETE FROM categorias WHERE id = ?`, c.id);
+      }
+    }
 
-    const insumos = [
-      { nombre: "Harina de trigo", unidad: "g", stock: 5000, min: 1000, costo: 0.02 },
-      { nombre: "Azúcar", unidad: "g", stock: 3000, min: 800, costo: 0.025 },
-      { nombre: "Huevos", unidad: "u", stock: 48, min: 12, costo: 3.5 },
-      { nombre: "Mantequilla", unidad: "g", stock: 2000, min: 500, costo: 0.12 },
-      { nombre: "Chocolate cobertura", unidad: "g", stock: 1500, min: 400, costo: 0.18 },
-      { nombre: "Leche", unidad: "ml", stock: 4000, min: 1000, costo: 0.018 },
-      { nombre: "Café", unidad: "g", stock: 800, min: 200, costo: 0.25 },
-      { nombre: "Fresas", unidad: "g", stock: 600, min: 200, costo: 0.08 },
-    ] as const;
-
-    const insumoIds: Record<string, string> = {};
+    const insumoPh = DEMO_INSUMO_NAMES.map(() => "?").join(",");
+    const insumos = await sqlAll<{ id: string }>(
+      `SELECT id FROM insumos WHERE nombre IN (${insumoPh})`,
+      ...DEMO_INSUMO_NAMES
+    );
     for (const i of insumos) {
-      const iid = id();
-      insumoIds[i.nombre] = iid;
-      await sqlRun(
-        `INSERT INTO insumos (id, nombre, unidad, stock_actual, stock_minimo, costo_unitario, ubicacion, proveedor_preferido)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        iid,
-        i.nombre,
-        i.unidad,
-        i.stock,
-        i.min,
-        aCentavos(i.costo),
-        i.unidad === "ml" || i.nombre.includes("Fresas") ? "frío" : "despensa",
-        "Proveedor Central"
+      const used = await sqlGet<{ c: number }>(
+        `SELECT COUNT(*) as c FROM receta_lineas WHERE insumo_id = ?`,
+        i.id
       );
+      const mov = await sqlGet<{ c: number }>(
+        `SELECT COUNT(*) as c FROM movimientos_inventario WHERE insumo_id = ?`,
+        i.id
+      );
+      if (!Number(used?.c || 0) && !Number(mov?.c || 0)) {
+        await sqlRun(`DELETE FROM insumos WHERE id = ?`, i.id);
+      }
     }
 
-    const productos = [
-      {
-        cat: catTortas,
-        nombre: "Tres leches clásica",
-        desc: "Bizcocho esponjoso bañado en tres leches, con canela.",
-        precio: 420,
-        alergenos: "lácteos, gluten, huevo",
-        foto: null,
-      },
-      {
-        cat: catTortas,
-        nombre: "Chocolate mestizo",
-        desc: "Capas de chocolate y ganache con toque de chile guajillo.",
-        precio: 480,
-        alergenos: "lácteos, gluten, huevo",
-        foto: null,
-      },
-      {
-        cat: catInd,
-        nombre: "Brownie nikkei",
-        desc: "Brownie denso con miso dulce y ajonjolí.",
-        precio: 65,
-        alergenos: "gluten, soja, sésamo",
-        foto: null,
-      },
-      {
-        cat: catInd,
-        nombre: "Cheesecake de guava",
-        desc: "Base de galleta, crema y coulis de guava.",
-        precio: 75,
-        alergenos: "lácteos, gluten",
-        foto: null,
-      },
-      {
-        cat: catInd,
-        nombre: "Alfajor Tostal",
-        desc: "Doble galleta con dulce de leche y coco.",
-        precio: 45,
-        alergenos: "lácteos, gluten",
-        foto: null,
-      },
-      {
-        cat: catBeb,
-        nombre: "Café de olla frío",
-        desc: "Café con piloncillo y canela, servido con hielo.",
-        precio: 55,
-        alergenos: null,
-        foto: null,
-      },
-      {
-        cat: catBeb,
-        nombre: "Chocolate espumoso",
-        desc: "Chocolate caliente batido al estilo tradicional.",
-        precio: 60,
-        alergenos: "lácteos",
-        foto: null,
-      },
-    ] as const;
-
-    const prodIds: string[] = [];
-    for (let idx = 0; idx < productos.length; idx++) {
-      const p = productos[idx];
-      const pid = id();
-      prodIds.push(pid);
-      await sqlRun(
-        `INSERT INTO productos (id, categoria_id, nombre, descripcion, precio, activo_catalogo, foto_url, alergenos, orden)
-         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)`,
-        pid,
-        p.cat,
-        p.nombre,
-        p.desc,
-        aCentavos(p.precio),
-        p.foto,
-        p.alergenos,
-        idx + 1
-      );
-    }
-
-    const recetas: Array<[number, string, number]> = [
-      [0, "Harina de trigo", 400],
-      [0, "Azúcar", 200],
-      [0, "Huevos", 4],
-      [0, "Leche", 500],
-      [1, "Harina de trigo", 350],
-      [1, "Chocolate cobertura", 300],
-      [1, "Huevos", 5],
-      [1, "Mantequilla", 200],
-      [2, "Harina de trigo", 80],
-      [2, "Chocolate cobertura", 60],
-      [2, "Huevos", 1],
-      [2, "Mantequilla", 40],
-      [3, "Huevos", 1],
-      [3, "Azúcar", 50],
-      [3, "Leche", 80],
-      [4, "Harina de trigo", 40],
-      [4, "Azúcar", 20],
-      [4, "Mantequilla", 25],
-      [5, "Café", 18],
-      [5, "Azúcar", 15],
-      [6, "Chocolate cobertura", 40],
-      [6, "Leche", 200],
-    ];
-    for (const [pi, nombre, cant] of recetas) {
-      await sqlRun(
-        `INSERT INTO receta_lineas (id, producto_id, insumo_id, cantidad) VALUES (?, ?, ?, ?)`,
-        id(),
-        prodIds[pi],
-        insumoIds[nombre],
-        cant
-      );
-    }
-
-    const zona1 = id();
-    const zona2 = id();
-    await sqlRun(
-      `INSERT INTO zonas_envio (id, nombre, cobertura, costo_envio, activa) VALUES (?, ?, ?, ?, 1)`,
-      zona1,
-      "Centro",
-      "Colonias del centro y Roma/Condesa",
-      aCentavos(45)
+    const zonaPh = DEMO_ZONA_NAMES.map(() => "?").join(",");
+    const zonas = await sqlAll<{ id: string }>(
+      `SELECT id FROM zonas_envio WHERE nombre IN (${zonaPh})`,
+      ...DEMO_ZONA_NAMES
     );
-    await sqlRun(
-      `INSERT INTO zonas_envio (id, nombre, cobertura, costo_envio, activa) VALUES (?, ?, ?, ?, 1)`,
-      zona2,
-      "Sur cercano",
-      "Coyoacán y alrededores",
-      aCentavos(65)
-    );
-
-    const hoy = hoyISO();
-
-    for (let i = 0; i < 14; i++) {
-      const fecha = sumarDias(hoy, i);
-      // Deadline: día anterior a las 18:00 (o hoy-1h si es hoy)
-      const deadlineDate = new Date(`${fecha}T18:00:00`);
-      deadlineDate.setDate(deadlineDate.getDate() - 1);
-      if (i === 0) {
-        // para hoy: deadline en 6 horas desde ahora para demos
-        const d = new Date();
-        d.setHours(d.getHours() + 6);
-        await sqlRun(
-          `INSERT OR IGNORE INTO dias_operativos (id, fecha, abierto, deadline_pedido, cupo_maximo, notas)
-           VALUES (?, ?, 1, ?, ?, ?)`,
-          id(),
-          fecha,
-          d.toISOString(),
-          20,
-          "Día de demostración"
-        );
+    for (const z of zonas) {
+      const used = await sqlGet<{ c: number }>(
+        `SELECT COUNT(*) as c FROM pedidos WHERE zona_id = ?`,
+        z.id
+      );
+      if (!Number(used?.c || 0)) {
+        await sqlRun(`DELETE FROM zonas_envio WHERE id = ?`, z.id);
       } else {
-        await sqlRun(
-          `INSERT OR IGNORE INTO dias_operativos (id, fecha, abierto, deadline_pedido, cupo_maximo, notas)
-           VALUES (?, ?, 1, ?, ?, ?)`,
-          id(),
-          fecha,
-          deadlineDate.toISOString(),
-          20,
-          null
-        );
-      }
-      for (const pid of prodIds) {
-        // El café solo algunos días
-        const esCafe = pid === prodIds[5] || pid === prodIds[6];
-        const disponible = !esCafe || i % 2 === 0 ? 1 : 0;
-        await sqlRun(
-          `INSERT OR IGNORE INTO disponibilidad_producto_dia (id, fecha, producto_id, disponible)
-           VALUES (?, ?, ?, ?)`,
-          id(),
-          fecha,
-          pid,
-          disponible
-        );
+        await sqlRun(`UPDATE zonas_envio SET activa = 0 WHERE id = ?`, z.id);
       }
     }
+
+    // Flag del seed viejo ya no aplica como "completo"
+    await sqlRun(`DELETE FROM configuracion WHERE clave = ?`, "seed_version");
+
+    await sqlRun(
+      `INSERT INTO configuracion (clave, valor) VALUES (?, ?)
+       ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor`,
+      DEMO_PURGE_FLAG,
+      "1"
+    );
   });
+
+  console.info("[bootstrap] Purga demo v1 aplicada (idempotente).");
 }

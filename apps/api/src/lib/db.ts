@@ -235,7 +235,7 @@ const SCHEMA_SQLITE = `
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
       nombre TEXT NOT NULL,
-      rol TEXT NOT NULL CHECK(rol IN ('admin','cocina','caja')),
+      rol TEXT NOT NULL CHECK(rol IN ('superadmin','admin','cocina','caja')),
       password_hash TEXT NOT NULL,
       activo INTEGER NOT NULL DEFAULT 1,
       creado_en TEXT NOT NULL
@@ -520,6 +520,18 @@ const SCHEMA_ALTERS_PG = [
       error TEXT,
       creado_en TEXT NOT NULL
     )`,
+  // Ampliar CHECK de roles para incluir superadmin (idempotente).
+  `DO $$ BEGIN
+     ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check;
+   EXCEPTION WHEN undefined_table THEN NULL;
+   END $$`,
+  `DO $$ BEGIN
+     ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_check
+       CHECK (rol IN ('superadmin','admin','cocina','caja'));
+   EXCEPTION
+     WHEN duplicate_object THEN NULL;
+     WHEN undefined_table THEN NULL;
+   END $$`,
 ];
 
 function ensureSchemaSqlite(db: SqliteDb) {

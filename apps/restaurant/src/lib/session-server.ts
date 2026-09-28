@@ -5,7 +5,7 @@ export type SessionUser = {
   id: string;
   email: string;
   nombre: string;
-  rol: "admin" | "cocina" | "caja";
+  rol: "superadmin" | "admin" | "cocina" | "caja";
 };
 
 export async function getSession(): Promise<SessionUser | null> {

@@ -12,8 +12,8 @@ import { Spinner } from "@/components/ui/spinner";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@tostal.mx");
-  const [password, setPassword] = useState("tostal123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -63,7 +63,7 @@ export default function LoginPage() {
             Entrar al equipo
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Solo para admin, cocina y caja.
+            Solo para personal Tostal (superadmin, admin, cocina, caja).
           </p>
         </div>
 
@@ -111,7 +111,7 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-4 text-xs text-muted-foreground">
-            Demo: admin@tostal.mx / tostal123
+            Acceso con la cuenta que te creó el superadmin.
           </p>
         </div>
       </div>

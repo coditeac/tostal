@@ -9,6 +9,7 @@ import {
   getSessionFromRequest,
   type SessionUser,
 } from "../lib/auth";
+import type { StaffRol } from "../lib/roles";
 
 export const CurrentUser = createParamDecorator(
   async (_data: unknown, ctx: ExecutionContext): Promise<SessionUser> => {
@@ -19,13 +20,22 @@ export const CurrentUser = createParamDecorator(
   }
 );
 
+/**
+ * @param roles Roles permitidos. "admin" también acepta "superadmin".
+ * Superadmin tiene acceso total a cualquier endpoint staff.
+ */
 export async function requireUser(
   req: Request,
-  roles?: SessionUser["rol"][]
+  roles?: StaffRol[]
 ): Promise<SessionUser> {
   const user = await getSessionFromRequest(req);
   if (!user) throw new UnauthorizedException("No autenticado");
-  if (roles && !roles.includes(user.rol)) {
+  if (!roles || roles.length === 0) return user;
+  if (user.rol === "superadmin") return user;
+
+  const allowed = new Set<string>(roles);
+  if (roles.includes("admin")) allowed.add("superadmin");
+  if (!allowed.has(user.rol)) {
     throw new ForbiddenException("Sin permiso");
   }
   return user;

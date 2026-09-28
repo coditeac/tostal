@@ -3,6 +3,7 @@ import { sqlAll, sqlGet, sqlRun } from "./db";
 import { ensureSeed } from "./seed";
 import { id } from "./id";
 import type { SessionUser } from "./auth";
+import { isAdminLike, STAFF_ROLES, type StaffRol } from "./roles";
 
 export type StaffUser = SessionUser & {
   activo: boolean;
@@ -19,7 +20,7 @@ export async function listStaff(): Promise<StaffUser[]> {
     id: string;
     email: string;
     nombre: string;
-    rol: SessionUser["rol"];
+    rol: StaffRol;
     activo: number;
     creado_en: string;
   }>(
@@ -39,7 +40,8 @@ export async function createStaff(input: {
   email: string;
   nombre: string;
   password: string;
-  rol: SessionUser["rol"];
+  rol: StaffRol;
+  actorRol?: StaffRol;
 }): Promise<{ ok: true; user: StaffUser } | { ok: false; error: string }> {
   await boot();
   const email = input.email.trim().toLowerCase();
@@ -48,9 +50,17 @@ export async function createStaff(input: {
   if (!input.password || input.password.length < 6) {
     return { ok: false, error: "Contraseña mínimo 6 caracteres." };
   }
-  const roles: SessionUser["rol"][] = ["admin", "cocina", "caja"];
-  if (!roles.includes(input.rol)) {
-    return { ok: false, error: "Rol no válido (admin|cocina|caja)." };
+  if (!STAFF_ROLES.includes(input.rol)) {
+    return {
+      ok: false,
+      error: "Rol no válido (superadmin|admin|cocina|caja).",
+    };
+  }
+  if (input.rol === "superadmin" && input.actorRol !== "superadmin") {
+    return {
+      ok: false,
+      error: "Solo un superadmin puede crear otro superadmin.",
+    };
   }
   const exists = await sqlGet(`SELECT id FROM usuarios WHERE email = ?`, email);
   if (exists) return { ok: false, error: "Ya existe un usuario con ese email." };
@@ -85,9 +95,10 @@ export async function updateStaff(
   userId: string,
   data: {
     nombre?: string;
-    rol?: SessionUser["rol"];
+    rol?: StaffRol;
     activo?: boolean;
     password?: string;
+    actorRol?: StaffRol;
   }
 ): Promise<{ ok: true; user: StaffUser } | { ok: false; error: string }> {
   await boot();
@@ -95,7 +106,7 @@ export async function updateStaff(
     id: string;
     email: string;
     nombre: string;
-    rol: SessionUser["rol"];
+    rol: StaffRol;
     activo: number;
     creado_en: string;
   }>(
@@ -107,6 +118,25 @@ export async function updateStaff(
   const nombre = data.nombre?.trim() || row.nombre;
   const rol = data.rol || row.rol;
   const activo = data.activo !== undefined ? (data.activo ? 1 : 0) : row.activo;
+
+  if (data.rol && !STAFF_ROLES.includes(data.rol)) {
+    return { ok: false, error: "Rol no válido." };
+  }
+  if (
+    (data.rol === "superadmin" || row.rol === "superadmin") &&
+    data.actorRol !== "superadmin" &&
+    data.rol &&
+    data.rol !== row.rol
+  ) {
+    return {
+      ok: false,
+      error: "Solo un superadmin puede cambiar roles de/a superadmin.",
+    };
+  }
+  // admin no puede desactivar superadmin
+  if (row.rol === "superadmin" && data.activo === false && data.actorRol !== "superadmin") {
+    return { ok: false, error: "No puedes desactivar al superadmin." };
+  }
 
   if (data.password) {
     if (data.password.length < 6) {
@@ -143,3 +173,5 @@ export async function updateStaff(
     },
   };
 }
+
+export { isAdminLike };

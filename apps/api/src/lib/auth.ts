@@ -3,6 +3,7 @@ import { SignJWT, jwtVerify } from "jose";
 import type { Request, Response } from "express";
 import { sqlGet } from "./db";
 import { ensureSeed } from "./seed";
+import type { StaffRol } from "./roles";
 
 export const SESSION_COOKIE = "tostal_session";
 const SECRET = new TextEncoder().encode(
@@ -13,7 +14,7 @@ export type SessionUser = {
   id: string;
   email: string;
   nombre: string;
-  rol: "admin" | "cocina" | "caja";
+  rol: StaffRol;
 };
 
 async function boot() {
