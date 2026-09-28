@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { hoyISO as hoyISOCdmx, labelFecha as labelFechaCdmx } from "./timezone";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -12,15 +13,11 @@ export function formatoMoneda(centavos: number, moneda = "MXN"): string {
   }).format(centavos / 100);
 }
 
+/** Hoy en CDMX (`America/Mexico_City`). */
 export function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return hoyISOCdmx();
 }
 
 export function labelFecha(fecha: string): string {
-  const d = new Date(`${fecha}T12:00:00`);
-  return d.toLocaleDateString("es-MX", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
+  return labelFechaCdmx(fecha);
 }

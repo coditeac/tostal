@@ -105,8 +105,8 @@ export default function MenuDiaPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Menú del día</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Activa productos y define la hora límite de pedidos. Suele
-            programarse D+1.
+            Activa productos y define la hora límite de pedidos en hora CDMX.
+            Suele programarse D+1.
           </p>
         </div>
         <Button
@@ -177,7 +177,7 @@ export default function MenuDiaPage() {
 
             <div>
               <label className="label" htmlFor="hora-limite">
-                Hora límite de pedidos
+                Hora límite de pedidos (CDMX)
               </label>
               <input
                 id="hora-limite"
@@ -187,7 +187,8 @@ export default function MenuDiaPage() {
                 onChange={(e) => setHoraLimite(e.target.value)}
               />
               <p className="mt-1.5 text-xs text-muted-foreground">
-                Pasada esa hora, el cliente ya no puede pedir para este día.
+                Hora de Ciudad de México (America/Mexico_City). Pasada esa hora,
+                el cliente ya no puede pedir para este día.
               </p>
             </div>
           </section>
