@@ -14,7 +14,6 @@ import {
   UtensilsCrossed,
   Wallet,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 const links = [
@@ -53,9 +52,9 @@ export function AppShell({
 
   return (
     <div className="toastal-shell mx-auto w-full max-w-lg md:max-w-3xl">
-      <header className="sticky top-0 z-40 border-b border-border bg-[color-mix(in_srgb,#f3f4f6_92%,transparent)] px-4 pb-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-border bg-[color-mix(in_srgb,#fafafa_90%,transparent)] px-5 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))] backdrop-blur-md">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex min-w-0 items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/tostal-logo-marca.png"
@@ -64,11 +63,9 @@ export function AppShell({
               height={60}
               className="ops-mark"
             />
-            <div className="min-w-0">
-              <p className="truncate text-xs text-muted-foreground">
-                Operación · {userNombre}
-              </p>
-            </div>
+            <p className="truncate text-xs text-muted-foreground">
+              {userNombre}
+            </p>
           </div>
           <Button
             type="button"
@@ -78,30 +75,31 @@ export function AppShell({
             className="text-muted-foreground"
             aria-label="Cerrar sesión"
           >
-            <LogOut size={18} />
+            <LogOut size={16} strokeWidth={1.75} />
             Salir
           </Button>
         </div>
-        <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5 text-xs">
+        <nav className="mt-3 flex gap-4 overflow-x-auto border-b border-transparent pb-0.5 text-sm">
           {moreLinks.map((l) => {
             const active = pathname.startsWith(l.href);
             return (
-              <Badge
+              <Link
                 key={l.href}
-                asChild
-                variant={active ? "default" : "secondary"}
-                radius="full"
-                size="lg"
-                className={active ? "" : "bg-arena/80 text-muted-foreground"}
+                href={l.href}
+                className={`shrink-0 border-b-2 pb-2 transition-colors ${
+                  active
+                    ? "border-miel font-medium text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
               >
-                <Link href={l.href}>{l.label}</Link>
-              </Badge>
+                {l.label}
+              </Link>
             );
           })}
-        </div>
+        </nav>
       </header>
 
-      <main className="flex-1 px-4 py-4 pb-28">{children}</main>
+      <main className="flex-1 px-5 py-6 pb-28">{children}</main>
 
       <nav className="nav-bottom">
         <div className="mx-auto grid max-w-lg grid-cols-4 gap-0.5 sm:grid-cols-7">
@@ -114,11 +112,13 @@ export function AppShell({
               <Link
                 key={l.href}
                 href={l.href}
-                className={`flex min-h-[3.15rem] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-medium sm:text-[11px] ${
-                  active ? "bg-arena text-miel" : "text-muted-foreground"
+                className={`flex min-h-[3.1rem] flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-[10px] font-medium transition-colors sm:text-[11px] ${
+                  active
+                    ? "bg-secondary text-miel"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Icon size={18} strokeWidth={active ? 2.35 : 1.75} />
+                <Icon size={18} strokeWidth={active ? 2.2 : 1.65} />
                 <span>{l.label}</span>
               </Link>
             );

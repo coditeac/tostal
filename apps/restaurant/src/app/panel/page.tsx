@@ -33,6 +33,18 @@ type Resumen = {
   avisosPendientes: number;
 };
 
+const accesos = [
+  { href: "/produccion", label: "Producción", hint: "Cola y descuento" },
+  { href: "/inventario", label: "Inventario", hint: "Movimientos" },
+  { href: "/compras", label: "Compras", hint: "Lista + proveedor" },
+  { href: "/gastos", label: "Gastos", hint: "Registro y resumen" },
+  { href: "/caja", label: "Caja", hint: "Pedir → pagar → ficha" },
+  { href: "/avisos", label: "Avisos WhatsApp", hint: "Cola manual" },
+  { href: "/costos", label: "Costos", hint: "Márgenes por receta" },
+  { href: "/panel/calendario", label: "Calendario", hint: "Disponibilidad" },
+  { href: "/panel/usuarios", label: "Personal", hint: "Roles del equipo" },
+] as const;
+
 export default function PanelHome() {
   const [data, setData] = useState<Resumen | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +76,7 @@ export default function PanelHome() {
     );
   }
   if (!data) {
-    return <p className="text-sm text-muted-foreground">Cargando panel…</p>;
+    return <p className="loading-pulse text-sm text-muted-foreground">Cargando panel…</p>;
   }
 
   const { config, pedidosHoy, activosCount, totalVentas, insumosBajos, avisosPendientes } =
@@ -72,56 +84,46 @@ export default function PanelHome() {
   const bajos = insumosBajos;
 
   return (
-    <div className="space-y-5 rise-in">
-      <section className="surface p-5">
-        <div className="flex items-start gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/tostal-logo-marca.png"
-            alt=""
-            width={140}
-            height={60}
-            className="ops-mark mt-0.5"
-          />
+    <div className="space-y-10 rise-in">
+      <section>
+        <p className="text-xs font-medium tracking-wide text-muted-foreground">
+          Hoy en Tostal
+        </p>
+        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">
+          {config.marca}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">{config.eslogan}</p>
+
+        <div className="mt-6 flex gap-8 border-y border-border py-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Hoy en Tostal
-            </p>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight text-cacao">
-              {config.marca}
-            </h1>
-            <p className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              {config.eslogan}
+            <p className="text-xs text-muted-foreground">Pedidos</p>
+            <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">
+              {activosCount}
             </p>
           </div>
-        </div>
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <div className="rounded-xl bg-arena p-3.5">
-            <p className="text-xs text-muted-foreground">Pedidos de hoy</p>
-            <p className="text-2xl font-semibold tabular-nums">{activosCount}</p>
-          </div>
-          <div className="rounded-xl bg-arena p-3.5">
-            <p className="text-xs text-muted-foreground">Ventas del día</p>
-            <p className="text-2xl font-semibold tabular-nums">
+          <div>
+            <p className="text-xs text-muted-foreground">Ventas</p>
+            <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">
               {formatoMoneda(totalVentas, config.moneda)}
             </p>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
+
+        <div className="mt-4 flex flex-wrap gap-2">
           <Badge
             variant={config.canalRemotoActivo ? "success-light" : "secondary"}
-            radius="full"
+            radius="default"
           >
             Remoto: {config.canalRemotoActivo ? "activo" : "apagado"}
           </Badge>
           <Badge
             variant={config.canalMostradorActivo ? "success-light" : "secondary"}
-            radius="full"
+            radius="default"
           >
             Mostrador: {config.canalMostradorActivo ? "activo" : "apagado"}
           </Badge>
           {avisosPendientes > 0 && (
-            <Badge variant="warning" radius="full">
+            <Badge variant="warning" radius="default">
               {avisosPendientes} avisos
             </Badge>
           )}
@@ -129,9 +131,9 @@ export default function PanelHome() {
       </section>
 
       {bajos.length > 0 && (
-        <section className="surface border-alerta/40 p-4">
-          <h2 className="font-semibold text-alerta">Falta stock</h2>
-          <ul className="mt-2 space-y-1 text-sm">
+        <section className="border-y border-alerta/25 py-4">
+          <h2 className="text-sm font-semibold text-alerta">Falta stock</h2>
+          <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
             {bajos.slice(0, 4).map((i) => (
               <li key={i.id}>
                 {i.nombre}: {i.stockActual} {i.unidad} (mín. {i.stockMinimo})
@@ -147,66 +149,53 @@ export default function PanelHome() {
         </section>
       )}
 
-      <section className="grid grid-cols-2 gap-2.5">
-        <Link href="/produccion" className="surface p-3.5 active:bg-arena/50">
-          <p className="font-semibold">Producción</p>
-          <p className="mt-1 text-xs text-muted-foreground">Cola y descuento</p>
-        </Link>
-        <Link href="/inventario" className="surface p-3.5 active:bg-arena/50">
-          <p className="font-semibold">Inventario</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {bajos.length > 0 ? `${bajos.length} bajo mínimo` : "Movimientos"}
-          </p>
-        </Link>
-        <Link href="/compras" className="surface p-3.5 active:bg-arena/50">
-          <p className="font-semibold">Compras</p>
-          <p className="mt-1 text-xs text-muted-foreground">Lista + proveedor</p>
-        </Link>
-        <Link href="/gastos" className="surface p-3.5 active:bg-arena/50">
-          <p className="font-semibold">Gastos</p>
-          <p className="mt-1 text-xs text-muted-foreground">Registro y resumen</p>
-        </Link>
-        <Link href="/caja" className="surface p-3.5 active:bg-arena/50">
-          <p className="font-semibold">Caja</p>
-          <p className="mt-1 text-xs text-muted-foreground">Pedir → pagar → ficha</p>
-        </Link>
-        <Link href="/avisos" className="surface p-3.5 active:bg-arena/50">
-          <p className="font-semibold">Avisos WhatsApp</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {avisosPendientes} pendientes (manual)
-          </p>
-        </Link>
-        <Link href="/costos" className="surface p-3.5 active:bg-arena/50">
-          <p className="font-semibold">Costos</p>
-          <p className="mt-1 text-xs text-muted-foreground">Márgenes por receta</p>
-        </Link>
-        <Link href="/panel/calendario" className="surface p-3.5 active:bg-arena/50">
-          <p className="font-semibold">Calendario</p>
-          <p className="mt-1 text-xs text-muted-foreground">Disponibilidad</p>
-        </Link>
-        <Link href="/panel/usuarios" className="surface p-3.5 active:bg-arena/50">
-          <p className="font-semibold">Personal</p>
-          <p className="mt-1 text-xs text-muted-foreground">Roles admin/cocina/caja</p>
-        </Link>
+      <section>
+        <h2 className="section-title">Accesos</h2>
+        <ul className="list-plain mt-3">
+          {accesos.map((a) => {
+            const hint =
+              a.href === "/inventario" && bajos.length > 0
+                ? `${bajos.length} bajo mínimo`
+                : a.href === "/avisos"
+                  ? `${avisosPendientes} pendientes (manual)`
+                  : a.hint;
+            return (
+              <li key={a.href}>
+                <Link
+                  href={a.href}
+                  className="list-row active:opacity-70"
+                >
+                  <div>
+                    <p className="font-medium tracking-tight">{a.label}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
+                  </div>
+                  <span className="text-muted-foreground" aria-hidden>
+                    →
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </section>
 
-      <section className="surface p-4">
+      <section>
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">Últimos pedidos de hoy</h2>
+          <h2 className="section-title">Últimos pedidos</h2>
           <Link href="/panel/pedidos" className="text-sm font-semibold text-miel">
             Ver todos
           </Link>
         </div>
         {pedidosHoy.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">
+          <p className="empty-state">
             Aún no hay pedidos para hoy. Cuando lleguen, aparecen aquí.
           </p>
         ) : (
-          <ul className="mt-3 divide-y divide-border">
+          <ul className="list-plain mt-3">
             {pedidosHoy.slice(0, 5).map((p) => (
               <li
                 key={p.id}
-                className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0"
+                className="flex items-center justify-between gap-3 py-3.5 text-sm"
               >
                 <div className="min-w-0">
                   <p className="font-medium">{p.codigo}</p>

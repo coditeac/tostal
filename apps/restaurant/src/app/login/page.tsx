@@ -42,79 +42,75 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="toastal-shell mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
-      <div className="rise-in overflow-hidden rounded-[1rem] border border-border bg-white">
-        <div className="flex flex-col items-center bg-miel px-6 py-10 text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/tostal-logo.png"
-            alt="Tostal — Sabores que unen culturas"
-            width={280}
-            height={120}
-            className="h-auto w-[min(72%,14rem)] object-contain"
-          />
-        </div>
+    <div className="toastal-shell mx-auto flex min-h-dvh w-full max-w-md flex-col">
+      <header className="hero-brand flex flex-col items-center justify-end bg-miel px-6 pb-10 pt-[max(3rem,env(safe-area-inset-top))] text-center rise-in">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/tostal-logo.png"
+          alt="Tostal — Sabores que unen culturas"
+          width={280}
+          height={120}
+          className="h-auto w-[min(70%,13.5rem)] object-contain"
+        />
+      </header>
 
-        <div className="px-6 pb-0 pt-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            Operación
-          </p>
-          <h1 className="mt-1.5 text-xl font-semibold tracking-tight">
-            Entrar al equipo
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Solo para personal Tostal (superadmin, admin, cocina, caja).
-          </p>
-        </div>
+      <main className="flex flex-1 flex-col px-6 pb-10 pt-8 rise-in" style={{ animationDelay: "80ms" }}>
+        <p className="text-xs font-medium tracking-wide text-muted-foreground">
+          Operación
+        </p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+          Entrar al equipo
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Solo para personal Tostal (superadmin, admin, cocina, caja).
+        </p>
 
-        <div className="px-6 pb-6 pt-4">
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Correo</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="username"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
+        <form onSubmit={onSubmit} className="mt-8 space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="email">Correo</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Contraseña</Label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <Button type="submit" className="w-full" size="lg" disabled={loading}>
+            {loading ? (
+              <>
+                <Spinner />
+                Entrando…
+              </>
+            ) : (
+              "Entrar"
             )}
+          </Button>
+        </form>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
-                <>
-                  <Spinner />
-                  Entrando…
-                </>
-              ) : (
-                "Entrar"
-              )}
-            </Button>
-          </form>
-
-          <p className="mt-4 text-xs text-muted-foreground">
-            Acceso con la cuenta que te creó el superadmin.
-          </p>
-        </div>
-      </div>
+        <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
+          Acceso con la cuenta que te creó el superadmin.
+        </p>
+      </main>
     </div>
   );
 }

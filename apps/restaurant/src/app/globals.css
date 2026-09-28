@@ -24,15 +24,15 @@
   --font-archth: "Arch Condensed", "Arch Cond", sans-serif;
   --font-sans: var(--font-ui);
   --font-brand: var(--font-archth);
-  /* Tostal ops — misma marca, neutros piedra fría */
+  /* Tostal ops · HeroUI-inspired flat · misma marca */
   --tostal-marca: #9a2e25;
   --tostal-marca-dark: #7a241c;
   --tostal-marca-deep: #4e1712;
-  --tostal-ink: #171513;
+  --tostal-ink: #111113;
   --tostal-crema-logo: #d6d2c4;
-  --tostal-papel: #f3f4f6;
-  --tostal-papel-2: #e4e6ea;
-  --tostal-marca-soft: #f3e8e6;
+  --tostal-papel: #fafafa;
+  --tostal-papel-2: #f4f4f5;
+  --tostal-marca-soft: #f5ebe9;
   --tostal-ok: #2f6b52;
   --tostal-alerta: #a85b12;
   --tostal-error: #b42318;
@@ -56,14 +56,14 @@
   --secondary: var(--tostal-papel-2);
   --secondary-foreground: var(--tostal-ink);
   --muted: var(--tostal-papel-2);
-  --muted-foreground: #5c616a;
+  --muted-foreground: #71717a;
   --accent: var(--tostal-marca-soft);
   --accent-foreground: var(--tostal-ink);
   --destructive: var(--tostal-error);
-  --border: #d2d5da;
-  --input: #d2d5da;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
   --ring: var(--tostal-marca);
-  --radius: 0.85rem;
+  --radius: 0.75rem;
   --tap: 2.75rem;
   --success: var(--tostal-ok);
   --success-foreground: #f3f4f6;
@@ -84,7 +84,7 @@
   --sidebar-primary-foreground: var(--tostal-crema-logo);
   --sidebar-accent: var(--tostal-marca-soft);
   --sidebar-accent-foreground: var(--tostal-ink);
-  --sidebar-border: #d2d5da;
+  --sidebar-border: #e4e4e7;
   --sidebar-ring: var(--tostal-marca);
   --destructive-foreground: var(--color-red-800);
 }
@@ -165,12 +165,11 @@ body {
 body {
   background-color: var(--tostal-papel);
   background-image:
-    radial-gradient(700px 280px at 100% 0%, rgba(154, 46, 37, 0.06), transparent 55%),
-    linear-gradient(180deg, #f7f8fa 0%, var(--tostal-papel) 40%),
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    radial-gradient(560px 240px at 100% 0%, rgba(154, 46, 37, 0.04), transparent 58%);
   color: var(--foreground);
   font-family: var(--font-ui);
   -webkit-tap-highlight-color: transparent;
+  letter-spacing: -0.011em;
 }
 
 a {
@@ -210,6 +209,39 @@ a {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  box-shadow: none;
+}
+
+.list-plain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+
+.list-plain > li {
+  border-bottom: 1px solid var(--border);
+}
+
+.list-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 0;
+}
+
+.empty-state {
+  padding: 1.75rem 0.15rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+
+.section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .btn {
@@ -218,8 +250,8 @@ a {
   justify-content: center;
   gap: 0.5rem;
   min-height: var(--tap);
-  border-radius: 0.75rem;
-  font-weight: 650;
+  border-radius: var(--radius);
+  font-weight: 550;
   transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
   border: none;
   cursor: pointer;
@@ -261,35 +293,37 @@ a {
 .field {
   width: 100%;
   min-height: var(--tap);
-  border-radius: 0.75rem;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: white;
   padding: 0.8rem 1rem;
   font: inherit;
   color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .field:focus {
-  outline: 2px solid color-mix(in srgb, var(--tostal-marca) 35%, transparent);
+  outline: none;
   border-color: var(--tostal-marca);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tostal-marca) 18%, transparent);
 }
 
 .label {
   display: block;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 550;
   margin-bottom: 0.35rem;
-  color: var(--muted);
+  color: var(--muted-foreground);
 }
 
 .nav-bottom {
   position: sticky;
   bottom: 0;
   z-index: 40;
-  background: color-mix(in srgb, #f3f4f6 94%, transparent);
+  background: color-mix(in srgb, #fafafa 92%, transparent);
   border-top: 1px solid var(--border);
-  backdrop-filter: blur(14px);
-  padding: 0.4rem 0.4rem calc(0.45rem + env(safe-area-inset-bottom));
+  backdrop-filter: blur(12px);
+  padding: 0.35rem 0.35rem calc(0.4rem + env(safe-area-inset-bottom));
 }
 
 .badge {
@@ -320,10 +354,31 @@ a {
 
 .ops-mark {
   width: auto;
-  height: 2.1rem;
-  max-width: 7.5rem;
+  height: 2rem;
+  max-width: 7rem;
   object-fit: contain;
   flex-shrink: 0;
+}
+
+/* Login brand plane — full-bleed, sin card envolvente */
+.hero-brand {
+  position: relative;
+  overflow: hidden;
+  background: var(--tostal-marca);
+  color: var(--tostal-crema-logo);
+  min-height: 11.5rem;
+}
+
+.hero-brand::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 120%,
+    rgba(214, 210, 196, 0.1) 0%,
+    transparent 55%
+  );
+  pointer-events: none;
 }
 
 @keyframes rise-in {

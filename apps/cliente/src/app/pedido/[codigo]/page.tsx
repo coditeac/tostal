@@ -157,8 +157,8 @@ function PedidoView() {
       )}
 
       {pedido.metodoPago === "stripe" && pedido.estadoPago === "pendiente" && (
-        <div className="mt-4 space-y-2 rounded-[0.9rem] border border-border bg-white p-4">
-          <p className="text-sm text-muted-foreground">
+        <div className="mt-6 space-y-3 border-y border-border py-5">
+          <p className="text-sm leading-relaxed text-muted-foreground">
             Paga con tarjeta. El monto sale del pedido Tostal (centavos); no hay
             catálogo en Stripe.
           </p>
@@ -191,15 +191,15 @@ function PedidoView() {
           </Alert>
         )}
 
-      <section className="mt-6 overflow-hidden rounded-[0.9rem] border border-border bg-white p-4">
+      <section className="mt-8 border-y border-border py-6">
         {cancelado ? (
           <p className="font-semibold text-error">Pedido cancelado</p>
         ) : (
           <>
-            <p className="text-2xl font-semibold leading-tight">
+            <p className="text-2xl font-semibold leading-tight tracking-tight">
               {ESTADO_PEDIDO[pedido.estado]}
             </p>
-            <div className="status-track mt-5">
+            <div className="status-track mt-6">
               {PASOS_PEDIDO.map((paso, i) => {
                 const done = idx > i;
                 const current = idx === i;
@@ -224,36 +224,36 @@ function PedidoView() {
             </div>
           </>
         )}
-        <p className="mt-5 text-sm text-muted-foreground">
+        <p className="mt-6 text-sm text-muted-foreground">
           {METODO_PAGO[pedido.metodoPago]} · {ESTADO_PAGO[pedido.estadoPago]}
         </p>
       </section>
 
-      <section className="mt-4 overflow-hidden rounded-[0.9rem] border border-border bg-white p-4">
-        <h2 className="text-base font-semibold">Detalle</h2>
-        <ul className="mt-3 space-y-2 text-sm">
+      <section className="mt-8">
+        <h2 className="section-title">Detalle</h2>
+        <ul className="mt-4 space-y-2.5 text-sm">
           {pedido.lineas.map((l) => (
             <li key={l.id} className="flex justify-between gap-2">
               <span>
                 {l.cantidad}× {l.productoNombre}
               </span>
-              <span>{formatoMoneda(l.subtotal)}</span>
+              <span className="tabular-nums">{formatoMoneda(l.subtotal)}</span>
             </li>
           ))}
         </ul>
-        <Separator className="my-3" />
+        <Separator className="my-4" />
         <div className="text-sm">
           <div className="flex justify-between">
-            <span>Subtotal</span>
-            <span>{formatoMoneda(pedido.subtotal)}</span>
+            <span className="text-muted-foreground">Subtotal</span>
+            <span className="tabular-nums">{formatoMoneda(pedido.subtotal)}</span>
           </div>
-          <div className="mt-1 flex justify-between">
-            <span>Envío</span>
-            <span>{formatoMoneda(pedido.costoEnvio)}</span>
+          <div className="mt-1.5 flex justify-between">
+            <span className="text-muted-foreground">Envío</span>
+            <span className="tabular-nums">{formatoMoneda(pedido.costoEnvio)}</span>
           </div>
-          <div className="mt-2 flex justify-between font-semibold">
+          <div className="mt-3 flex justify-between font-semibold">
             <span>Total</span>
-            <span>{formatoMoneda(pedido.total)}</span>
+            <span className="tabular-nums">{formatoMoneda(pedido.total)}</span>
           </div>
         </div>
       </section>

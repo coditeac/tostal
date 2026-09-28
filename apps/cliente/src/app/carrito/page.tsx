@@ -108,9 +108,9 @@ export default function CarritoPage() {
 
   if (!cart.fecha) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-10">
-        <p className="text-muted-foreground">Elige primero una fecha en el menú.</p>
-        <Button asChild className="mt-4">
+      <div className="page-shell px-6 py-12">
+        <p className="empty-state">Elige primero una fecha en el menú.</p>
+        <Button asChild className="mt-2">
           <Link href="/">Ir al menú</Link>
         </Button>
       </div>
@@ -119,10 +119,10 @@ export default function CarritoPage() {
 
   if (cart.items.length === 0) {
     return (
-      <div className="mx-auto max-w-lg px-5 py-10">
+      <div className="page-shell px-6 py-12">
         <h1 className="text-3xl font-semibold tracking-tight">Tu carrito</h1>
-        <p className="mt-2 text-muted-foreground">Está vacío. Agrega algo del menú.</p>
-        <Button asChild className="mt-5">
+        <p className="empty-state">Está vacío. Agrega algo del menú.</p>
+        <Button asChild>
           <Link href="/">Ver menú</Link>
         </Button>
       </div>
@@ -130,34 +130,34 @@ export default function CarritoPage() {
   }
 
   return (
-    <div className="page-shell px-5 pb-32 pt-6">
-      <div className="flex items-center justify-between">
+    <div className="page-shell px-6 pb-36 pt-8">
+      <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-3xl font-semibold tracking-tight">Tu carrito</h1>
         <Link href="/" className="text-sm font-semibold text-miel">
           Seguir pidiendo
         </Link>
       </div>
-      <p className="mt-1 text-sm text-muted-foreground">
+      <p className="mt-1.5 text-sm text-muted-foreground">
         Entrega/retiro: {labelFecha(cart.fecha)}
       </p>
 
       {bloqueado && (
-        <Alert className="mt-3 border-alerta/40 bg-amber-50 text-alerta">
+        <Alert className="mt-5 border-alerta/40 bg-amber-50 text-alerta">
           <AlertDescription>
             Ya cerramos pedidos para este día. Elige otra fecha en el menú.
           </AlertDescription>
         </Alert>
       )}
 
-      <ul className="mt-4 space-y-3">
+      <ul className="list-plain mt-8">
         {cart.items.map((item) => (
           <li
             key={item.productoId}
-            className="surface flex items-center justify-between gap-3 p-3"
+            className="flex items-center justify-between gap-3 py-4"
           >
-            <div>
-              <p className="font-semibold">{item.nombre}</p>
-              <p className="text-sm text-muted-foreground">
+            <div className="min-w-0">
+              <p className="font-semibold tracking-tight">{item.nombre}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
                 {formatoMoneda(item.precio)} c/u
               </p>
             </div>
@@ -166,7 +166,6 @@ export default function CarritoPage() {
                 type="button"
                 variant="outline"
                 size="icon-sm"
-                className="rounded-full"
                 onClick={() => cart.setQty(item.productoId, item.cantidad - 1)}
                 aria-label="Quitar uno"
               >
@@ -176,14 +175,13 @@ export default function CarritoPage() {
                   <Minus size={16} />
                 )}
               </Button>
-              <span className="w-6 text-center font-semibold tabular-nums">
+              <span className="w-7 text-center font-semibold tabular-nums">
                 {item.cantidad}
               </span>
               <Button
                 type="button"
                 variant="outline"
                 size="icon-sm"
-                className="rounded-full"
                 onClick={() => cart.setQty(item.productoId, item.cantidad + 1)}
                 aria-label="Agregar uno"
               >
@@ -194,13 +192,12 @@ export default function CarritoPage() {
         ))}
       </ul>
 
-      <section className="surface mt-4 space-y-3 p-4">
-        <h2 className="font-semibold">Entrega</h2>
+      <section className="mt-10 space-y-4">
+        <h2 className="section-title">Entrega</h2>
         <div className="grid grid-cols-2 gap-2">
           <Button
             type="button"
             variant={modo === "retiro" ? "default" : "outline"}
-            className={modo === "retiro" ? "bg-cacao text-crema hover:bg-cacao/90" : ""}
             onClick={() => setModo("retiro")}
           >
             Retiro
@@ -208,14 +205,15 @@ export default function CarritoPage() {
           <Button
             type="button"
             variant={modo === "envio" ? "default" : "outline"}
-            className={modo === "envio" ? "bg-cacao text-crema hover:bg-cacao/90" : ""}
             onClick={() => setModo("envio")}
           >
             Envío
           </Button>
         </div>
         {modo === "retiro" && menu?.config.direccionRetiro && (
-          <p className="text-sm text-muted-foreground">{menu.config.direccionRetiro}</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {menu.config.direccionRetiro}
+          </p>
         )}
         {modo === "envio" && (
           <>
@@ -257,8 +255,10 @@ export default function CarritoPage() {
         )}
       </section>
 
-      <section className="surface mt-4 space-y-3 p-4">
-        <h2 className="font-semibold">Tus datos</h2>
+      <Separator className="my-10" />
+
+      <section className="space-y-4">
+        <h2 className="section-title">Tus datos</h2>
         <div className="space-y-2">
           <Label htmlFor="nombre">Nombre</Label>
           <Input
@@ -311,8 +311,10 @@ export default function CarritoPage() {
         </div>
       </section>
 
-      <section className="surface mt-4 space-y-3 p-4">
-        <h2 className="font-semibold">Pago</h2>
+      <Separator className="my-10" />
+
+      <section className="space-y-3">
+        <h2 className="section-title">Pago</h2>
         {(
           [
             ["transferencia", "Te enviamos los datos; confirmamos a mano"],
@@ -322,10 +324,10 @@ export default function CarritoPage() {
         ).map(([value, hint]) => (
           <label
             key={value}
-            className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 text-sm ${
+            className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3.5 py-3.5 text-sm transition-colors ${
               metodoPago === value
-                ? "border-miel bg-rosa/30"
-                : "border-border bg-white"
+                ? "border-miel bg-rosa/40"
+                : "border-border bg-transparent"
             }`}
           >
             <input
@@ -341,25 +343,24 @@ export default function CarritoPage() {
             </span>
           </label>
         ))}
-        <Separator />
-        <div className="pt-1 text-sm">
+        <div className="pt-4 text-sm">
           <div className="flex justify-between">
-            <span>Subtotal</span>
-            <span>{formatoMoneda(cart.subtotal)}</span>
+            <span className="text-muted-foreground">Subtotal</span>
+            <span className="tabular-nums">{formatoMoneda(cart.subtotal)}</span>
           </div>
-          <div className="mt-1 flex justify-between">
-            <span>Envío</span>
-            <span>{formatoMoneda(costoEnvio)}</span>
+          <div className="mt-1.5 flex justify-between">
+            <span className="text-muted-foreground">Envío</span>
+            <span className="tabular-nums">{formatoMoneda(costoEnvio)}</span>
           </div>
-          <div className="mt-2 flex justify-between text-base font-semibold">
+          <div className="mt-3 flex justify-between text-base font-semibold">
             <span>Total</span>
-            <span>{formatoMoneda(total)}</span>
+            <span className="tabular-nums">{formatoMoneda(total)}</span>
           </div>
         </div>
       </section>
 
       {error && (
-        <Alert variant="destructive" className="mt-4">
+        <Alert variant="destructive" className="mt-6">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -368,7 +369,7 @@ export default function CarritoPage() {
         <Button
           type="button"
           size="lg"
-          className="w-full shadow-lg"
+          className="w-full"
           disabled={
             loading ||
             !nombre.trim() ||

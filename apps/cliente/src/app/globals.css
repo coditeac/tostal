@@ -24,16 +24,20 @@
   --font-archth: "Arch Condensed", "Arch Cond", sans-serif;
   --font-sans: var(--font-ui);
   --font-brand: var(--font-archth);
-  /* Tostal — auditoría Mobbin 2026-09-28 · solo rojo marca #9A2E25 */
+  /*
+    Tostal · HeroUI-inspired (look & feel, no librería HeroUI)
+    Tipografía limpia, mucho aire, bordes suaves, superficies planas.
+    Rojo marca fijo #9A2E25 · shadcn/ui.
+  */
   --tostal-marca: #9a2e25;
   --tostal-marca-dark: #7a241c;
   --tostal-marca-deep: #4e1712;
-  --tostal-ink: #171513;
+  --tostal-ink: #111113;
   --tostal-crema-logo: #d6d2c4;
-  /* Piedra fría — evita cream+terracota AI (#F4F1EA) */
-  --tostal-papel: #f3f4f6;
-  --tostal-papel-2: #e4e6ea;
-  --tostal-marca-soft: #f3e8e6;
+  /* Neutros claros tipo docs HeroUI — evita cream AI */
+  --tostal-papel: #fafafa;
+  --tostal-papel-2: #f4f4f5;
+  --tostal-marca-soft: #f5ebe9;
   --tostal-ok: #2f6b52;
   --tostal-alerta: #a85b12;
   --tostal-error: #b42318;
@@ -58,14 +62,14 @@
   --secondary: var(--tostal-papel-2);
   --secondary-foreground: var(--tostal-ink);
   --muted: var(--tostal-papel-2);
-  --muted-foreground: #5c616a;
+  --muted-foreground: #71717a;
   --accent: var(--tostal-marca-soft);
   --accent-foreground: var(--tostal-ink);
   --destructive: var(--tostal-error);
-  --border: #d2d5da;
-  --input: #d2d5da;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
   --ring: var(--tostal-marca);
-  --radius: 0.9rem;
+  --radius: 0.75rem;
   --tap: 2.75rem;
   --success: var(--tostal-ok);
   --success-foreground: #f3f4f6;
@@ -86,7 +90,7 @@
   --sidebar-primary-foreground: var(--tostal-crema-logo);
   --sidebar-accent: var(--tostal-marca-soft);
   --sidebar-accent-foreground: var(--tostal-ink);
-  --sidebar-border: #d2d5da;
+  --sidebar-border: #e4e4e7;
   --sidebar-ring: var(--tostal-marca);
   --destructive-foreground: var(--color-red-800);
 }
@@ -166,14 +170,13 @@ body {
 
 body {
   background-color: var(--tostal-papel);
+  /* Atmósfera mínima HeroUI: un wash suave, sin grano denso */
   background-image:
-    radial-gradient(900px 420px at 92% -12%, rgba(154, 46, 37, 0.08), transparent 58%),
-    radial-gradient(720px 360px at -10% 22%, rgba(23, 21, 19, 0.04), transparent 52%),
-    linear-gradient(165deg, #f7f8fa 0%, var(--tostal-papel) 48%, #eef0f3 100%),
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    radial-gradient(720px 360px at 100% -10%, rgba(154, 46, 37, 0.05), transparent 60%);
   color: var(--foreground);
   font-family: var(--font-ui);
   -webkit-tap-highlight-color: transparent;
+  letter-spacing: -0.011em;
 }
 
 a {
@@ -204,10 +207,50 @@ a {
   color: var(--tostal-crema-logo);
 }
 
+/* Superficie plana — usar solo cuando hay interacción real */
 .surface {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  box-shadow: none;
+}
+
+/* Lista tipográfica sin caja (patrón HeroUI / menú) */
+.list-plain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+
+.list-plain > li {
+  border-bottom: 1px solid var(--border);
+}
+
+.section-block {
+  padding-block: 0.25rem;
+}
+
+.section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.section-lead {
+  margin-top: 0.4rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+
+.empty-state {
+  padding: 2rem 0.25rem;
+  text-align: left;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--muted-foreground);
 }
 
 .btn {
@@ -216,9 +259,9 @@ a {
   justify-content: center;
   gap: 0.5rem;
   min-height: var(--tap);
-  border-radius: 0.85rem;
-  font-weight: 650;
-  transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  border-radius: var(--radius);
+  font-weight: 550;
+  transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
   border: none;
   cursor: pointer;
 }
@@ -262,42 +305,44 @@ a {
 .field {
   width: 100%;
   min-height: var(--tap);
-  border-radius: 0.85rem;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: white;
   padding: 0.9rem 1rem;
   font: inherit;
   color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .field:focus {
-  outline: 2px solid color-mix(in srgb, var(--tostal-marca) 35%, transparent);
+  outline: none;
   border-color: var(--tostal-marca);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tostal-marca) 18%, transparent);
 }
 
 .label {
   display: block;
   font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: 550;
+  letter-spacing: -0.01em;
   margin-bottom: 0.4rem;
   color: var(--muted-foreground);
 }
 
-/* Hero: full-bleed marca Coditeac */
+/* Hero: full-bleed marca · composición única · sin overlays */
 .hero-brand {
   position: relative;
   overflow: hidden;
   background: var(--tostal-marca);
   color: var(--tostal-crema-logo);
-  min-height: min(46vh, 22rem);
+  min-height: min(42vh, 20rem);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   align-items: center;
   text-align: center;
-  padding: 2rem 1.25rem calc(1.75rem + env(safe-area-inset-top) * 0.15);
-  padding-top: calc(2.25rem + env(safe-area-inset-top));
+  padding: 2.5rem 1.5rem 2rem;
+  padding-top: calc(2.75rem + env(safe-area-inset-top));
 }
 
 .hero-brand::before {
@@ -305,8 +350,7 @@ a {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 50% 120%, rgba(214, 210, 196, 0.12) 0%, transparent 55%),
-    radial-gradient(circle at 90% 10%, rgba(0, 0, 0, 0.12) 0%, transparent 40%);
+    radial-gradient(ellipse at 50% 110%, rgba(214, 210, 196, 0.1) 0%, transparent 55%);
   pointer-events: none;
 }
 
@@ -363,42 +407,42 @@ a {
   position: sticky;
   bottom: 0;
   z-index: 50;
-  padding: 0.85rem 1rem calc(0.85rem + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, transparent, var(--tostal-papel) 36%);
+  padding: 1rem 1.25rem calc(1rem + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, transparent, var(--tostal-papel) 28%);
 }
 
 .menu-thumb {
   flex-shrink: 0;
-  width: 5.25rem;
-  height: 5.25rem;
-  border-radius: 0.85rem;
+  width: 4.75rem;
+  height: 4.75rem;
+  border-radius: calc(var(--radius) * 0.9);
   overflow: hidden;
   background:
     linear-gradient(150deg, #b84a3f 0%, var(--tostal-marca) 52%, var(--tostal-marca-deep) 100%);
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 0.5rem;
+  padding: 0.45rem;
   color: var(--tostal-crema-logo);
-  font-size: 0.65rem;
-  font-weight: 700;
+  font-size: 0.62rem;
+  font-weight: 600;
   text-align: center;
   line-height: 1.15;
 }
 
-/* + fuera del thumb — sin overlay flotante sobre media (auditoría) */
+/* + al lado del thumb — sin overlay flotante */
 .menu-add {
   display: inline-flex;
-  height: 2.5rem;
-  width: 2.5rem;
+  height: 2.35rem;
+  width: 2.35rem;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--tostal-marca);
   color: var(--tostal-crema-logo);
   border: none;
-  box-shadow: 0 4px 14px rgba(154, 46, 37, 0.28);
+  box-shadow: none;
   cursor: pointer;
   transition: transform 0.15s ease, background 0.15s ease;
   align-self: center;
@@ -412,7 +456,7 @@ a {
 @keyframes cart-rise {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -425,43 +469,56 @@ a {
 }
 
 .chip-day {
-  min-width: 4.75rem;
+  min-width: 4.5rem;
   min-height: var(--tap);
-  border-radius: 0.9rem;
-  padding: 0.55rem 0.8rem;
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
   text-align: left;
   font-size: 0.875rem;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .chip-day-active {
   background: var(--tostal-marca);
   color: var(--tostal-crema-logo);
+  border: 1px solid transparent;
 }
 
 .chip-day-idle {
-  background: white;
+  background: transparent;
   color: var(--tostal-ink);
   border: 1px solid var(--border);
 }
 
+/* Categorías: underline suave (docs HeroUI), no pills densas */
 .chip-cat {
-  min-height: 2.35rem;
-  border-radius: 999px;
-  padding: 0.45rem 0.95rem;
-  font-size: 0.875rem;
+  min-height: 2.5rem;
+  border-radius: 0;
+  padding: 0.5rem 0.15rem;
+  margin-right: 1.15rem;
+  font-size: 0.9rem;
+  font-weight: 500;
   white-space: nowrap;
-  transition: background 0.15s ease;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted-foreground);
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .chip-cat-active {
-  background: var(--tostal-marca);
-  color: var(--tostal-crema-logo);
+  color: var(--tostal-ink);
+  border-bottom-color: var(--tostal-marca);
+  font-weight: 600;
 }
 
 .chip-cat-idle {
-  background: white;
-  border: 1px solid var(--border);
+  background: transparent;
+  border-bottom-color: transparent;
+  color: var(--muted-foreground);
+}
+
+.chip-cat-idle:hover {
   color: var(--tostal-ink);
 }
 
@@ -525,9 +582,9 @@ a {
   }
 
   .hero-brand {
-    min-height: 18rem;
-    border-radius: 0 0 1.25rem 1.25rem;
-    margin-top: 1rem;
+    min-height: 17rem;
+    border-radius: 0 0 calc(var(--radius) * 1.5) calc(var(--radius) * 1.5);
+    margin-top: 1.25rem;
   }
 }
 

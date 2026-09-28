@@ -11,7 +11,7 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
   return (
     <div
       className={`flex items-center justify-between gap-3 ${
-        compact ? "px-0" : "px-5 pt-5"
+        compact ? "px-0" : "px-6 pt-5"
       }`}
     >
       <Link href="/" className="min-w-0">
@@ -26,38 +26,38 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
           />
         )}
         {compact && (
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground">
             Menú del día
           </p>
         )}
       </Link>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <Link
           href="/cuenta"
-          className="inline-flex h-11 items-center rounded-xl border border-border bg-white/90 px-3 text-xs font-semibold text-cacao"
+          className="inline-flex h-10 items-center rounded-lg px-3 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
         >
           Cuenta
         </Link>
         <Link
           href="/seguimiento"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-white/90 text-cacao"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-secondary"
           aria-label="Seguir pedido"
         >
-          <Search size={18} />
+          <Search size={18} strokeWidth={1.75} />
         </Link>
         <Link
           href="/carrito"
-          className="relative inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-white/90 px-3.5 text-sm font-semibold text-cacao"
+          className="relative inline-flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
           aria-label="Carrito"
         >
-          <ShoppingBag size={18} />
+          <ShoppingBag size={18} strokeWidth={1.75} />
           {cart.totalItems > 0 ? (
-            <span>{formatoMoneda(cart.subtotal)}</span>
+            <span className="tabular-nums">{formatoMoneda(cart.subtotal)}</span>
           ) : (
             <span className="text-muted-foreground">0</span>
           )}
           {cart.totalItems > 0 && (
-            <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-miel px-1 text-[11px] font-bold text-[#d6d2c4]">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-miel px-1 text-[10px] font-semibold text-[#d6d2c4]">
               {cart.totalItems}
             </span>
           )}

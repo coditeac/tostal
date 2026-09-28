@@ -95,13 +95,13 @@ export default function WhatsappPage() {
       {loading ? (
         <p className="loading-pulse text-muted-foreground">Cargando avisos…</p>
       ) : avisos.length === 0 ? (
-        <p className="surface p-4 text-sm text-muted-foreground">
+        <p className="empty-state">
           No hay avisos en este filtro.
         </p>
       ) : (
         <ul className="space-y-3">
           {avisos.map((a) => (
-            <li key={a.id} className="surface space-y-3 p-4">
+            <li key={a.id} className="space-y-3 border-b border-border py-4 first:border-t">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold">{a.destinatario}</p>
