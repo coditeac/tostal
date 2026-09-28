@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { Frame, FrameHeader, FramePanel, FrameTitle } from "@/components/reui/frame";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,31 +43,31 @@ export default function LoginPage() {
 
   return (
     <div className="toastal-shell mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
-      <Frame className="rise-in overflow-hidden rounded-[1.1rem] border border-border bg-white shadow-none">
-        <div className="flex flex-col items-center bg-miel px-6 py-9 text-center">
+      <div className="rise-in overflow-hidden rounded-[1rem] border border-border bg-white">
+        <div className="flex flex-col items-center bg-miel px-6 py-10 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/tostal-logo.png"
-            alt="Tostal"
+            alt="Tostal — Sabores que unen culturas"
             width={280}
             height={120}
             className="h-auto w-[min(72%,14rem)] object-contain"
           />
         </div>
 
-        <FrameHeader className="border-0 px-6 pb-0 pt-6">
+        <div className="px-6 pb-0 pt-6">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             Operación
           </p>
-          <FrameTitle className="mt-1.5 text-xl font-semibold tracking-tight">
+          <h1 className="mt-1.5 text-xl font-semibold tracking-tight">
             Entrar al equipo
-          </FrameTitle>
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Solo para admin, cocina y caja.
           </p>
-        </FrameHeader>
+        </div>
 
-        <FramePanel className="border-0 px-6 pb-6 pt-4">
+        <div className="px-6 pb-6 pt-4">
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Correo</Label>
@@ -114,8 +113,8 @@ export default function LoginPage() {
           <p className="mt-4 text-xs text-muted-foreground">
             Demo: admin@tostal.mx / tostal123
           </p>
-        </FramePanel>
-      </Frame>
+        </div>
+      </div>
     </div>
   );
 }

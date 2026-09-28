@@ -34,20 +34,20 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
       <div className="flex items-center gap-2">
         <Link
           href="/cuenta"
-          className="inline-flex h-11 items-center rounded-xl border border-border bg-white px-3 text-xs font-semibold text-cacao"
+          className="inline-flex h-11 items-center rounded-xl border border-border bg-white/90 px-3 text-xs font-semibold text-cacao"
         >
           Cuenta
         </Link>
         <Link
           href="/seguimiento"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-white text-cacao"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-white/90 text-cacao"
           aria-label="Seguir pedido"
         >
           <Search size={18} />
         </Link>
         <Link
           href="/carrito"
-          className="relative inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-white px-3.5 text-sm font-semibold text-cacao"
+          className="relative inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-white/90 px-3.5 text-sm font-semibold text-cacao"
           aria-label="Carrito"
         >
           <ShoppingBag size={18} />

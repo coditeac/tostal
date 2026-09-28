@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, ShoppingBag } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/reui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/components/cart-provider";
@@ -242,11 +242,11 @@ export default function ClienteHome() {
               ))}
             </div>
 
-            <ul className="divide-y divide-border overflow-hidden rounded-[1rem] border border-border bg-white">
+            <ul className="divide-y divide-border overflow-hidden rounded-[0.9rem] border border-border bg-white/90">
               {productosFiltrados.map((p, idx) => (
                 <li
                   key={p.id}
-                  className="rise-in flex gap-3.5 p-3.5"
+                  className="rise-in flex items-center gap-3 p-3.5"
                   style={{ animationDelay: `${80 + idx * 35}ms` }}
                 >
                   <div className="min-w-0 flex-1">
@@ -271,16 +271,16 @@ export default function ClienteHome() {
                     </p>
                   </div>
                   <div className="menu-thumb" aria-hidden>
-                    <span className="pb-5">{p.nombre.split(" ")[0]}</span>
-                    <button
-                      type="button"
-                      className="menu-add"
-                      onClick={() => add(p)}
-                      aria-label={`Agregar ${p.nombre}`}
-                    >
-                      <Plus size={16} strokeWidth={2.5} />
-                    </button>
+                    <span>{p.nombre.split(" ")[0]}</span>
                   </div>
+                  <button
+                    type="button"
+                    className="menu-add"
+                    onClick={() => add(p)}
+                    aria-label={`Agregar ${p.nombre}`}
+                  >
+                    <Plus size={18} strokeWidth={2.5} />
+                  </button>
                 </li>
               ))}
             </ul>
@@ -296,7 +296,7 @@ export default function ClienteHome() {
       </main>
 
       {cart.totalItems > 0 && (
-        <div className="cart-bar">
+        <div className="cart-bar cart-bar-enter">
           <Button
             asChild
             size="lg"

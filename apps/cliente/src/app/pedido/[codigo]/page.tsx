@@ -14,25 +14,10 @@ import {
 } from "@/lib/labels";
 import type { PedidoPublico } from "@tostal/shared/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/reui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Stepper,
-  StepperIndicator,
-  StepperItem,
-  StepperNav,
-  StepperSeparator,
-  StepperTitle,
-  StepperTrigger,
-} from "@/components/reui/stepper";
-import {
-  Frame,
-  FrameHeader,
-  FramePanel,
-  FrameTitle,
-} from "@/components/reui/frame";
 
 function PedidoView() {
   const params = useParams<{ codigo: string }>();
@@ -120,6 +105,9 @@ function PedidoView() {
     onError: () => setLive(false),
   });
 
+  // stripe return query (kept for compatibility)
+  void search;
+
   if (loading) {
     return (
       <div className="mx-auto max-w-lg space-y-3 px-4 py-10">
@@ -150,7 +138,6 @@ function PedidoView() {
   }
 
   const idx = PASOS_PEDIDO.indexOf(pedido.estado);
-  const activeStep = idx < 0 ? 1 : idx + 1;
   const cancelado = pedido.estado === "cancelado";
 
   return (
@@ -170,14 +157,14 @@ function PedidoView() {
       )}
 
       {pedido.metodoPago === "stripe" && pedido.estadoPago === "pendiente" && (
-        <div className="mt-4 space-y-2 rounded-[1rem] border border-border bg-white p-4">
+        <div className="mt-4 space-y-2 rounded-[0.9rem] border border-border bg-white p-4">
           <p className="text-sm text-muted-foreground">
             Paga con tarjeta. El monto sale del pedido Tostal (centavos); no hay
             catálogo en Stripe.
           </p>
           <Button
             type="button"
-            className="w-full bg-cacao text-crema hover:bg-cacao/90"
+            className="w-full"
             disabled={paying}
             onClick={() => void pagarConStripe()}
           >
@@ -204,80 +191,72 @@ function PedidoView() {
           </Alert>
         )}
 
-      <Frame className="mt-6 overflow-hidden rounded-[1rem] border border-border bg-white shadow-none">
-        <FramePanel className="border-0 p-4">
-          {cancelado ? (
-            <p className="font-semibold text-error">Pedido cancelado</p>
-          ) : (
-            <>
-              <p className="text-2xl font-semibold leading-tight">
-                {ESTADO_PEDIDO[pedido.estado]}
-              </p>
-              <Stepper
-                value={activeStep}
-                orientation="horizontal"
-                className="mt-5"
-              >
-                <StepperNav>
-                  {PASOS_PEDIDO.map((paso, i) => (
-                    <StepperItem
-                      key={paso}
-                      step={i + 1}
-                      className="relative flex-1 items-start"
-                    >
-                      <StepperTrigger className="flex w-full flex-col items-center gap-1.5 rounded-md p-0">
-                        <StepperIndicator className="size-3 data-[state=completed]:bg-ok data-[state=active]:bg-primary data-[state=active]:ring-4 data-[state=active]:ring-primary/20" />
-                        <StepperTitle className="max-w-[4.5rem] text-center text-[10px] font-medium leading-tight">
-                          {ESTADO_PEDIDO[paso]}
-                        </StepperTitle>
-                      </StepperTrigger>
-                      {i < PASOS_PEDIDO.length - 1 && (
-                        <StepperSeparator className="absolute top-1.5 right-0 left-[calc(50%+0.5rem)] m-0! w-[calc(100%-1rem)] group-data-[state=completed]/stepper-item:bg-ok" />
-                      )}
-                    </StepperItem>
-                  ))}
-                </StepperNav>
-              </Stepper>
-            </>
-          )}
-          <p className="mt-5 text-sm text-muted-foreground">
-            {METODO_PAGO[pedido.metodoPago]} · {ESTADO_PAGO[pedido.estadoPago]}
-          </p>
-        </FramePanel>
-      </Frame>
+      <section className="mt-6 overflow-hidden rounded-[0.9rem] border border-border bg-white p-4">
+        {cancelado ? (
+          <p className="font-semibold text-error">Pedido cancelado</p>
+        ) : (
+          <>
+            <p className="text-2xl font-semibold leading-tight">
+              {ESTADO_PEDIDO[pedido.estado]}
+            </p>
+            <div className="status-track mt-5">
+              {PASOS_PEDIDO.map((paso, i) => {
+                const done = idx > i;
+                const current = idx === i;
+                return (
+                  <div key={paso} className="status-step">
+                    <div
+                      className={`status-dot ${
+                        done ? "status-dot-done" : current ? "status-dot-current" : ""
+                      }`}
+                    />
+                    {i < PASOS_PEDIDO.length - 1 && (
+                      <div
+                        className={`status-line ${done ? "status-line-done" : ""}`}
+                      />
+                    )}
+                    <p className="max-w-[4.5rem] text-[10px] font-medium leading-tight text-muted-foreground">
+                      {ESTADO_PEDIDO[paso]}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+        <p className="mt-5 text-sm text-muted-foreground">
+          {METODO_PAGO[pedido.metodoPago]} · {ESTADO_PAGO[pedido.estadoPago]}
+        </p>
+      </section>
 
-      <Frame className="mt-4 overflow-hidden rounded-[1rem] border border-border bg-white shadow-none">
-        <FrameHeader className="border-0 px-4 pb-0 pt-4">
-          <FrameTitle className="text-base font-semibold">Detalle</FrameTitle>
-        </FrameHeader>
-        <FramePanel className="border-0 p-4 pt-2">
-          <ul className="space-y-2 text-sm">
-            {pedido.lineas.map((l) => (
-              <li key={l.id} className="flex justify-between gap-2">
-                <span>
-                  {l.cantidad}× {l.productoNombre}
-                </span>
-                <span>{formatoMoneda(l.subtotal)}</span>
-              </li>
-            ))}
-          </ul>
-          <Separator className="my-3" />
-          <div className="text-sm">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span>{formatoMoneda(pedido.subtotal)}</span>
-            </div>
-            <div className="mt-1 flex justify-between">
-              <span>Envío</span>
-              <span>{formatoMoneda(pedido.costoEnvio)}</span>
-            </div>
-            <div className="mt-2 flex justify-between font-semibold">
-              <span>Total</span>
-              <span>{formatoMoneda(pedido.total)}</span>
-            </div>
+      <section className="mt-4 overflow-hidden rounded-[0.9rem] border border-border bg-white p-4">
+        <h2 className="text-base font-semibold">Detalle</h2>
+        <ul className="mt-3 space-y-2 text-sm">
+          {pedido.lineas.map((l) => (
+            <li key={l.id} className="flex justify-between gap-2">
+              <span>
+                {l.cantidad}× {l.productoNombre}
+              </span>
+              <span>{formatoMoneda(l.subtotal)}</span>
+            </li>
+          ))}
+        </ul>
+        <Separator className="my-3" />
+        <div className="text-sm">
+          <div className="flex justify-between">
+            <span>Subtotal</span>
+            <span>{formatoMoneda(pedido.subtotal)}</span>
           </div>
-        </FramePanel>
-      </Frame>
+          <div className="mt-1 flex justify-between">
+            <span>Envío</span>
+            <span>{formatoMoneda(pedido.costoEnvio)}</span>
+          </div>
+          <div className="mt-2 flex justify-between font-semibold">
+            <span>Total</span>
+            <span>{formatoMoneda(pedido.total)}</span>
+          </div>
+        </div>
+      </section>
 
       <div className="mt-6 flex flex-col gap-2">
         <Button asChild variant="outline" className="w-full">
