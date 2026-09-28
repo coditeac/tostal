@@ -255,8 +255,8 @@ export async function crearReserva(input: {
     return { ok: false, error: "Fecha de reserva inválida." };
   }
 
-  const hoy = new Date();
-  const hoyIso = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+  const { hoyISO } = await import("./utils");
+  const hoyIso = hoyISO();
   if (input.fechaEntrega <= hoyIso) {
     return {
       ok: false,

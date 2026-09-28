@@ -19,7 +19,7 @@ import {
   listProductosReserva,
 } from "../../lib/reservas";
 import { ensureSeed } from "../../lib/seed";
-import { hoyISO, sumarDias } from "../../lib/utils";
+import { deadlineVigente, hoyISO, sumarDias } from "../../lib/utils";
 import { getClienteFromRequest } from "../../lib/cliente-auth";
 
 @Controller("public")
@@ -37,7 +37,7 @@ export class PublicController {
     const to = toParam || sumarDias(from, 13);
     const dias = (await listDias(from, to)).map((d) => ({
       ...d,
-      deadlineVigente: new Date() < new Date(d.deadlinePedido),
+      deadlineVigente: deadlineVigente(d.deadlinePedido),
     }));
     return { dias, config: await getConfigPublica() };
   }

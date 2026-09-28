@@ -2,6 +2,7 @@ import { sqlAll, sqlGet, sqlRun, sqlTransaction } from "./db";
 import { ensureSeed } from "./seed";
 import { getConfigPublica } from "./config";
 import { id } from "./id";
+import { cdmxLocalToUtcIso, deadlineVigente } from "./utils";
 import type {
   Categoria,
   DiaOperativo,
@@ -455,10 +456,10 @@ export async function getMenuPorDia(fecha: string): Promise<MenuHoyResponse> {
     }))
     .filter((p) => p.disponible);
 
-  const deadline = dia?.deadlinePedido || `${fecha}T00:00:00.000Z`;
-  const deadlineVigente = new Date() < new Date(deadline);
+  const deadline = dia?.deadlinePedido || cdmxLocalToUtcIso(fecha, "00:00");
+  const vigente = deadlineVigente(deadline);
   const diaAbierto = dia ? !!dia.abierto : false;
-  const acepta = diaAbierto && deadlineVigente;
+  const acepta = diaAbierto && vigente;
 
   return {
     fecha,
@@ -466,7 +467,7 @@ export async function getMenuPorDia(fecha: string): Promise<MenuHoyResponse> {
     hora_limite: deadline,
     horaLimite: deadline,
     deadlinePedido: deadline,
-    deadlineVigente,
+    deadlineVigente: vigente,
     acepta_pedidos: acepta,
     aceptaPedidos: acepta,
     cupoMaximo: dia?.cupoMaximo ?? null,
@@ -520,17 +521,17 @@ export async function programarMenuDia(input: {
 
   let deadlinePedido =
     input.deadlinePedido ||
-    input.horaLimite ||
     (await getDia(input.fecha))?.deadlinePedido ||
-    `${input.fecha}T18:00:00.000Z`;
+    cdmxLocalToUtcIso(input.fecha, "18:00");
 
-  if (input.horaLimite && /^\d{2}:\d{2}$/.test(input.horaLimite)) {
-    const [hh, mm] = input.horaLimite.split(":").map(Number);
-    const d = new Date(`${input.fecha}T12:00:00`);
-    d.setHours(hh, mm, 0, 0);
-    deadlinePedido = d.toISOString();
+  if (input.horaLimite && /^\d{2}:\d{2}(:\d{2})?$/.test(input.horaLimite)) {
+    // HH:mm interpretado en America/Mexico_City para esa fecha civil.
+    deadlinePedido = cdmxLocalToUtcIso(input.fecha, input.horaLimite);
   } else if (input.horaLimite && !input.deadlinePedido) {
+    // ISO u otro parseable → instant absoluto
     deadlinePedido = new Date(input.horaLimite).toISOString();
+  } else if (input.deadlinePedido) {
+    deadlinePedido = new Date(input.deadlinePedido).toISOString();
   }
 
   const existing = await getDia(input.fecha);

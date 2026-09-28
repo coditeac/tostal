@@ -40,6 +40,7 @@ export class MenuDiaController {
       dias: await listDias(from, to),
       hoy: hoyISO(),
       manana: sumarDias(hoyISO(), 1),
+      tz: "America/Mexico_City",
     };
   }
 

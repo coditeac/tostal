@@ -21,6 +21,7 @@ import { hoyISO, sumarDias } from "../../lib/utils";
 /**
  * Alias legado de programación de menú.
  * Preferir /api/menu-dia/:fecha (contrato).
+ * Fechas / hora límite en America/Mexico_City.
  */
 @Controller(["calendario", "menu-diario"])
 export class CalendarioController {
@@ -44,6 +45,7 @@ export class CalendarioController {
         fecha: target,
         hora_limite: (await getDia(target))?.deadlinePedido ?? null,
         esManana: target === sumarDias(hoyISO(), 1),
+        tz: "America/Mexico_City",
       };
     }
     const from = fromParam || hoyISO();
@@ -52,6 +54,7 @@ export class CalendarioController {
       dias: await listDias(from, to),
       manana: sumarDias(hoyISO(), 1),
       hoy: hoyISO(),
+      tz: "America/Mexico_City",
     };
   }
 

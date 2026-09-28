@@ -91,7 +91,7 @@ export type ProductoReservaPublico = {
 export type MenuHoyResponse = {
   fecha: string;
   abierto: boolean;
-  /** ISO datetime — hora límite de pedidos para ese día. */
+  /** ISO datetime UTC — hora límite interpretada desde CDMX al guardar. */
   hora_limite: string;
   /** Alias camelCase para clientes TS. */
   horaLimite: string;
