@@ -479,6 +479,53 @@ const SCHEMA_SQLITE = `
       error TEXT,
       creado_en TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS reservas (
+      id TEXT PRIMARY KEY,
+      codigo TEXT NOT NULL UNIQUE,
+      estado TEXT NOT NULL,
+      estado_anticipo TEXT NOT NULL,
+      metodo_pago TEXT NOT NULL,
+      modo_entrega TEXT NOT NULL CHECK(modo_entrega IN ('retiro','envio')),
+      fecha_entrega TEXT NOT NULL,
+      zona_id TEXT REFERENCES zonas_envio(id),
+      cliente_id TEXT REFERENCES clientes(id),
+      cuenta_cliente_id TEXT,
+      cliente_nombre TEXT NOT NULL,
+      cliente_telefono TEXT NOT NULL,
+      cliente_email TEXT,
+      direccion TEXT,
+      subtotal INTEGER NOT NULL,
+      anticipo_monto INTEGER NOT NULL,
+      costo_envio INTEGER NOT NULL DEFAULT 0,
+      total INTEGER NOT NULL,
+      notas TEXT,
+      creado_en TEXT NOT NULL,
+      actualizado_en TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS reserva_lineas (
+      id TEXT PRIMARY KEY,
+      reserva_id TEXT NOT NULL REFERENCES reservas(id) ON DELETE CASCADE,
+      producto_id TEXT NOT NULL REFERENCES productos(id),
+      producto_nombre TEXT NOT NULL,
+      cantidad INTEGER NOT NULL,
+      precio_unitario INTEGER NOT NULL,
+      subtotal INTEGER NOT NULL,
+      notas TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS reserva_necesidades (
+      id TEXT PRIMARY KEY,
+      reserva_id TEXT NOT NULL REFERENCES reservas(id) ON DELETE CASCADE,
+      insumo_id TEXT NOT NULL REFERENCES insumos(id),
+      insumo_nombre TEXT NOT NULL,
+      unidad TEXT NOT NULL,
+      cantidad_necesaria REAL NOT NULL,
+      stock_actual REAL NOT NULL,
+      faltante REAL NOT NULL,
+      requiere_compra INTEGER NOT NULL DEFAULT 0
+    );
 `;
 
 const SCHEMA_ALTERS_SQLITE = [
@@ -490,6 +537,10 @@ const SCHEMA_ALTERS_SQLITE = [
   `ALTER TABLE pedidos ADD COLUMN cliente_email TEXT`,
   `ALTER TABLE pedidos ADD COLUMN stripe_payment_intent_id TEXT`,
   `ALTER TABLE productos ADD COLUMN duraciones TEXT`,
+  `ALTER TABLE productos ADD COLUMN reserva_habilitada INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE productos ADD COLUMN anticipo_tipo TEXT NOT NULL DEFAULT 'porcentaje'`,
+  `ALTER TABLE productos ADD COLUMN anticipo_valor INTEGER NOT NULL DEFAULT 50`,
+  `ALTER TABLE email_log ADD COLUMN reserva_id TEXT`,
 ];
 
 const SCHEMA_ALTERS_PG = [
@@ -501,6 +552,10 @@ const SCHEMA_ALTERS_PG = [
   `ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cliente_email TEXT`,
   `ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS stripe_payment_intent_id TEXT`,
   `ALTER TABLE productos ADD COLUMN IF NOT EXISTS duraciones TEXT`,
+  `ALTER TABLE productos ADD COLUMN IF NOT EXISTS reserva_habilitada INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE productos ADD COLUMN IF NOT EXISTS anticipo_tipo TEXT NOT NULL DEFAULT 'porcentaje'`,
+  `ALTER TABLE productos ADD COLUMN IF NOT EXISTS anticipo_valor INTEGER NOT NULL DEFAULT 50`,
+  `ALTER TABLE email_log ADD COLUMN IF NOT EXISTS reserva_id TEXT`,
   `CREATE TABLE IF NOT EXISTS cuentas_cliente (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
@@ -519,6 +574,50 @@ const SCHEMA_ALTERS_PG = [
       estado TEXT NOT NULL,
       error TEXT,
       creado_en TEXT NOT NULL
+    )`,
+  `CREATE TABLE IF NOT EXISTS reservas (
+      id TEXT PRIMARY KEY,
+      codigo TEXT NOT NULL UNIQUE,
+      estado TEXT NOT NULL,
+      estado_anticipo TEXT NOT NULL,
+      metodo_pago TEXT NOT NULL,
+      modo_entrega TEXT NOT NULL CHECK(modo_entrega IN ('retiro','envio')),
+      fecha_entrega TEXT NOT NULL,
+      zona_id TEXT REFERENCES zonas_envio(id),
+      cliente_id TEXT REFERENCES clientes(id),
+      cuenta_cliente_id TEXT,
+      cliente_nombre TEXT NOT NULL,
+      cliente_telefono TEXT NOT NULL,
+      cliente_email TEXT,
+      direccion TEXT,
+      subtotal INTEGER NOT NULL,
+      anticipo_monto INTEGER NOT NULL,
+      costo_envio INTEGER NOT NULL DEFAULT 0,
+      total INTEGER NOT NULL,
+      notas TEXT,
+      creado_en TEXT NOT NULL,
+      actualizado_en TEXT NOT NULL
+    )`,
+  `CREATE TABLE IF NOT EXISTS reserva_lineas (
+      id TEXT PRIMARY KEY,
+      reserva_id TEXT NOT NULL REFERENCES reservas(id) ON DELETE CASCADE,
+      producto_id TEXT NOT NULL REFERENCES productos(id),
+      producto_nombre TEXT NOT NULL,
+      cantidad INTEGER NOT NULL,
+      precio_unitario INTEGER NOT NULL,
+      subtotal INTEGER NOT NULL,
+      notas TEXT
+    )`,
+  `CREATE TABLE IF NOT EXISTS reserva_necesidades (
+      id TEXT PRIMARY KEY,
+      reserva_id TEXT NOT NULL REFERENCES reservas(id) ON DELETE CASCADE,
+      insumo_id TEXT NOT NULL REFERENCES insumos(id),
+      insumo_nombre TEXT NOT NULL,
+      unidad TEXT NOT NULL,
+      cantidad_necesaria REAL NOT NULL,
+      stock_actual REAL NOT NULL,
+      faltante REAL NOT NULL,
+      requiere_compra INTEGER NOT NULL DEFAULT 0
     )`,
   // Ampliar CHECK de roles para incluir superadmin (idempotente).
   `DO $$ BEGIN

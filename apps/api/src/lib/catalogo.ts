@@ -7,10 +7,13 @@ import type {
   DiaOperativo,
   Insumo,
   LineaReceta,
-  MenuDiaResponse,
-  Producto,
   ZonaEnvio,
 } from "../../../../shared/types";
+import type {
+  AnticipoTipo,
+  MenuHoyResponse,
+  ProductoApi,
+} from "./domain-types";
 
 async function boot() {
   await ensureSeed();
@@ -35,33 +38,81 @@ export async function listCategorias(): Promise<Categoria[]> {
   }));
 }
 
+type ProductoRow = {
+  id: string;
+  categoriaId: string | null;
+  nombre: string;
+  descripcion: string | null;
+  precio: number;
+  activoCatalogo: number;
+  fotoUrl: string | null;
+  alergenos: string | null;
+  orden: number;
+  reservaHabilitada: number;
+  categoriaNombre?: string | null;
+  duraciones: string | null;
+  anticipoTipo: string | null;
+  anticipoValor: number | null;
+};
+
+function mapProducto(r: ProductoRow): ProductoApi {
+  const anticipoTipo: AnticipoTipo =
+    r.anticipoTipo === "monto" ? "monto" : "porcentaje";
+  return {
+    id: r.id,
+    categoriaId: r.categoriaId,
+    nombre: r.nombre,
+    descripcion: r.descripcion,
+    precio: r.precio,
+    activoCatalogo: !!r.activoCatalogo,
+    fotoUrl: r.fotoUrl,
+    alergenos: r.alergenos,
+    orden: r.orden,
+    reservaHabilitada: !!r.reservaHabilitada,
+    anticipoTipo,
+    anticipoValor: r.anticipoValor ?? (anticipoTipo === "porcentaje" ? 50 : 0),
+    duraciones: parseDuraciones(r.duraciones),
+    ...(r.categoriaNombre !== undefined
+      ? { categoriaNombre: r.categoriaNombre }
+      : {}),
+  };
+}
+
+export function calcularAnticipoUnitario(
+  precio: number,
+  tipo: AnticipoTipo,
+  valor: number
+): number {
+  if (tipo === "monto") return Math.max(0, Math.round(valor));
+  const pct = Math.min(100, Math.max(0, valor));
+  return Math.round((precio * pct) / 100);
+}
+
 export async function listProductos(): Promise<
-  Array<Producto & { categoriaNombre: string | null }>
+  Array<ProductoApi & { categoriaNombre: string | null }>
 > {
   await boot();
-  const rows = await sqlAll<
-    SqliteBool<Producto, "activoCatalogo"> & {
-      categoriaNombre: string | null;
-      duraciones: string | null;
-    }
-  >(
+  const rows = await sqlAll<ProductoRow>(
     `SELECT p.id, p.categoria_id as categoriaId, p.nombre, p.descripcion,
             p.precio, p.activo_catalogo as activoCatalogo, p.foto_url as fotoUrl,
-            p.alergenos, p.orden, p.duraciones, c.nombre as categoriaNombre
+            p.alergenos, p.orden, p.duraciones,
+            COALESCE(p.reserva_habilitada, 0) as reservaHabilitada,
+            COALESCE(p.anticipo_tipo, 'porcentaje') as anticipoTipo,
+            COALESCE(p.anticipo_valor, 50) as anticipoValor,
+            c.nombre as categoriaNombre
      FROM productos p
      LEFT JOIN categorias c ON c.id = p.categoria_id
      ORDER BY p.orden, p.nombre`
   );
-  return rows.map((r) => ({
-    ...r,
-    activoCatalogo: !!r.activoCatalogo,
-    duraciones: parseDuraciones(r.duraciones),
-  }));
+  return rows.map((r) => {
+    const p = mapProducto(r);
+    return { ...p, categoriaNombre: r.categoriaNombre ?? null };
+  });
 }
 
 function parseDuraciones(
   raw: string | null | undefined
-): Producto["duraciones"] {
+): ProductoApi["duraciones"] {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
@@ -71,23 +122,20 @@ function parseDuraciones(
   }
 }
 
-export async function getProducto(idProd: string): Promise<Producto | null> {
+export async function getProducto(idProd: string): Promise<ProductoApi | null> {
   await boot();
-  const r = await sqlGet<
-    SqliteBool<Producto, "activoCatalogo"> & { duraciones: string | null }
-  >(
+  const r = await sqlGet<ProductoRow>(
     `SELECT id, categoria_id as categoriaId, nombre, descripcion, precio,
             activo_catalogo as activoCatalogo, foto_url as fotoUrl, alergenos, orden,
-            duraciones
+            duraciones,
+            COALESCE(reserva_habilitada, 0) as reservaHabilitada,
+            COALESCE(anticipo_tipo, 'porcentaje') as anticipoTipo,
+            COALESCE(anticipo_valor, 50) as anticipoValor
      FROM productos WHERE id = ?`,
     idProd
   );
   if (!r) return null;
-  return {
-    ...r,
-    activoCatalogo: !!r.activoCatalogo,
-    duraciones: parseDuraciones(r.duraciones),
-  };
+  return mapProducto(r);
 }
 
 export async function upsertProducto(data: {
@@ -99,16 +147,29 @@ export async function upsertProducto(data: {
   activoCatalogo: boolean;
   alergenos: string | null;
   orden?: number;
-  duraciones?: Producto["duraciones"];
-}): Promise<Producto> {
+  duraciones?: ProductoApi["duraciones"];
+  reservaHabilitada?: boolean;
+  anticipoTipo?: AnticipoTipo;
+  anticipoValor?: number;
+}): Promise<ProductoApi> {
   await boot();
   const pid = data.id || id();
   const duracionesJson =
     data.duraciones != null ? JSON.stringify(data.duraciones) : null;
+  const existing = data.id ? await getProducto(data.id) : null;
+  const reservaHabilitada =
+    data.reservaHabilitada ?? existing?.reservaHabilitada ?? false;
+  const anticipoTipo =
+    data.anticipoTipo ?? existing?.anticipoTipo ?? "porcentaje";
+  const anticipoValor =
+    data.anticipoValor ??
+    existing?.anticipoValor ??
+    (anticipoTipo === "porcentaje" ? 50 : 0);
   if (data.id) {
     await sqlRun(
       `UPDATE productos SET categoria_id=?, nombre=?, descripcion=?, precio=?,
-       activo_catalogo=?, alergenos=?, orden=?, duraciones=? WHERE id=?`,
+       activo_catalogo=?, alergenos=?, orden=?, duraciones=?,
+       reserva_habilitada=?, anticipo_tipo=?, anticipo_valor=? WHERE id=?`,
       data.categoriaId,
       data.nombre,
       data.descripcion,
@@ -117,12 +178,15 @@ export async function upsertProducto(data: {
       data.alergenos,
       data.orden ?? 0,
       duracionesJson,
+      reservaHabilitada ? 1 : 0,
+      anticipoTipo,
+      anticipoValor,
       pid
     );
   } else {
     await sqlRun(
-      `INSERT INTO productos (id, categoria_id, nombre, descripcion, precio, activo_catalogo, foto_url, alergenos, orden, duraciones)
-       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
+      `INSERT INTO productos (id, categoria_id, nombre, descripcion, precio, activo_catalogo, foto_url, alergenos, orden, duraciones, reserva_habilitada, anticipo_tipo, anticipo_valor)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
       pid,
       data.categoriaId,
       data.nombre,
@@ -131,7 +195,10 @@ export async function upsertProducto(data: {
       data.activoCatalogo ? 1 : 0,
       data.alergenos,
       data.orden ?? 0,
-      duracionesJson
+      duracionesJson,
+      reservaHabilitada ? 1 : 0,
+      anticipoTipo,
+      anticipoValor
     );
   }
   return (await getProducto(pid))!;
@@ -370,7 +437,7 @@ export async function listZonas(): Promise<ZonaEnvio[]> {
   return rows.map((z) => ({ ...z, activa: !!z.activa }));
 }
 
-export async function getMenuPorDia(fecha: string): Promise<MenuDiaResponse> {
+export async function getMenuPorDia(fecha: string): Promise<MenuHoyResponse> {
   await boot();
   const dia = await getDia(fecha);
   const config = await getConfigPublica();
@@ -384,23 +451,110 @@ export async function getMenuPorDia(fecha: string): Promise<MenuDiaResponse> {
     .map((p) => ({
       ...p,
       disponible: !!disp[p.id],
-      categoriaNombre: p.categoriaNombre,
+      categoriaNombre: p.categoriaNombre ?? null,
     }))
     .filter((p) => p.disponible);
 
   const deadline = dia?.deadlinePedido || `${fecha}T00:00:00.000Z`;
   const deadlineVigente = new Date() < new Date(deadline);
-  const abierto = dia ? dia.abierto && deadlineVigente : false;
+  const diaAbierto = dia ? !!dia.abierto : false;
+  const acepta = diaAbierto && deadlineVigente;
 
   return {
     fecha,
-    abierto,
+    abierto: acepta,
+    hora_limite: deadline,
+    horaLimite: deadline,
     deadlinePedido: deadline,
     deadlineVigente,
+    acepta_pedidos: acepta,
+    aceptaPedidos: acepta,
     cupoMaximo: dia?.cupoMaximo ?? null,
     productos,
     categorias,
     zonas,
     config,
   };
+}
+
+/** Shape staff: menú del día + hora_limite + productos con flag activo. */
+export async function getMenuDiaStaff(fecha: string) {
+  await boot();
+  const dia = await getDia(fecha);
+  const disponibilidad = await getDisponibilidad(fecha);
+  const deadline = dia?.deadlinePedido || null;
+  return {
+    fecha,
+    abierto: dia?.abierto ?? false,
+    hora_limite: deadline,
+    horaLimite: deadline,
+    deadlinePedido: deadline,
+    cupoMaximo: dia?.cupoMaximo ?? null,
+    notas: dia?.notas ?? null,
+    dia,
+    productos: disponibilidad.map((d) => ({
+      producto_id: d.productoId,
+      productoId: d.productoId,
+      nombre: d.productoNombre,
+      activo: d.disponible,
+      disponible: d.disponible,
+    })),
+    disponibilidad,
+  };
+}
+
+export async function programarMenuDia(input: {
+  fecha: string;
+  horaLimite?: string | null;
+  deadlinePedido?: string | null;
+  abierto?: boolean;
+  cupoMaximo?: number | null;
+  notas?: string | null;
+  productos?: Array<{ productoId: string; activo?: boolean; disponible?: boolean }>;
+  copiarDesde?: string | null;
+}) {
+  await boot();
+  if (input.copiarDesde) {
+    await copiarDisponibilidad(input.copiarDesde, input.fecha);
+  }
+
+  let deadlinePedido =
+    input.deadlinePedido ||
+    input.horaLimite ||
+    (await getDia(input.fecha))?.deadlinePedido ||
+    `${input.fecha}T18:00:00.000Z`;
+
+  if (input.horaLimite && /^\d{2}:\d{2}$/.test(input.horaLimite)) {
+    const [hh, mm] = input.horaLimite.split(":").map(Number);
+    const d = new Date(`${input.fecha}T12:00:00`);
+    d.setHours(hh, mm, 0, 0);
+    deadlinePedido = d.toISOString();
+  } else if (input.horaLimite && !input.deadlinePedido) {
+    deadlinePedido = new Date(input.horaLimite).toISOString();
+  }
+
+  const existing = await getDia(input.fecha);
+  await upsertDia({
+    fecha: input.fecha,
+    abierto: input.abierto ?? existing?.abierto ?? true,
+    deadlinePedido,
+    cupoMaximo:
+      input.cupoMaximo !== undefined
+        ? input.cupoMaximo
+        : (existing?.cupoMaximo ?? 20),
+    notas:
+      input.notas !== undefined ? input.notas : (existing?.notas ?? null),
+  });
+
+  if (Array.isArray(input.productos)) {
+    await setDisponibilidad(
+      input.fecha,
+      input.productos.map((p) => ({
+        productoId: p.productoId,
+        disponible: p.activo ?? p.disponible ?? false,
+      }))
+    );
+  }
+
+  return getMenuDiaStaff(input.fecha);
 }

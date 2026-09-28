@@ -10,15 +10,23 @@ import {
   HttpCode,
 } from "@nestjs/common";
 import type { Request } from "express";
-import { listDias, getMenuPorDia } from "../../lib/catalogo";
+import { listDias, getMenuPorDia, listZonas } from "../../lib/catalogo";
 import { getConfigPublica } from "../../lib/config";
 import { crearPedidoRemoto, getPedido } from "../../lib/pedidos";
+import {
+  crearReserva,
+  getReserva,
+  listProductosReserva,
+} from "../../lib/reservas";
 import { ensureSeed } from "../../lib/seed";
 import { hoyISO, sumarDias } from "../../lib/utils";
 import { getClienteFromRequest } from "../../lib/cliente-auth";
 
 @Controller("public")
 export class PublicController {
+  /**
+   * Legado: listado de días. El Cliente no debe usarlo como strip de calendario.
+   */
   @Get("dias")
   async dias(
     @Query("from") fromParam?: string,
@@ -34,15 +42,39 @@ export class PublicController {
     return { dias, config: await getConfigPublica() };
   }
 
+  /**
+   * Menú del día = siempre HOY.
+   * Incluye hora_limite + acepta_pedidos (contrato).
+   * ?fecha= se ignora a propósito ( fronts no eligen día aquí).
+   */
   @Get("menu")
-  async menu(@Query("fecha") fecha?: string) {
+  async menu() {
     await ensureSeed();
-    if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
-      throw new BadRequestException(
-        "Indica una fecha válida (YYYY-MM-DD)."
-      );
-    }
-    return getMenuPorDia(fecha);
+    return getMenuPorDia(hoyISO());
+  }
+
+  /** Alias explícito del menú de hoy. */
+  @Get("menu-hoy")
+  async menuHoy() {
+    await ensureSeed();
+    return getMenuPorDia(hoyISO());
+  }
+
+  /** Productos elegibles para reserva / bajo pedido. */
+  @Get("reservas/productos")
+  async productosReserva() {
+    await ensureSeed();
+    return {
+      productos: await listProductosReserva(),
+      zonas: (await listZonas()).filter((z) => z.activa),
+      config: await getConfigPublica(),
+    };
+  }
+
+  /** Alias legado (preferir /public/reservas/productos). */
+  @Get("productos-reserva")
+  async productosReservaAlias() {
+    return this.productosReserva();
   }
 
   @Post("pedidos")
@@ -55,7 +87,7 @@ export class PublicController {
     if (!body) throw new BadRequestException("JSON inválido");
     const session = await getClienteFromRequest(req);
     const result = await crearPedidoRemoto({
-      fechaEntrega: String(body.fechaEntrega || ""),
+      fechaEntrega: String(body.fechaEntrega || hoyISO()),
       modoEntrega: body.modoEntrega as "retiro" | "envio",
       zonaId: (body.zonaId as string) || null,
       clienteNombre: String(
@@ -92,5 +124,66 @@ export class PublicController {
     const pedido = await getPedido(codigo);
     if (!pedido) throw new NotFoundException("Pedido no encontrado.");
     return { pedido };
+  }
+
+  @Post("reservas")
+  @HttpCode(201)
+  async crearReservaPublica(
+    @Req() req: Request,
+    @Body() body: Record<string, unknown>
+  ) {
+    await ensureSeed();
+    if (!body) throw new BadRequestException("JSON inválido");
+    const session = await getClienteFromRequest(req);
+
+    // Acepta lineas[] o producto_id + cantidad sueltos.
+    let lineas = Array.isArray(body.lineas) ? body.lineas : [];
+    if (
+      !lineas.length &&
+      (body.productoId || body.producto_id)
+    ) {
+      lineas = [
+        {
+          productoId: String(body.productoId || body.producto_id),
+          cantidad: Number(body.cantidad || 1),
+          notas: (body.notasLinea as string) || null,
+        },
+      ];
+    }
+
+    const result = await crearReserva({
+      fechaEntrega: String(body.fechaEntrega || body.fecha || ""),
+      modoEntrega: (body.modoEntrega as "retiro" | "envio") || "retiro",
+      zonaId: (body.zonaId as string) || null,
+      clienteNombre: String(
+        body.clienteNombre || session?.nombre || ""
+      ),
+      clienteTelefono: String(
+        body.clienteTelefono || session?.telefono || ""
+      ),
+      clienteEmail:
+        (body.clienteEmail as string) ||
+        (body.email as string) ||
+        session?.email ||
+        null,
+      cuentaClienteId: session?.id || null,
+      direccion: (body.direccion as string) || null,
+      metodoPago: (body.metodoPago as "transferencia" | "stripe") || "transferencia",
+      notas: (body.notas as string) || null,
+      lineas,
+    });
+    if (!result.ok) throw new BadRequestException(result.error);
+    return { reserva: result.reserva };
+  }
+
+  @Get("reservas")
+  async getReservaPublica(@Query("codigo") codigo?: string) {
+    await ensureSeed();
+    if (!codigo) {
+      throw new BadRequestException("Indica el código de la reserva.");
+    }
+    const reserva = await getReserva(codigo);
+    if (!reserva) throw new NotFoundException("Reserva no encontrada.");
+    return { reserva };
   }
 }

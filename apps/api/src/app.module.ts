@@ -23,6 +23,8 @@ import { CostosController } from "./modules/costos/costos.controller";
 import { PanelController } from "./modules/panel/panel.controller";
 import { ClienteAuthController } from "./modules/cliente/cliente-auth.controller";
 import { UsuariosController } from "./modules/usuarios/usuarios.controller";
+import { ReservasController } from "./modules/reservas/reservas.controller";
+import { MenuDiaController } from "./modules/menu-dia/menu-dia.controller";
 
 @Module({
   imports: [],
@@ -38,6 +40,7 @@ import { UsuariosController } from "./modules/usuarios/usuarios.controller";
     ProductosController,
     InsumosController,
     InventarioController,
+    MenuDiaController,
     CalendarioController,
     ComprasController,
     GastosController,
@@ -49,6 +52,7 @@ import { UsuariosController } from "./modules/usuarios/usuarios.controller";
     PanelController,
     ClienteAuthController,
     UsuariosController,
+    ReservasController,
   ],
   providers: [],
 })
