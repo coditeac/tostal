@@ -41,8 +41,9 @@ const accesos = [
   { href: "/caja", label: "Caja", hint: "Pedir → pagar → ficha" },
   { href: "/avisos", label: "Avisos WhatsApp", hint: "Cola manual" },
   { href: "/costos", label: "Costos", hint: "Márgenes por receta" },
-  { href: "/panel/calendario", label: "Calendario", hint: "Disponibilidad" },
-  { href: "/panel/usuarios", label: "Personal", hint: "Roles del equipo" },
+  { href: "/panel/calendario", label: "Menú del día", hint: "Activar + hora límite" },
+  { href: "/panel/reservas", label: "Reservas", hint: "Cola e insumos" },
+  { href: "/panel/usuarios", label: "Personal", hint: "Admin, cocina, caja" },
 ] as const;
 
 export default function PanelHome() {
