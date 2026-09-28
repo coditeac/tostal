@@ -7,6 +7,7 @@ import { Resend } from "resend";
 import { sqlAll, sqlRun } from "./db";
 import { id } from "./id";
 import type { PedidoPublico } from "../../../../shared/types";
+import type { ReservaPublica } from "./domain-types";
 
 type MailPayload = {
   to: string | string[];
@@ -309,5 +310,109 @@ export async function notifyPagoConfirmado(
     ),
     evento: "pago_confirmado",
     pedidoId: pedido.id,
+  });
+}
+
+export async function notifyReservaCreada(
+  reserva: ReservaPublica,
+  email?: string | null
+) {
+  if (email) {
+    const title = `Reserva ${reserva.codigo} recibida`;
+    const text = [
+      `¡Hola ${reserva.clienteNombre}!`,
+      ``,
+      `Recibimos tu reserva ${reserva.codigo} en Tostal.`,
+      `Fecha: ${reserva.fechaEntrega}`,
+      `Total: ${formatTotal(reserva.total)}`,
+      `Anticipo a pagar: ${formatTotal(reserva.anticipoMonto)} (${reserva.estadoAnticipo})`,
+      ``,
+      `Puedes verla en https://tostal.cafe/reserva/${reserva.codigo}`,
+      ``,
+      `— Tostal`,
+    ].join("\n");
+    const html = wrapHtml(
+      title,
+      `<p>¡Hola <strong>${escapeHtml(reserva.clienteNombre)}</strong>!</p>
+       <p>Recibimos tu reserva <strong>${escapeHtml(reserva.codigo)}</strong>.</p>
+       <p>Fecha: <strong>${escapeHtml(reserva.fechaEntrega)}</strong><br/>
+       Total: <strong>${formatTotal(reserva.total)}</strong><br/>
+       Anticipo: <strong>${formatTotal(reserva.anticipoMonto)}</strong> (${escapeHtml(reserva.estadoAnticipo)})</p>
+       <p><a href="https://tostal.cafe/reserva/${encodeURIComponent(reserva.codigo)}" style="color:#9A2E25;">Ver reserva</a></p>`
+    );
+    await sendMail({
+      to: email,
+      subject: `Reserva ${reserva.codigo} recibida — Tostal`,
+      text,
+      html,
+      evento: "reserva_creada",
+      pedidoId: null,
+    });
+    // Log con reserva_id si la columna existe
+    try {
+      await sqlRun(
+        `UPDATE email_log SET reserva_id = ? WHERE evento = 'reserva_creada' AND destinatario = ? AND creado_en >= ?`,
+        reserva.id,
+        email,
+        new Date(Date.now() - 60_000).toISOString()
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const to = await staffNotifyEmails();
+  if (!to.length) return;
+  await sendMail({
+    to,
+    subject: `Nueva reserva ${reserva.codigo} — Tostal`,
+    text: [
+      `Nueva reserva ${reserva.codigo}`,
+      `Cliente: ${reserva.clienteNombre}`,
+      `Fecha: ${reserva.fechaEntrega}`,
+      `Anticipo: ${formatTotal(reserva.anticipoMonto)}`,
+      `Total: ${formatTotal(reserva.total)}`,
+      ``,
+      `Panel: https://app.tostal.cafe/panel/reservas`,
+    ].join("\n"),
+    html: wrapHtml(
+      `Nueva reserva ${escapeHtml(reserva.codigo)}`,
+      `<p>Cliente: <strong>${escapeHtml(reserva.clienteNombre)}</strong><br/>
+       Fecha: ${escapeHtml(reserva.fechaEntrega)}<br/>
+       Anticipo: <strong>${formatTotal(reserva.anticipoMonto)}</strong><br/>
+       Total: <strong>${formatTotal(reserva.total)}</strong></p>
+       <p><a href="https://app.tostal.cafe/panel/reservas" style="color:#9A2E25;">Abrir reservas</a></p>`
+    ),
+    evento: "staff_reserva_creada",
+    pedidoId: null,
+  });
+}
+
+export async function notifyAnticipoConfirmado(
+  reserva: ReservaPublica,
+  email?: string | null
+) {
+  if (!email) return;
+  const text = [
+    `Hola ${reserva.clienteNombre},`,
+    ``,
+    `Confirmamos el anticipo de tu reserva ${reserva.codigo} (${formatTotal(reserva.anticipoMonto)}).`,
+    `Fecha: ${reserva.fechaEntrega}`,
+    `Estado: ${reserva.estado}`,
+    ``,
+    `— Tostal`,
+  ].join("\n");
+  await sendMail({
+    to: email,
+    subject: `Anticipo confirmado — reserva ${reserva.codigo}`,
+    text,
+    html: wrapHtml(
+      "Anticipo confirmado",
+      `<p>Hola <strong>${escapeHtml(reserva.clienteNombre)}</strong>,</p>
+       <p>Confirmamos el anticipo de tu reserva <strong>${escapeHtml(reserva.codigo)}</strong> (${formatTotal(reserva.anticipoMonto)}).</p>
+       <p>Fecha: <strong>${escapeHtml(reserva.fechaEntrega)}</strong></p>`
+    ),
+    evento: "anticipo_confirmado",
+    pedidoId: null,
   });
 }

@@ -12,32 +12,47 @@ import {
   getDisponibilidad,
   getDia,
   listDias,
-  setDisponibilidad,
-  upsertDia,
   copiarDisponibilidad,
+  programarMenuDia,
 } from "../../lib/catalogo";
 import { requireUser } from "../../common/session.decorator";
 import { hoyISO, sumarDias } from "../../lib/utils";
 
-@Controller("calendario")
+/**
+ * Alias legado de programación de menú.
+ * Preferir /api/menu-dia/:fecha (contrato).
+ */
+@Controller(["calendario", "menu-diario"])
 export class CalendarioController {
   @Get()
   async get(
     @Req() req: Request,
     @Query("fecha") fecha?: string,
     @Query("from") fromParam?: string,
-    @Query("to") toParam?: string
+    @Query("to") toParam?: string,
+    @Query("manana") manana?: string
   ) {
     await requireUser(req);
-    if (fecha) {
+    const target =
+      manana === "1" || manana === "true"
+        ? sumarDias(hoyISO(), 1)
+        : fecha;
+    if (target) {
       return {
-        dia: await getDia(fecha),
-        disponibilidad: await getDisponibilidad(fecha),
+        dia: await getDia(target),
+        disponibilidad: await getDisponibilidad(target),
+        fecha: target,
+        hora_limite: (await getDia(target))?.deadlinePedido ?? null,
+        esManana: target === sumarDias(hoyISO(), 1),
       };
     }
     const from = fromParam || hoyISO();
-    const to = toParam || sumarDias(from, 13);
-    return { dias: await listDias(from, to) };
+    const to = toParam || sumarDias(from, 7);
+    return {
+      dias: await listDias(from, to),
+      manana: sumarDias(hoyISO(), 1),
+      hoy: hoyISO(),
+    };
   }
 
   @Put()
@@ -45,7 +60,7 @@ export class CalendarioController {
     await requireUser(req, ["admin"]);
     if (!body?.fecha) throw new BadRequestException("Falta fecha.");
 
-    if (body.copiarDesde) {
+    if (body.copiarDesde && !body.disponibilidad && !body.productos) {
       const disponibilidad = await copiarDisponibilidad(
         String(body.copiarDesde),
         String(body.fecha)
@@ -53,39 +68,34 @@ export class CalendarioController {
       return { disponibilidad };
     }
 
-    let dia = await getDia(String(body.fecha));
-    if (
-      body.abierto != null ||
-      body.deadlinePedido ||
-      body.cupoMaximo !== undefined ||
-      body.notas !== undefined
-    ) {
-      dia = await upsertDia({
-        fecha: String(body.fecha),
-        abierto: (body.abierto as boolean) ?? dia?.abierto ?? true,
-        deadlinePedido:
-          (body.deadlinePedido as string) ||
-          dia?.deadlinePedido ||
-          `${body.fecha}T18:00:00.000Z`,
-        cupoMaximo:
-          body.cupoMaximo !== undefined
-            ? (body.cupoMaximo as number | null)
-            : (dia?.cupoMaximo ?? 20),
-        notas:
-          body.notas !== undefined
-            ? (body.notas as string | null)
-            : (dia?.notas ?? null),
-      });
-    }
-
-    let disponibilidad = await getDisponibilidad(String(body.fecha));
-    if (Array.isArray(body.disponibilidad)) {
-      disponibilidad = await setDisponibilidad(
-        String(body.fecha),
-        body.disponibilidad as Array<{ productoId: string; disponible: boolean }>
-      );
-    }
-
-    return { dia, disponibilidad };
+    return programarMenuDia({
+      fecha: String(body.fecha),
+      abierto: body.abierto as boolean | undefined,
+      horaLimite: (body.hora_limite as string) || (body.horaLimite as string) || null,
+      deadlinePedido: (body.deadlinePedido as string) || null,
+      cupoMaximo:
+        body.cupoMaximo !== undefined
+          ? (body.cupoMaximo as number | null)
+          : undefined,
+      notas: body.notas !== undefined ? (body.notas as string | null) : undefined,
+      productos: Array.isArray(body.disponibilidad)
+        ? (body.disponibilidad as Array<{ productoId: string; disponible: boolean }>).map(
+            (d) => ({
+              productoId: d.productoId,
+              disponible: d.disponible,
+              activo: d.disponible,
+            })
+          )
+        : Array.isArray(body.productos)
+          ? (body.productos as Array<{ productoId: string; activo?: boolean }>).map(
+              (p) => ({
+                productoId: p.productoId,
+                activo: p.activo,
+                disponible: p.activo,
+              })
+            )
+          : undefined,
+      copiarDesde: (body.copiarDesde as string) || null,
+    });
   }
 }

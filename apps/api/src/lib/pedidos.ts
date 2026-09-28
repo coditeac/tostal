@@ -123,12 +123,22 @@ export async function crearPedidoRemoto(input: {
   }
   const dia = await getDia(input.fechaEntrega);
   if (!dia || !dia.abierto) {
-    return { ok: false, error: "Ese día no está abierto para pedidos." };
+    return { ok: false, error: "Hoy no estamos tomando pedidos del menú." };
   }
   if (new Date() >= new Date(dia.deadlinePedido)) {
     return {
       ok: false,
-      error: "Ya cerramos pedidos para este día.",
+      error: "Ya cerramos pedidos para hoy.",
+    };
+  }
+
+  // Menú del día: solo se aceptan pedidos con entrega/retiro HOY.
+  const { hoyISO } = await import("./utils");
+  if (input.fechaEntrega !== hoyISO()) {
+    return {
+      ok: false,
+      error:
+        "El menú del día es solo para hoy. Para otra fecha usa Reservas (bajo pedido).",
     };
   }
   if (!input.lineas.length) {
