@@ -15,6 +15,7 @@ export type ReservaCola = {
   codigo?: string;
   fecha: string;
   estado: string;
+  estadoAnticipo?: string;
   clienteNombre: string;
   clienteTelefono?: string | null;
   anticipo: number;
@@ -34,12 +35,12 @@ function mapInsumo(raw: Record<string, unknown>): InsumoNecesario {
     raw.cantidad_necesaria ?? raw.cantidadNecesaria ?? raw.cantidad ?? 0
   );
   const stock = Number(raw.stock_actual ?? raw.stockActual ?? 0);
-  const faltante = Number(
-    raw.faltante ?? Math.max(0, necesaria - stock)
-  );
+  const faltante = Number(raw.faltante ?? Math.max(0, necesaria - stock));
   return {
-    insumoId: String(raw.insumo_id ?? raw.insumoId ?? raw.id ?? ""),
-    nombre: String(raw.nombre ?? raw.insumoNombre ?? "Insumo"),
+    insumoId: String(raw.insumo_id ?? raw.insumoId ?? ""),
+    nombre: String(
+      raw.insumo_nombre ?? raw.insumoNombre ?? raw.nombre ?? "Insumo"
+    ),
     unidad: String(raw.unidad ?? "u"),
     cantidadNecesaria: necesaria,
     stockActual: stock,
@@ -53,10 +54,18 @@ function mapInsumo(raw: Record<string, unknown>): InsumoNecesario {
 function mapReserva(raw: Record<string, unknown>): ReservaCola {
   const insumosRaw = (raw.insumos_necesarios ??
     raw.insumosNecesarios ??
+    raw.necesidades ??
     []) as Array<Record<string, unknown>>;
-  const productosRaw = (raw.productos ??
-    raw.lineas ??
+
+  const sugerenciasRaw = (raw.sugerencias_compra ??
+    raw.sugerenciasCompra ??
+    raw.sugerencias ??
+    []) as unknown[];
+
+  const productosRaw = (raw.lineas ??
+    raw.productos ??
     []) as Array<Record<string, unknown>>;
+
   const insumos = insumosRaw.map(mapInsumo);
   const requiereCompra = Boolean(
     raw.requiere_compra ??
@@ -64,31 +73,53 @@ function mapReserva(raw: Record<string, unknown>): ReservaCola {
       insumos.some((i) => i.requiereCompra)
   );
 
+  const sugerenciasCompra = sugerenciasRaw
+    .map((s) => {
+      if (typeof s === "string") return s;
+      const o = s as Record<string, unknown>;
+      const nombre = String(
+        o.insumo_nombre ?? o.insumoNombre ?? o.nombre ?? ""
+      );
+      const faltante = o.faltante ?? o.cantidad_faltante;
+      const unidad = o.unidad ? String(o.unidad) : "";
+      if (!nombre) return "";
+      return faltante != null
+        ? `${nombre}: faltan ${faltante}${unidad}`
+        : nombre;
+    })
+    .filter(Boolean);
+
   return {
     id: String(raw.id ?? ""),
     codigo: raw.codigo ? String(raw.codigo) : undefined,
-    fecha: String(raw.fecha ?? raw.fecha_entrega ?? ""),
-    estado: String(raw.estado ?? "pendiente"),
-    clienteNombre: String(
-      raw.cliente_nombre ?? raw.clienteNombre ?? "Cliente"
+    fecha: String(
+      raw.fechaEntrega ?? raw.fecha_entrega ?? raw.fecha ?? ""
     ),
-    clienteTelefono: (raw.cliente_telefono ??
-      raw.clienteTelefono ??
+    estado: String(raw.estado ?? "pendiente"),
+    estadoAnticipo: raw.estadoAnticipo
+      ? String(raw.estadoAnticipo)
+      : raw.estado_anticipo
+        ? String(raw.estado_anticipo)
+        : undefined,
+    clienteNombre: String(
+      raw.clienteNombre ?? raw.cliente_nombre ?? "Cliente"
+    ),
+    clienteTelefono: (raw.clienteTelefono ??
+      raw.cliente_telefono ??
       null) as string | null,
-    anticipo: Number(raw.anticipo ?? raw.anticipo_centavos ?? 0),
+    anticipo: Number(
+      raw.anticipoMonto ?? raw.anticipo_monto ?? raw.anticipo ?? 0
+    ),
     total: raw.total != null ? Number(raw.total) : undefined,
     requiereCompra,
     productos: productosRaw.map((p) => ({
-      productoId: String(p.producto_id ?? p.productoId ?? ""),
-      nombre: String(p.nombre ?? p.productoNombre ?? "Producto"),
+      productoId: String(p.productoId ?? p.producto_id ?? ""),
+      nombre: String(p.productoNombre ?? p.producto_nombre ?? p.nombre ?? "Producto"),
       cantidad: Number(p.cantidad ?? 1),
     })),
     insumosNecesarios: insumos,
-    sugerenciasCompra: Array.isArray(raw.sugerencias)
-      ? (raw.sugerencias as string[])
-      : Array.isArray(raw.sugerenciasCompra)
-        ? (raw.sugerenciasCompra as string[])
-        : undefined,
+    sugerenciasCompra:
+      sugerenciasCompra.length > 0 ? sugerenciasCompra : undefined,
   };
 }
 
@@ -98,21 +129,11 @@ export async function listReservas(): Promise<{
   mensaje?: string;
 }> {
   const res = await apiFetch("/api/reservas");
-  if (res.status === 404) {
-    return {
-      reservas: [],
-      disponible: false,
-      mensaje:
-        "La cola de reservas todavía no está en la API. Cuando se active, verás aquí insumos y compras sugeridas.",
-    };
-  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(data.error || "No se pudieron cargar las reservas");
   }
-  const list = (data.reservas || data.items || []) as Array<
-    Record<string, unknown>
-  >;
+  const list = (data.reservas || []) as Array<Record<string, unknown>>;
   return {
     reservas: list.map(mapReserva),
     disponible: true,

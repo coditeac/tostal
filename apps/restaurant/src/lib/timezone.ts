@@ -28,6 +28,14 @@ export function hoyISO(): string {
   return `${p.year}-${p.month}-${p.day}`;
 }
 
+/** Suma días a fecha civil YYYY-MM-DD (sin drift UTC). */
+export function sumarDias(fechaISO: string, dias: number): string {
+  const [y, m, d] = fechaISO.split("-").map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d));
+  utc.setUTCDate(utc.getUTCDate() + dias);
+  return utc.toISOString().slice(0, 10);
+}
+
 /** Etiqueta corta de fecha (calendario civil CDMX). */
 export function labelFecha(fecha: string): string {
   const d = new Date(`${fecha}T12:00:00`);
@@ -40,66 +48,32 @@ export function labelFecha(fecha: string): string {
 }
 
 /**
- * ISO (UTC) → valor para `<input type="datetime-local">` en hora CDMX.
- * El input no lleva zona; la UI lo trata siempre como CDMX.
+ * ISO UTC (deadline_pedido) → HH:mm en CDMX para `<input type="time">`.
+ * Contrato: la UI edita hora CDMX; la API interpreta HH:mm en America/Mexico_City.
  */
+export function isoToHoraCdmx(
+  iso: string | null | undefined,
+  fallback = "18:00"
+): string {
+  if (!iso) return fallback;
+  // Ya viene HH:mm
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(iso)) return iso.slice(0, 5);
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return fallback;
+  const p = partsInCdmx(d);
+  return `${p.hour}:${p.minute}`;
+}
+
+/** @deprecated Preferir isoToHoraCdmx + input type=time */
 export function isoToDatetimeLocalCdmx(
   iso: string | null | undefined,
   fechaFallback: string
 ): string {
-  if (!iso) return `${fechaFallback}T18:00`;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return `${fechaFallback}T18:00`;
-  const p = partsInCdmx(d);
-  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
-}
-
-/**
- * Valor `datetime-local` interpretado en CDMX → ISO UTC para la API.
- */
-export function datetimeLocalCdmxToIso(local: string): string {
-  const m = local.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-  if (!m) throw new Error("Hora inválida (usa formato CDMX).");
-  const y = Number(m[1]);
-  const mo = Number(m[2]);
-  const d = Number(m[3]);
-  const h = Number(m[4]);
-  const mi = Number(m[5]);
-
-  // CDMX sin DST desde 2022 ≈ UTC-6; afinamos con Intl por si cambia.
-  let utcMs = Date.UTC(y, mo - 1, d, h + 6, mi, 0);
-  for (let i = 0; i < 4; i++) {
-    const shown = partsInCdmx(new Date(utcMs));
-    const got = Date.UTC(
-      Number(shown.year),
-      Number(shown.month) - 1,
-      Number(shown.day),
-      Number(shown.hour),
-      Number(shown.minute),
-      0
-    );
-    const want = Date.UTC(y, mo - 1, d, h, mi, 0);
-    const delta = want - got;
-    if (delta === 0) break;
-    utcMs += delta;
-  }
-  return new Date(utcMs).toISOString();
-}
-
-/** Default 18:00 CDMX del día indicado, como ISO UTC. */
-export function defaultHoraLimiteIsoCdmx(fecha: string): string {
-  return datetimeLocalCdmxToIso(`${fecha}T18:00`);
+  return `${fechaFallback}T${isoToHoraCdmx(iso)}`;
 }
 
 export function formatHoraCdmx(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleTimeString("es-MX", {
-    timeZone: TZ_CDMX,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  return isoToHoraCdmx(iso, "—");
 }
 
 export { pad };
