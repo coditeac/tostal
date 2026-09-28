@@ -19,7 +19,7 @@ export default function MenuDiaPage() {
   const [fecha, setFecha] = useState(manana);
   const [menu, setMenu] = useState<MenuDia | null>(null);
   const [productos, setProductos] = useState<MenuDiaProducto[]>([]);
-  const [horaLimite, setHoraLimite] = useState(`${manana}T18:00`);
+  const [horaLimite, setHoraLimite] = useState("18:00");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +39,7 @@ export default function MenuDiaPage() {
       const data = await getMenuDia(f);
       setMenu(data);
       setProductos(data.productos);
-      setHoraLimite(horaLimiteInputValue(data, f));
+      setHoraLimite(horaLimiteInputValue(data));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al cargar");
       setMenu(null);
@@ -60,15 +60,15 @@ export default function MenuDiaPage() {
     try {
       const saved = await saveMenuDia({
         fecha,
-        horaLimiteLocal: horaLimite,
+        horaLimiteHHmm: horaLimite,
         productos,
-        fuente: menu?.fuente,
+        abierto: menu?.abierto,
       });
       setMenu(saved);
       setProductos(saved.productos);
-      setHoraLimite(horaLimiteInputValue(saved, fecha));
+      setHoraLimite(horaLimiteInputValue(saved));
       setOkMsg(
-        `Menú del ${labelFecha(fecha)} guardado · ${activos} productos activos`
+        `Menú del ${labelFecha(fecha)} guardado · ${activos} productos · límite ${horaLimite} CDMX`
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al guardar");
@@ -83,10 +83,13 @@ export default function MenuDiaPage() {
     setOkMsg(null);
     try {
       setFecha(manana);
-      const data = await programarMenuDia(manana, hoy);
+      const data = await programarMenuDia(manana, {
+        desde: hoy,
+        horaLimiteHHmm: horaLimite || "18:00",
+      });
       setMenu(data);
       setProductos(data.productos);
-      setHoraLimite(horaLimiteInputValue(data, manana));
+      setHoraLimite(horaLimiteInputValue(data));
       setOkMsg(`Menú de mañana (${labelFecha(manana)}) listo para revisar`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al programar");
@@ -105,8 +108,8 @@ export default function MenuDiaPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Menú del día</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Activa productos y define la hora límite de pedidos en hora CDMX.
-            Suele programarse D+1.
+            Activa productos y define la hora límite en CDMX
+            (America/Mexico_City). Suele programarse D+1.
           </p>
         </div>
         <Button
@@ -166,7 +169,7 @@ export default function MenuDiaPage() {
             <div className="flex items-end justify-between gap-3">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">
-                  Fecha
+                  Fecha (CDMX)
                 </p>
                 <p className="mt-0.5 font-semibold">{labelFecha(fecha)}</p>
               </div>
@@ -181,14 +184,14 @@ export default function MenuDiaPage() {
               </label>
               <input
                 id="hora-limite"
-                type="datetime-local"
-                className="field"
+                type="time"
+                className="field max-w-[10rem]"
                 value={horaLimite}
                 onChange={(e) => setHoraLimite(e.target.value)}
               />
               <p className="mt-1.5 text-xs text-muted-foreground">
-                Hora de Ciudad de México (America/Mexico_City). Pasada esa hora,
-                el cliente ya no puede pedir para este día.
+                Se guarda como instant UTC; la pared horaria es siempre Ciudad
+                de México. Pasada esa hora el cliente no puede pedir este día.
               </p>
             </div>
           </section>
