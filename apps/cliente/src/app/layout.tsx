@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { Geist } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
+
+const geistSans = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Tostal — Sabores que unen culturas",
@@ -20,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="font-sans">
+    <html lang="es" className={`${geistSans.variable} font-sans`}>
       <body className="antialiased">
         <Providers>{children}</Providers>
       </body>
