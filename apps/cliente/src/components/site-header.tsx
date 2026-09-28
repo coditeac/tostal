@@ -27,11 +27,17 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
         )}
         {compact && (
           <p className="text-xs font-medium tracking-wide text-muted-foreground">
-            Menú del día
+            Menú de hoy
           </p>
         )}
       </Link>
       <div className="flex items-center gap-1.5">
+        <Link
+          href="/reservas"
+          className="inline-flex h-10 items-center rounded-lg px-3 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+        >
+          Reservas
+        </Link>
         <Link
           href="/cuenta"
           className="inline-flex h-10 items-center rounded-lg px-3 text-xs font-medium text-foreground transition-colors hover:bg-secondary"

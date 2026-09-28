@@ -21,17 +21,19 @@ import {
 import { useCart } from "@/components/cart-provider";
 import {
   crearPedido,
-  fetchMenu,
+  fetchMenuHoy,
   formatoMoneda,
+  hoyISO,
   labelFecha,
 } from "@/lib/api";
 import { METODO_PAGO } from "@/lib/labels";
-import type { MenuDiaResponse, MetodoPago, ModoEntrega } from "@tostal/shared/types";
+import type { MenuHoy } from "@/lib/contract";
+import type { MetodoPago, ModoEntrega } from "@tostal/shared/types";
 
 export default function CarritoPage() {
   const cart = useCart();
   const router = useRouter();
-  const [menu, setMenu] = useState<MenuDiaResponse | null>(null);
+  const [menu, setMenu] = useState<MenuHoy | null>(null);
   const [modo, setModo] = useState<ModoEntrega>("retiro");
   const [zonaId, setZonaId] = useState("");
   const [metodoPago, setMetodoPago] = useState<
@@ -46,13 +48,19 @@ export default function CarritoPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!cart.fecha) return;
+    const hoy = hoyISO();
+    if (cart.fecha !== hoy) cart.setFecha(hoy);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     let alive = true;
-    fetchMenu(cart.fecha)
+    fetchMenuHoy()
       .then((m) => {
         if (!alive) return;
         setMenu(m);
         if (m.zonas[0]) setZonaId(m.zonas[0].id);
+        if (cart.fecha !== m.fecha) cart.setFecha(m.fecha);
       })
       .catch((e) => {
         if (alive) setError(e instanceof Error ? e.message : "Error");
@@ -60,7 +68,8 @@ export default function CarritoPage() {
     return () => {
       alive = false;
     };
-  }, [cart.fecha]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const costoEnvio = useMemo(() => {
     if (modo !== "envio") return 0;
@@ -68,20 +77,20 @@ export default function CarritoPage() {
   }, [modo, zonaId, menu]);
 
   const total = cart.subtotal + costoEnvio;
-  const bloqueado =
-    menu?.abierto === false || menu?.deadlineVigente === false;
+  const bloqueado = menu != null && !menu.aceptaPedidos;
 
   async function confirmar() {
-    if (!cart.fecha || cart.items.length === 0) return;
+    const fecha = cart.fecha || hoyISO();
+    if (cart.items.length === 0) return;
     if (bloqueado) {
-      setError("Ya cerramos pedidos para este día.");
+      setError("Ya cerramos pedidos de hoy. Puedes hacer una reserva.");
       return;
     }
     setLoading(true);
     setError(null);
     try {
       const data = await crearPedido({
-        fechaEntrega: cart.fecha,
+        fechaEntrega: fecha,
         modoEntrega: modo,
         zonaId: modo === "envio" ? zonaId : null,
         clienteNombre: nombre.trim(),
@@ -106,17 +115,6 @@ export default function CarritoPage() {
     }
   }
 
-  if (!cart.fecha) {
-    return (
-      <div className="page-shell px-6 py-12">
-        <p className="empty-state">Elige primero una fecha en el menú.</p>
-        <Button asChild className="mt-2">
-          <Link href="/">Ir al menú</Link>
-        </Button>
-      </div>
-    );
-  }
-
   if (cart.items.length === 0) {
     return (
       <div className="page-shell px-6 py-12">
@@ -138,13 +136,17 @@ export default function CarritoPage() {
         </Link>
       </div>
       <p className="mt-1.5 text-sm text-muted-foreground">
-        Entrega/retiro: {labelFecha(cart.fecha)}
+        Menú de hoy · {labelFecha(cart.fecha || hoyISO())}
       </p>
 
       {bloqueado && (
         <Alert className="mt-5 border-alerta/40 bg-amber-50 text-alerta">
           <AlertDescription>
-            Ya cerramos pedidos para este día. Elige otra fecha en el menú.
+            Ya cerramos pedidos de hoy.{" "}
+            <Link href="/reservas" className="font-semibold underline">
+              Reserva para otra fecha
+            </Link>
+            .
           </AlertDescription>
         </Alert>
       )}

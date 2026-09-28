@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, ShoppingBag } from "lucide-react";
+import { CalendarClock, Plus, ShoppingBag } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,61 +10,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/components/cart-provider";
 import { SiteHeader } from "@/components/site-header";
 import {
-  fetchDias,
-  fetchMenu,
+  fetchMenuHoy,
   formatoMoneda,
   hoyISO,
   labelDeadline,
   labelFecha,
 } from "@/lib/api";
-import type { MenuDiaResponse } from "@tostal/shared/types";
-import type { PublicDiasResponse } from "@tostal/shared/api-public";
-
-type DiaOpt = PublicDiasResponse["dias"][number];
+import type { MenuHoy, MenuProducto } from "@/lib/contract";
 
 export default function ClienteHome() {
   const cart = useCart();
-  const [dias, setDias] = useState<DiaOpt[]>([]);
-  const [menu, setMenu] = useState<MenuDiaResponse | null>(null);
+  const [menu, setMenu] = useState<MenuHoy | null>(null);
   const [categoria, setCategoria] = useState<string>("todas");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const fecha = cart.fecha || hoyISO();
+  const hoy = hoyISO();
 
   useEffect(() => {
-    if (!cart.fecha) cart.setFecha(hoyISO());
-    // Solo al montar: evitar loop por identidad de cart
+    if (cart.fecha !== hoy) cart.setFecha(hoy);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const data = await fetchDias();
-        if (!alive) return;
-        const abiertos = data.dias.filter((d) => d.abierto && d.deadlineVigente);
-        setDias(abiertos);
-        if (abiertos.length && !abiertos.some((d) => d.fecha === cart.fecha)) {
-          cart.setFecha(abiertos[0].fecha);
-        }
-      } catch (e) {
-        if (alive) {
-          setError(
-            e instanceof Error
-              ? e.message
-              : "No se pudo cargar el calendario. Revisa la conexión con la API."
-          );
-        }
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hoy]);
 
   useEffect(() => {
     let alive = true;
@@ -72,10 +39,11 @@ export default function ClienteHome() {
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchMenu(fecha);
+        const data = await fetchMenuHoy();
         if (!alive) return;
         setMenu(data);
         setCategoria("todas");
+        if (cart.fecha !== data.fecha) cart.setFecha(data.fecha);
       } catch (e) {
         if (!alive) return;
         setError(e instanceof Error ? e.message : "Error al cargar menú");
@@ -87,7 +55,8 @@ export default function ClienteHome() {
     return () => {
       alive = false;
     };
-  }, [fecha]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const productosFiltrados = useMemo(() => {
     if (!menu) return [];
@@ -95,8 +64,8 @@ export default function ClienteHome() {
     return menu.productos.filter((p) => p.categoriaId === categoria);
   }, [menu, categoria]);
 
-  function add(p: MenuDiaResponse["productos"][number]) {
-    if (!menu?.abierto || !menu.deadlineVigente) return;
+  function add(p: MenuProducto) {
+    if (!menu?.aceptaPedidos) return;
     cart.addItem({
       productoId: p.id,
       nombre: p.nombre,
@@ -106,20 +75,7 @@ export default function ClienteHome() {
     window.setTimeout(() => setToast(null), 1600);
   }
 
-  const diasUi: DiaOpt[] =
-    dias.length > 0
-      ? dias
-      : [
-          {
-            id: "fallback",
-            fecha,
-            abierto: true,
-            deadlinePedido: "",
-            cupoMaximo: null,
-            notas: null,
-            deadlineVigente: true,
-          },
-        ];
+  const cerrado = menu != null && !menu.aceptaPedidos;
 
   return (
     <div className="page-shell">
@@ -145,37 +101,35 @@ export default function ClienteHome() {
 
       <main className="space-y-10 px-6 pb-36 pt-6">
         <section className="section-block rise-in" style={{ animationDelay: "80ms" }}>
-          <h2 className="section-title">¿Para qué día?</h2>
+          <h2 className="section-title">Menú de hoy</h2>
           <p className="section-lead">
-            El menú solo muestra lo disponible ese día.
+            {labelFecha(menu?.fecha || hoy)} · productos activos para pedir ahora.
           </p>
-          <div className="-mx-1 mt-5 flex gap-2 overflow-x-auto px-1 pb-1">
-            {diasUi.map((d) => {
-              const active = d.fecha === fecha;
-              return (
-                <button
-                  key={d.fecha}
-                  type="button"
-                  onClick={() => cart.setFecha(d.fecha)}
-                  className={`chip-day ${
-                    active ? "chip-day-active" : "chip-day-idle"
-                  }`}
-                >
-                  <p className="text-[11px] opacity-80">
-                    {labelFecha(d.fecha)}
-                  </p>
-                  <p className="font-semibold tabular-nums">{d.fecha.slice(8)}</p>
-                </button>
-              );
-            })}
-          </div>
-          {menu && (
-            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-              {menu.abierto && menu.deadlineVigente
-                ? `Pedidos abiertos hasta ${labelDeadline(menu.deadlinePedido)}`
-                : "Ya cerramos pedidos para este día"}
+          {menu?.horaLimite && (
+            <p
+              className={`mt-4 text-xs leading-relaxed ${
+                cerrado ? "text-[var(--tostal-alerta,#A85B12)]" : "text-muted-foreground"
+              }`}
+            >
+              {menu.aceptaPedidos
+                ? `Pedidos abiertos hasta las ${labelDeadline(menu.horaLimite)}`
+                : `Cerramos pedidos a las ${labelDeadline(menu.horaLimite)}. Vuelve mañana o haz una reserva.`}
             </p>
           )}
+          {cerrado && !menu?.horaLimite && (
+            <p className="mt-4 text-xs leading-relaxed text-[var(--tostal-alerta,#A85B12)]">
+              Ya cerramos pedidos de hoy. Puedes reservar para otra fecha.
+            </p>
+          )}
+          <div className="mt-5">
+            <Link
+              href="/reservas"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-miel transition-opacity hover:opacity-80"
+            >
+              <CalendarClock size={16} strokeWidth={2} />
+              Reservar para otra fecha
+            </Link>
+          </div>
         </section>
 
         {toast && (
@@ -206,13 +160,21 @@ export default function ClienteHome() {
           <p className="empty-state">
             Por ahora no estamos tomando pedidos en línea.
           </p>
-        ) : !menu.abierto || !menu.deadlineVigente ? (
-          <p className="empty-state">
-            Ya cerramos pedidos para este día. Elige otra fecha.
-          </p>
+        ) : cerrado ? (
+          <div className="space-y-4">
+            <p className="empty-state">
+              El menú de hoy ya no acepta pedidos.
+              {menu.productos.length === 0
+                ? " Cocina aún no activó productos para hoy."
+                : ""}
+            </p>
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link href="/reservas">Ir a reservas</Link>
+            </Button>
+          </div>
         ) : menu.productos.length === 0 ? (
           <p className="empty-state">
-            No hay productos disponibles para este día.
+            Aún no hay productos activos para hoy. Vuelve más tarde o reserva.
           </p>
         ) : (
           <section className="section-block">
