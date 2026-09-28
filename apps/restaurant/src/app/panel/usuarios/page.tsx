@@ -7,7 +7,7 @@ type User = {
   id: string;
   email: string;
   nombre: string;
-  rol: "admin" | "cocina" | "caja";
+  rol: "superadmin" | "admin" | "cocina" | "caja";
   activo: boolean;
 };
 
@@ -69,7 +69,7 @@ export default function UsuariosPage() {
       <section className="surface p-5">
         <h1 className="text-xl font-semibold text-cacao">Personal Tostal</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          El admin crea cuentas con rol admin, cocina o caja. Login en esta app.
+          El superadmin/admin crea cuentas (admin, cocina, caja). Solo superadmin puede crear otro superadmin.
         </p>
         {error && <p className="mt-3 text-sm text-alerta">{error}</p>}
       </section>
@@ -111,6 +111,7 @@ export default function UsuariosPage() {
             <option value="admin">admin</option>
             <option value="cocina">cocina</option>
             <option value="caja">caja</option>
+            <option value="superadmin">superadmin</option>
           </select>
           <button
             type="submit"

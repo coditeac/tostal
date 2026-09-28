@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import type { Request } from "express";
 import { getSessionFromRequest, type SessionUser } from "../lib/auth";
+import { isAdminLike } from "../lib/roles";
 
 @Injectable()
 export class SessionGuard implements CanActivate {
@@ -25,7 +26,7 @@ export class AdminGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     const user = await getSessionFromRequest(req);
     if (!user) throw new UnauthorizedException("No autenticado");
-    if (user.rol !== "admin") throw new ForbiddenException("Sin permiso");
+    if (!isAdminLike(user.rol)) throw new ForbiddenException("Sin permiso");
     (req as Request & { user?: SessionUser }).user = user;
     return true;
   }

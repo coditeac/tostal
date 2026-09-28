@@ -45,13 +45,27 @@ Root Directory: monorepo `""` (incluye `shared/`).
 |---|---|
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
 | `TOSTAL_AUTH_SECRET` | JWT staff + cliente |
-| `TOSTAL_CORS_ORIGINS` | `https://tostal.cafe,https://www.tostal.cafe,https://app.tostal.cafe,https://tostal.up.railway.app,https://app-tostal.up.railway.app` |
+| `TOSTAL_CORS_ORIGINS` | `https://tostal.cafe,https://www.tostal.cafe,https://app.tostal.cafe,…` |
 | `TOSTAL_COOKIE_DOMAIN` | `.tostal.cafe` |
-| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` / `MAIL_FROM` | email real; sin ellas = mock en logs |
-| `STRIPE_SECRET_KEY` | opcional; sin clave = **mock** (PaymentIntent/Checkout simulados) |
-| `STRIPE_WEBHOOK_SECRET` | firma webhook → marca `estadoPago=pagado` |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | publishable key (cliente Elements/Checkout) |
+| `SUPERADMIN_EMAIL` | Email del superadmin inicial (lo elige Coditeac) |
+| `SUPERADMIN_PASSWORD` | Password (≥8). Solo crea si no hay superadmin, o con `SUPERADMIN_FORCE_RESET=1` |
+| `SUPERADMIN_NOMBRE` | Opcional (default `Superadmin Tostal`) |
+| `SUPERADMIN_FORCE_RESET` | `1` para forzar update/creación con el email/password actuales |
+| `RESEND_API_KEY` | API key Resend; sin ella → mock |
+| `RESEND_FROM` | Ej. `Tostal <pedidos@tostal.cafe>` (dominio verificado en Resend) |
+| `MAIL_MOCK` | `0` con key real; `1` fuerza mock/log |
+| `STAFF_NOTIFY_EMAIL` | Opcional; CSV de emails staff para aviso de pedido nuevo. Default: emails de superadmin/admin activos |
+| `STRIPE_SECRET_KEY` | opcional; sin clave = **mock** |
+| `STRIPE_WEBHOOK_SECRET` | firma webhook → `estadoPago=pagado` |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | publishable key (cliente) |
 | `STRIPE_CURRENCY` | default `mxn` |
+| `NIXPACKS_NODE_VERSION` | `22` |
+| `PORT` | Railway lo inyecta |
+
+**Email:** Resend SDK. Sin `RESEND_API_KEY` o con `MAIL_MOCK=1` → log `[mail:mock]` + `email_log`.  
+DNS Resend: verificar `tostal.cafe` (SPF/DKIM en panel Resend) antes de usar `pedidos@tostal.cafe`.
+
+**Sin datos demo:** el bootstrap no inserta menú ni `admin@tostal.mx`. Tras el primer deploy con `SUPERADMIN_*`, entra en https://app.tostal.cafe y crea catálogo/staff a mano. La purga `demo_purged_v1` borra una vez el seed demo legado.
 
 **Stripe = solo procesador.** No crear Products/Prices/Catalog en Stripe.
 Productos, precios y duraciones viven en Postgres (admin Tostal). Al cobrar:
@@ -59,8 +73,6 @@ Productos, precios y duraciones viven en Postgres (admin Tostal). Al cobrar:
 `POST /api/pagos/stripe/checkout` (Checkout Session `line_items[].price_data` ad-hoc).
 Metadata: `pedidoId`, `codigo`. Webhook: `POST /api/pagos/stripe/webhook`.
 Transferencia (confirmación manual staff) y contra entrega siguen activos.
-| `NIXPACKS_NODE_VERSION` | `22` |
-| `PORT` | Railway lo inyecta |
 
 ### `tostal-cliente` / `tostal-restaurant`
 

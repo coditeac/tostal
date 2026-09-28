@@ -1,16 +1,15 @@
 /**
- * Notificaciones por correo.
- * - Producción: SMTP (Resend SMTP / cualquier SMTP) vía vars.
- * - Local sin SMTP: mock (log a consola + tabla email_log).
+ * Notificaciones por correo (Resend SDK).
+ * - Con RESEND_API_KEY y MAIL_MOCK≠1 → envío real.
+ * - Sin key / MAIL_MOCK=1 → mock (log + email_log).
  */
-import nodemailer from "nodemailer";
-import type { Transporter } from "nodemailer";
-import { sqlRun } from "./db";
+import { Resend } from "resend";
+import { sqlAll, sqlRun } from "./db";
 import { id } from "./id";
 import type { PedidoPublico } from "../../../../shared/types";
 
 type MailPayload = {
-  to: string;
+  to: string | string[];
   subject: string;
   text: string;
   html?: string;
@@ -18,32 +17,32 @@ type MailPayload = {
   pedidoId?: string | null;
 };
 
-let _transporter: Transporter | null | undefined;
+let _resend: Resend | null | undefined;
 
-function getTransporter(): Transporter | null {
-  if (_transporter !== undefined) return _transporter;
-  const host = process.env.SMTP_HOST || process.env.RESEND_SMTP_HOST;
-  const user = process.env.SMTP_USER || process.env.RESEND_SMTP_USER;
-  const pass = process.env.SMTP_PASS || process.env.RESEND_API_KEY;
-  if (!host || !user || !pass) {
-    _transporter = null;
+function getResend(): Resend | null {
+  if (_resend !== undefined) return _resend;
+  const key = process.env.RESEND_API_KEY?.trim();
+  if (!key) {
+    _resend = null;
     return null;
   }
-  _transporter = nodemailer.createTransport({
-    host,
-    port: Number(process.env.SMTP_PORT || 465),
-    secure: process.env.SMTP_SECURE !== "0",
-    auth: { user, pass },
-  });
-  return _transporter;
+  _resend = new Resend(key);
+  return _resend;
 }
 
 export function mailFrom(): string {
   return (
+    process.env.RESEND_FROM ||
     process.env.MAIL_FROM ||
     process.env.SMTP_FROM ||
-    "Tostal <noreply@tostal.cafe>"
+    "Tostal <pedidos@tostal.cafe>"
   );
+}
+
+function shouldMockMail(): boolean {
+  if (process.env.MAIL_MOCK === "1") return true;
+  if (process.env.MAIL_MOCK === "0") return !getResend();
+  return !getResend();
 }
 
 export async function sendMail(payload: MailPayload): Promise<{
@@ -52,26 +51,35 @@ export async function sendMail(payload: MailPayload): Promise<{
   error?: string;
 }> {
   const now = new Date().toISOString();
-  const transport = getTransporter();
+  const recipients = Array.isArray(payload.to) ? payload.to : [payload.to];
+  const toList = recipients.map((t) => t.trim()).filter(Boolean);
+  if (!toList.length) return { ok: false, mock: false, error: "Sin destinatario" };
+
   let estado = "enviado";
   let error: string | undefined;
   let mock = false;
+  const client = getResend();
 
-  if (!transport || process.env.MAIL_MOCK === "1") {
+  if (shouldMockMail() || !client) {
     mock = true;
     estado = "mock";
     console.info(
-      `[mail:mock] → ${payload.to} | ${payload.subject}\n${payload.text}`
+      `[mail:mock] → ${toList.join(", ")} | ${payload.subject}\n${payload.text}`
     );
   } else {
     try {
-      await transport.sendMail({
+      const result = await client.emails.send({
         from: mailFrom(),
-        to: payload.to,
+        to: toList,
         subject: payload.subject,
         text: payload.text,
-        html: payload.html || `<pre>${payload.text}</pre>`,
+        html: payload.html || `<pre style="font-family:sans-serif">${escapeHtml(payload.text)}</pre>`,
       });
+      if (result.error) {
+        estado = "error";
+        error = result.error.message || String(result.error);
+        console.error("[mail:error]", error);
+      }
     } catch (e) {
       estado = "error";
       error = e instanceof Error ? e.message : String(e);
@@ -79,52 +87,144 @@ export async function sendMail(payload: MailPayload): Promise<{
     }
   }
 
-  try {
-    await sqlRun(
-      `INSERT INTO email_log (id, pedido_id, destinatario, evento, asunto, estado, error, creado_en)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      id(),
-      payload.pedidoId || null,
-      payload.to,
-      payload.evento,
-      payload.subject,
-      estado,
-      error || null,
-      now
-    );
-  } catch {
-    /* schema aún no listo en tests tempranos */
+  for (const to of toList) {
+    try {
+      await sqlRun(
+        `INSERT INTO email_log (id, pedido_id, destinatario, evento, asunto, estado, error, creado_en)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        id(),
+        payload.pedidoId || null,
+        to,
+        payload.evento,
+        payload.subject,
+        estado,
+        error || null,
+        now
+      );
+    } catch {
+      /* schema aún no listo en tests tempranos */
+    }
   }
 
   return { ok: estado !== "error", mock, error };
+}
+
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function formatTotal(centavos: number) {
   return `$${(centavos / 100).toFixed(2)} MXN`;
 }
 
+function wrapHtml(title: string, bodyHtml: string) {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/></head>
+<body style="margin:0;background:#f6f3ee;font-family:Georgia,'Times New Roman',serif;color:#2a211c;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f6f3ee;padding:24px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" style="max-width:560px;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e8e0d6;">
+        <tr><td style="background:#9A2E25;padding:20px 24px;color:#D6D2C4;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-weight:700;letter-spacing:0.12em;font-size:18px;">TOSTAL</div>
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:0.18em;opacity:0.9;margin-top:4px;">SABORES QUE UNEN CULTURAS</div>
+        </td></tr>
+        <tr><td style="padding:24px;">
+          <h1 style="margin:0 0 12px;font-size:22px;font-weight:600;">${title}</h1>
+          ${bodyHtml}
+        </td></tr>
+        <tr><td style="padding:16px 24px 24px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#7a6f66;">
+          Este correo lo envía Tostal sobre tu pedido. Si no pediste nada, ignóralo.
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
 export async function notifyPedidoCreado(
   pedido: PedidoPublico,
   email?: string | null
 ) {
-  if (!email) return;
+  if (email) {
+    const title = `Pedido ${pedido.codigo} recibido`;
+    const text = [
+      `¡Hola ${pedido.clienteNombre}!`,
+      ``,
+      `Recibimos tu pedido ${pedido.codigo} en Tostal.`,
+      `Fecha de entrega: ${pedido.fechaEntrega}`,
+      `Total: ${formatTotal(pedido.total)}`,
+      `Estado: recibido`,
+      ``,
+      `Puedes seguirlo en https://tostal.cafe/pedido/${pedido.codigo}`,
+      ``,
+      `— Tostal`,
+    ].join("\n");
+    const html = wrapHtml(
+      title,
+      `<p>¡Hola <strong>${escapeHtml(pedido.clienteNombre)}</strong>!</p>
+       <p>Recibimos tu pedido <strong>${escapeHtml(pedido.codigo)}</strong>.</p>
+       <p>Fecha de entrega: <strong>${escapeHtml(pedido.fechaEntrega)}</strong><br/>
+       Total: <strong>${formatTotal(pedido.total)}</strong><br/>
+       Estado: recibido</p>
+       <p><a href="https://tostal.cafe/pedido/${encodeURIComponent(pedido.codigo)}" style="color:#9A2E25;">Ver seguimiento</a></p>`
+    );
+    await sendMail({
+      to: email,
+      subject: `Pedido ${pedido.codigo} recibido — Tostal`,
+      text,
+      html,
+      evento: "pedido_creado",
+      pedidoId: pedido.id,
+    });
+  }
+
+  await notifyStaffNuevoPedido(pedido);
+}
+
+async function staffNotifyEmails(): Promise<string[]> {
+  const configured = (process.env.STAFF_NOTIFY_EMAIL || "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (configured.length) return configured;
+
+  const rows = await sqlAll<{ email: string }>(
+    `SELECT email FROM usuarios
+     WHERE activo = 1 AND rol IN ('superadmin','admin')`
+  );
+  return rows.map((r) => r.email).filter(Boolean);
+}
+
+async function notifyStaffNuevoPedido(pedido: PedidoPublico) {
+  const to = await staffNotifyEmails();
+  if (!to.length) return;
   const text = [
-    `¡Hola ${pedido.clienteNombre}!`,
-    ``,
-    `Recibimos tu pedido ${pedido.codigo} en Tostal.`,
-    `Fecha de entrega: ${pedido.fechaEntrega}`,
+    `Nuevo pedido ${pedido.codigo}`,
+    `Cliente: ${pedido.clienteNombre}`,
+    `Entrega: ${pedido.fechaEntrega} (${pedido.modoEntrega})`,
     `Total: ${formatTotal(pedido.total)}`,
-    `Estado: recibido`,
+    `Canal: ${pedido.canal}`,
     ``,
-    `Puedes seguirlo en https://tostal.cafe/pedido/${pedido.codigo}`,
-    ``,
-    `— Tostal`,
+    `Panel: https://app.tostal.cafe/panel/pedidos`,
   ].join("\n");
   await sendMail({
-    to: email,
-    subject: `Pedido ${pedido.codigo} recibido — Tostal`,
+    to,
+    subject: `Nuevo pedido ${pedido.codigo} — Tostal`,
     text,
-    evento: "pedido_creado",
+    html: wrapHtml(
+      `Nuevo pedido ${escapeHtml(pedido.codigo)}`,
+      `<p>Cliente: <strong>${escapeHtml(pedido.clienteNombre)}</strong><br/>
+       Entrega: ${escapeHtml(pedido.fechaEntrega)} (${escapeHtml(pedido.modoEntrega)})<br/>
+       Total: <strong>${formatTotal(pedido.total)}</strong><br/>
+       Canal: ${escapeHtml(pedido.canal)}</p>
+       <p><a href="https://app.tostal.cafe/panel/pedidos" style="color:#9A2E25;">Abrir panel</a></p>`
+    ),
+    evento: "staff_pedido_creado",
     pedidoId: pedido.id,
   });
 }
@@ -150,6 +250,9 @@ export async function notifyEstadoPedido(
         ? "Ya puedes pasar a retirarlo."
         : "Pronto sale a envío.",
     entregado: "Gracias por pedir en Tostal.",
+    confirmado: "Ya lo tenemos en cola.",
+    en_produccion: "Nuestro equipo lo está preparando.",
+    cancelado: "Si tienes dudas, escríbenos.",
   };
 
   const text = [
@@ -165,10 +268,19 @@ export async function notifyEstadoPedido(
     .filter(Boolean)
     .join("\n");
 
+  const html = wrapHtml(
+    `Pedido ${escapeHtml(pedido.codigo)} ${escapeHtml(label)}`,
+    `<p>Hola <strong>${escapeHtml(pedido.clienteNombre)}</strong>,</p>
+     <p>Tu pedido <strong>${escapeHtml(pedido.codigo)}</strong> está <strong>${escapeHtml(label)}</strong>.</p>
+     <p>${escapeHtml(extras[pedido.estado] || "")}</p>
+     <p><a href="https://tostal.cafe/pedido/${encodeURIComponent(pedido.codigo)}" style="color:#9A2E25;">Ver seguimiento</a></p>`
+  );
+
   await sendMail({
     to: email,
     subject: `Pedido ${pedido.codigo} ${label} — Tostal`,
     text,
+    html,
     evento: `estado_${pedido.estado}`,
     pedidoId: pedido.id,
   });
@@ -179,16 +291,22 @@ export async function notifyPagoConfirmado(
   email?: string | null
 ) {
   if (!email) return;
+  const text = [
+    `Hola ${pedido.clienteNombre},`,
+    ``,
+    `Confirmamos el pago de tu pedido ${pedido.codigo} (${formatTotal(pedido.total)}).`,
+    ``,
+    `— Tostal`,
+  ].join("\n");
   await sendMail({
     to: email,
     subject: `Pago confirmado — pedido ${pedido.codigo}`,
-    text: [
-      `Hola ${pedido.clienteNombre},`,
-      ``,
-      `Confirmamos el pago de tu pedido ${pedido.codigo} (${formatTotal(pedido.total)}).`,
-      ``,
-      `— Tostal`,
-    ].join("\n"),
+    text,
+    html: wrapHtml(
+      "Pago confirmado",
+      `<p>Hola <strong>${escapeHtml(pedido.clienteNombre)}</strong>,</p>
+       <p>Confirmamos el pago de tu pedido <strong>${escapeHtml(pedido.codigo)}</strong> (${formatTotal(pedido.total)}).</p>`
+    ),
     evento: "pago_confirmado",
     pedidoId: pedido.id,
   });

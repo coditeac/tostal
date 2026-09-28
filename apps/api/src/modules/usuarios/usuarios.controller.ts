@@ -33,12 +33,13 @@ export class UsuariosController {
       rol?: SessionUser["rol"];
     }
   ) {
-    await requireUser(req, ["admin"]);
+    const actor = await requireUser(req, ["admin"]);
     const result = await createStaff({
       email: String(body.email || ""),
       nombre: String(body.nombre || ""),
       password: String(body.password || ""),
       rol: (body.rol || "caja") as SessionUser["rol"],
+      actorRol: actor.rol,
     });
     if (!result.ok) throw new BadRequestException(result.error);
     return { user: result.user };
@@ -56,13 +57,14 @@ export class UsuariosController {
       password?: string;
     }
   ) {
-    await requireUser(req, ["admin"]);
+    const actor = await requireUser(req, ["admin"]);
     if (!body?.id) throw new BadRequestException("Falta id.");
     const result = await updateStaff(String(body.id), {
       nombre: body.nombre,
       rol: body.rol,
       activo: body.activo,
       password: body.password,
+      actorRol: actor.rol,
     });
     if (!result.ok) throw new BadRequestException(result.error);
     return { user: result.user };

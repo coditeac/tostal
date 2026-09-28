@@ -1,6 +1,6 @@
 /** Tipos compartidos Tostal — App Cliente + App Restaurant */
 
-export type RolRestaurant = "admin" | "cocina" | "caja";
+export type RolRestaurant = "superadmin" | "admin" | "cocina" | "caja";
 export type CanalVenta = "remoto" | "mostrador";
 export type ModoEntrega = "retiro" | "envio";
 export type EstadoPedido =
