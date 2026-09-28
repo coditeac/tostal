@@ -432,12 +432,25 @@ const SCHEMA_SQLITE = `
     CREATE TABLE IF NOT EXISTS carritos_compra (
       id TEXT PRIMARY KEY,
       proveedor TEXT,
+      tienda TEXT,
       estado TEXT NOT NULL DEFAULT 'borrador',
       creado_en TEXT NOT NULL,
       comprado_en TEXT,
       notas TEXT,
       total INTEGER DEFAULT 0,
       lista_id TEXT REFERENCES listas_compra(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS ingresos (
+      id TEXT PRIMARY KEY,
+      categoria TEXT NOT NULL,
+      monto INTEGER NOT NULL,
+      fecha TEXT NOT NULL,
+      metodo_pago TEXT,
+      notas TEXT,
+      pedido_id TEXT,
+      reserva_id TEXT,
+      creado_en TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS carrito_compra_lineas (
@@ -541,6 +554,18 @@ const SCHEMA_ALTERS_SQLITE = [
   `ALTER TABLE productos ADD COLUMN anticipo_tipo TEXT NOT NULL DEFAULT 'porcentaje'`,
   `ALTER TABLE productos ADD COLUMN anticipo_valor INTEGER NOT NULL DEFAULT 50`,
   `ALTER TABLE email_log ADD COLUMN reserva_id TEXT`,
+  `ALTER TABLE carritos_compra ADD COLUMN tienda TEXT`,
+  `CREATE TABLE IF NOT EXISTS ingresos (
+      id TEXT PRIMARY KEY,
+      categoria TEXT NOT NULL,
+      monto INTEGER NOT NULL,
+      fecha TEXT NOT NULL,
+      metodo_pago TEXT,
+      notas TEXT,
+      pedido_id TEXT,
+      reserva_id TEXT,
+      creado_en TEXT NOT NULL
+    )`,
 ];
 
 const SCHEMA_ALTERS_PG = [
@@ -556,6 +581,18 @@ const SCHEMA_ALTERS_PG = [
   `ALTER TABLE productos ADD COLUMN IF NOT EXISTS anticipo_tipo TEXT NOT NULL DEFAULT 'porcentaje'`,
   `ALTER TABLE productos ADD COLUMN IF NOT EXISTS anticipo_valor INTEGER NOT NULL DEFAULT 50`,
   `ALTER TABLE email_log ADD COLUMN IF NOT EXISTS reserva_id TEXT`,
+  `ALTER TABLE carritos_compra ADD COLUMN IF NOT EXISTS tienda TEXT`,
+  `CREATE TABLE IF NOT EXISTS ingresos (
+      id TEXT PRIMARY KEY,
+      categoria TEXT NOT NULL,
+      monto INTEGER NOT NULL,
+      fecha TEXT NOT NULL,
+      metodo_pago TEXT,
+      notas TEXT,
+      pedido_id TEXT,
+      reserva_id TEXT,
+      creado_en TEXT NOT NULL
+    )`,
   `CREATE TABLE IF NOT EXISTS cuentas_cliente (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,

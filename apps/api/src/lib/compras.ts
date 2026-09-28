@@ -1,12 +1,19 @@
 import { sqlAll, sqlGet, sqlRun, sqlTransaction } from "./db";
 import { ensureSeed } from "./seed";
-import { listInsumos, getReceta } from "./catalogo";
+import { listInsumos, getReceta, upsertInsumo } from "./catalogo";
 import { id } from "./id";
 import { hoyISO, sumarDias } from "./utils";
 
 async function boot() {
   await ensureSeed();
 }
+
+export type Tienda = {
+  id: string;
+  nombre: string;
+  notas: string | null;
+  preferido: boolean;
+};
 
 export type ItemSugerido = {
   insumoId: string;
@@ -16,8 +23,9 @@ export type ItemSugerido = {
   stockMinimo: number;
   cantidadSugerida: number;
   proveedor: string | null;
-  motivo: "bajo_minimo" | "demanda" | "ambos";
+  motivo: "bajo_minimo" | "demanda" | "reserva" | "ambos";
   costoUnitario: number;
+  paraTienda: boolean;
 };
 
 export type ListaCompra = {
@@ -40,6 +48,7 @@ export type ListaCompra = {
 export type CarritoCompra = {
   id: string;
   proveedor: string | null;
+  tienda: string | null;
   estado: string;
   creadoEn: string;
   compradoEn: string | null;
@@ -56,13 +65,165 @@ export type CarritoCompra = {
   }>;
 };
 
-/** Explosión de demanda (pedidos próximos) + ítems bajo mínimo */
+function normalizeTienda(nombre: string | null | undefined): string | null {
+  if (!nombre) return null;
+  const t = nombre.trim();
+  return t || null;
+}
+
+function tiendaMatch(
+  preferido: string | null | undefined,
+  tienda: string | null | undefined
+): boolean {
+  if (!tienda) return true;
+  if (!preferido) return false;
+  return preferido.trim().toLowerCase() === tienda.trim().toLowerCase();
+}
+
+export async function listTiendas(): Promise<Tienda[]> {
+  await boot();
+  const rows = await sqlAll<{
+    id: string;
+    nombre: string;
+    notas: string | null;
+    preferidoRaw: number;
+  }>(
+    `SELECT id, nombre, notas, preferido as preferidoRaw
+     FROM proveedores ORDER BY preferido DESC, nombre`
+  );
+  const fromTable = rows.map((r) => ({
+    id: r.id,
+    nombre: r.nombre,
+    notas: r.notas,
+    preferido: !!r.preferidoRaw,
+  }));
+
+  // También nombres usados en insumos.proveedor_preferido que aún no están en proveedores.
+  const extras = await sqlAll<{ nombre: string }>(
+    `SELECT DISTINCT proveedor_preferido as nombre FROM insumos
+     WHERE proveedor_preferido IS NOT NULL AND TRIM(proveedor_preferido) != ''`
+  );
+  const known = new Set(fromTable.map((t) => t.nombre.toLowerCase()));
+  for (const e of extras) {
+    if (!known.has(e.nombre.toLowerCase())) {
+      fromTable.push({
+        id: `virt-${e.nombre.toLowerCase().replace(/\s+/g, "-")}`,
+        nombre: e.nombre,
+        notas: null,
+        preferido: false,
+      });
+    }
+  }
+  return fromTable.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+}
+
+export async function upsertTienda(input: {
+  id?: string;
+  nombre: string;
+  notas?: string | null;
+  preferido?: boolean;
+}): Promise<Tienda> {
+  await boot();
+  const nombre = input.nombre.trim();
+  if (!nombre) throw new Error("El nombre de la tienda es obligatorio.");
+  const tid = input.id || id();
+  const existing = input.id
+    ? await sqlGet<{ id: string }>(`SELECT id FROM proveedores WHERE id = ?`, tid)
+    : await sqlGet<{ id: string }>(
+        `SELECT id FROM proveedores WHERE LOWER(nombre) = LOWER(?)`,
+        nombre
+      );
+  if (existing) {
+    await sqlRun(
+      `UPDATE proveedores SET nombre = ?, notas = COALESCE(?, notas), preferido = ?
+       WHERE id = ?`,
+      nombre,
+      input.notas ?? null,
+      input.preferido ? 1 : 0,
+      existing.id
+    );
+    return (await listTiendas()).find((t) => t.id === existing.id)!;
+  }
+  await sqlRun(
+    `INSERT INTO proveedores (id, nombre, notas, preferido) VALUES (?, ?, ?, ?)`,
+    tid,
+    nombre,
+    input.notas || null,
+    input.preferido ? 1 : 0
+  );
+  return (await listTiendas()).find((t) => t.id === tid)!;
+}
+
+/** Autocomplete de insumos por nombre (para líneas de compra). */
+export async function buscarInsumosAutocomplete(
+  q: string,
+  limit = 20
+): Promise<
+  Array<{
+    id: string;
+    nombre: string;
+    unidad: string;
+    stockActual: number;
+    stockMinimo: number;
+    costoUnitario: number;
+    proveedorPreferido: string | null;
+    bajoMinimo: boolean;
+  }>
+> {
+  await boot();
+  const query = (q || "").trim().toLowerCase();
+  const all = await listInsumos();
+  const filtered = query
+    ? all.filter((i) => i.nombre.toLowerCase().includes(query))
+    : all;
+  return filtered.slice(0, limit).map((i) => ({
+    id: i.id,
+    nombre: i.nombre,
+    unidad: i.unidad,
+    stockActual: i.stockActual,
+    stockMinimo: i.stockMinimo,
+    costoUnitario: i.costoUnitario,
+    proveedorPreferido: i.proveedorPreferido,
+    bajoMinimo: i.stockActual <= i.stockMinimo,
+  }));
+}
+
+/** Alta rápida de insumo nuevo (desde Compras). */
+export async function altaRapidaInsumo(input: {
+  nombre: string;
+  unidad: "g" | "ml" | "u";
+  costoUnitario: number;
+  cantidad?: number;
+  stockMinimo?: number;
+  tienda?: string | null;
+}): Promise<{
+  insumo: Awaited<ReturnType<typeof upsertInsumo>>;
+}> {
+  await boot();
+  const insumo = await upsertInsumo({
+    nombre: input.nombre.trim(),
+    unidad: input.unidad,
+    stockActual: Number(input.cantidad ?? 0),
+    stockMinimo: Number(input.stockMinimo ?? 0),
+    costoUnitario: Math.round(input.costoUnitario),
+    ubicacion: null,
+    proveedorPreferido: normalizeTienda(input.tienda),
+  });
+  return { insumo };
+}
+
+/**
+ * Explosión de demanda (pedidos + reservas próximas) + ítems bajo mínimo.
+ * Si `tienda` viene, prioriza / filtra insumos de esa tienda (proveedor_preferido).
+ */
 export async function calcularSugerencia(
-  diasAdelante = 7
+  diasAdelante = 7,
+  opts?: { tienda?: string | null; soloTienda?: boolean }
 ): Promise<ItemSugerido[]> {
   await boot();
   const desde = hoyISO();
   const hasta = sumarDias(desde, diasAdelante);
+  const tienda = normalizeTienda(opts?.tienda);
 
   const demanda: Record<string, number> = {};
   const lineas = await sqlAll<{ productoId: string; cantidad: number }>(
@@ -83,9 +244,38 @@ export async function calcularSugerencia(
     }
   }
 
+  // Reservas confirmadas / pendientes con faltante.
+  const reservaNec = await sqlAll<{
+    insumoId: string;
+    faltante: number;
+  }>(
+    `SELECT n.insumo_id as insumoId, SUM(n.faltante) as faltante
+     FROM reserva_necesidades n
+     JOIN reservas r ON r.id = n.reserva_id
+     WHERE n.requiere_compra = 1
+       AND r.estado NOT IN ('cancelada', 'entregada')
+       AND r.fecha_entrega >= ? AND r.fecha_entrega <= ?
+     GROUP BY n.insumo_id`,
+    desde,
+    hasta
+  );
+  const demandaReserva: Record<string, number> = {};
+  for (const n of reservaNec) {
+    demandaReserva[n.insumoId] = Number(n.faltante) || 0;
+    demanda[n.insumoId] =
+      (demanda[n.insumoId] || 0) + (Number(n.faltante) || 0);
+  }
+
   const out: ItemSugerido[] = [];
   for (const i of await listInsumos()) {
+    const paraTienda = tiendaMatch(i.proveedorPreferido, tienda);
+    if (tienda && opts?.soloTienda !== false && !paraTienda) {
+      // Si el insumo no tiene tienda preferida, igual lo sugerimos (puede comprarse ahí).
+      if (i.proveedorPreferido) continue;
+    }
+
     const reqDemanda = demanda[i.id] || 0;
+    const porReserva = demandaReserva[i.id] || 0;
     const stockTrasDemanda = i.stockActual - reqDemanda;
     const porMinimo = Math.max(
       0,
@@ -101,8 +291,15 @@ export async function calcularSugerencia(
     if (cantidad <= 0) continue;
 
     let motivo: ItemSugerido["motivo"] = "bajo_minimo";
-    if (porDemanda > 0 && i.stockActual <= i.stockMinimo) motivo = "ambos";
-    else if (porDemanda > 0) motivo = "demanda";
+    if (porReserva > 0 && (porDemanda > 0 || i.stockActual <= i.stockMinimo)) {
+      motivo = "ambos";
+    } else if (porReserva > 0) {
+      motivo = "reserva";
+    } else if (porDemanda > 0 && i.stockActual <= i.stockMinimo) {
+      motivo = "ambos";
+    } else if (porDemanda > 0) {
+      motivo = "demanda";
+    }
 
     out.push({
       insumoId: i.id,
@@ -114,9 +311,16 @@ export async function calcularSugerencia(
       proveedor: i.proveedorPreferido,
       motivo,
       costoUnitario: i.costoUnitario,
+      paraTienda: tienda ? paraTienda || !i.proveedorPreferido : true,
     });
   }
-  return out.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+
+  return out.sort((a, b) => {
+    if (tienda && a.paraTienda !== b.paraTienda) {
+      return a.paraTienda ? -1 : 1;
+    }
+    return a.nombre.localeCompare(b.nombre, "es");
+  });
 }
 
 export async function crearListaDesdeSugerencia(
@@ -125,10 +329,12 @@ export async function crearListaDesdeSugerencia(
     cantidad: number;
     proveedor?: string | null;
   }>,
-  notas?: string | null
+  notas?: string | null,
+  opts?: { tienda?: string | null }
 ): Promise<ListaCompra> {
   await boot();
-  const sugeridos = await calcularSugerencia();
+  const tienda = normalizeTienda(opts?.tienda);
+  const sugeridos = await calcularSugerencia(7, { tienda });
   const byId = Object.fromEntries(sugeridos.map((s) => [s.insumoId, s]));
   const selected =
     items && items.length
@@ -136,7 +342,7 @@ export async function crearListaDesdeSugerencia(
       : sugeridos.map((s) => ({
           insumoId: s.insumoId,
           cantidad: s.cantidadSugerida,
-          proveedor: s.proveedor,
+          proveedor: s.proveedor ?? tienda,
         }));
 
   const now = new Date().toISOString();
@@ -146,7 +352,7 @@ export async function crearListaDesdeSugerencia(
       `INSERT INTO listas_compra (id, estado, creado_en, notas) VALUES (?, 'lista', ?, ?)`,
       listaId,
       now,
-      notas || null
+      notas || (tienda ? `Tienda: ${tienda}` : null)
     );
     for (const it of selected) {
       const sug = byId[it.insumoId];
@@ -159,7 +365,7 @@ export async function crearListaDesdeSugerencia(
         it.insumoId,
         sug?.cantidadSugerida ?? it.cantidad,
         it.cantidad,
-        it.proveedor ?? sug?.proveedor ?? null,
+        it.proveedor ?? sug?.proveedor ?? tienda ?? null,
         sug?.motivo ?? "manual"
       );
     }
@@ -222,7 +428,8 @@ export async function actualizarItemLista(
 
 export async function crearCarritoDesdeLista(
   listaId: string,
-  proveedor?: string | null
+  proveedor?: string | null,
+  tienda?: string | null
 ): Promise<CarritoCompra> {
   await boot();
   const lista = await getLista(listaId);
@@ -232,13 +439,18 @@ export async function crearCarritoDesdeLista(
   const insumos = Object.fromEntries(
     (await listInsumos()).map((i) => [i.id, i])
   );
+  const tiendaFinal =
+    normalizeTienda(tienda) ||
+    normalizeTienda(proveedor) ||
+    normalizeTienda(lista.items[0]?.proveedor);
 
   await sqlTransaction(async () => {
     await sqlRun(
-      `INSERT INTO carritos_compra (id, proveedor, estado, creado_en, comprado_en, notas, total, lista_id)
-       VALUES (?, ?, 'lista', ?, NULL, NULL, 0, ?)`,
+      `INSERT INTO carritos_compra (id, proveedor, tienda, estado, creado_en, comprado_en, notas, total, lista_id)
+       VALUES (?, ?, ?, 'lista', ?, NULL, NULL, 0, ?)`,
       carritoId,
-      proveedor || lista.items[0]?.proveedor || null,
+      tiendaFinal,
+      tiendaFinal,
       now,
       listaId
     );
@@ -277,7 +489,8 @@ export async function crearCarritoManual(
     cantidad: number;
     costoUnitario?: number;
   }>,
-  proveedor?: string | null
+  proveedor?: string | null,
+  tienda?: string | null
 ): Promise<CarritoCompra> {
   await boot();
   const now = new Date().toISOString();
@@ -285,12 +498,14 @@ export async function crearCarritoManual(
   const insumos = Object.fromEntries(
     (await listInsumos()).map((i) => [i.id, i])
   );
+  const tiendaFinal = normalizeTienda(tienda) || normalizeTienda(proveedor);
   await sqlTransaction(async () => {
     await sqlRun(
-      `INSERT INTO carritos_compra (id, proveedor, estado, creado_en, comprado_en, notas, total, lista_id)
-       VALUES (?, ?, 'borrador', ?, NULL, NULL, 0, NULL)`,
+      `INSERT INTO carritos_compra (id, proveedor, tienda, estado, creado_en, comprado_en, notas, total, lista_id)
+       VALUES (?, ?, ?, 'borrador', ?, NULL, NULL, 0, NULL)`,
       carritoId,
-      proveedor || null,
+      tiendaFinal,
+      tiendaFinal,
       now
     );
     let total = 0;
@@ -322,7 +537,7 @@ export async function getCarrito(
 ): Promise<CarritoCompra | null> {
   await boot();
   const row = await sqlGet<Omit<CarritoCompra, "lineas">>(
-    `SELECT id, proveedor, estado, creado_en as creadoEn, comprado_en as compradoEn,
+    `SELECT id, proveedor, tienda, estado, creado_en as creadoEn, comprado_en as compradoEn,
             notas, total FROM carritos_compra WHERE id = ?`,
     carritoId
   );
@@ -346,6 +561,7 @@ export async function getCarrito(
   );
   return {
     ...row,
+    tienda: row.tienda || row.proveedor,
     lineas: lineas.map((l) => ({
       id: l.id,
       insumoId: l.insumoId,
@@ -361,7 +577,7 @@ export async function getCarrito(
 export async function listCarritos(limit = 20) {
   await boot();
   return sqlAll(
-    `SELECT id, proveedor, estado, creado_en as creadoEn, comprado_en as compradoEn,
+    `SELECT id, proveedor, tienda, estado, creado_en as creadoEn, comprado_en as compradoEn,
             notas, total FROM carritos_compra
      ORDER BY creado_en DESC LIMIT ?`,
     limit
@@ -410,7 +626,7 @@ export async function marcarCarritoComprado(
         l.insumoId,
         l.cantidad,
         l.costoUnitario,
-        `Compra proveedor${carrito.proveedor ? `: ${carrito.proveedor}` : ""}`,
+        `Compra${carrito.tienda || carrito.proveedor ? ` en ${carrito.tienda || carrito.proveedor}` : ""}`,
         opts?.usuarioId || null,
         now
       );
@@ -443,7 +659,7 @@ export async function marcarCarritoComprado(
         totalComprado,
         hoyISO(),
         "efectivo",
-        `Compra a ${carrito.proveedor || "proveedor"}`,
+        `Compra en ${carrito.tienda || carrito.proveedor || "tienda"}`,
         now,
         carritoId
       );

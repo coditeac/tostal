@@ -21,6 +21,8 @@ export class InsumosController {
     const insumos = (await listInsumos()).map((i) => ({
       ...i,
       bajoMinimo: i.stockActual <= i.stockMinimo,
+      pocos: i.stockActual <= i.stockMinimo,
+      umbral_pocos: i.stockMinimo,
     }));
     return { insumos };
   }

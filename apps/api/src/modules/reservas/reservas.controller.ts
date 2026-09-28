@@ -20,7 +20,7 @@ import {
 } from "../../lib/reservas";
 import type { EstadoReserva } from "../../lib/domain-types";
 
-@Controller("reservas")
+@Controller(["reservas", "reservaciones"])
 export class ReservasController {
   @Get()
   async list(
