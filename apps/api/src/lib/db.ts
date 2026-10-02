@@ -553,6 +553,8 @@ const SCHEMA_ALTERS_SQLITE = [
   `ALTER TABLE productos ADD COLUMN reserva_habilitada INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE productos ADD COLUMN anticipo_tipo TEXT NOT NULL DEFAULT 'porcentaje'`,
   `ALTER TABLE productos ADD COLUMN anticipo_valor INTEGER NOT NULL DEFAULT 50`,
+  `ALTER TABLE productos ADD COLUMN reserva_dias_minimos INTEGER NOT NULL DEFAULT 3`,
+  `ALTER TABLE productos ADD COLUMN reserva_cantidad_minima INTEGER NOT NULL DEFAULT 1`,
   `ALTER TABLE email_log ADD COLUMN reserva_id TEXT`,
   `ALTER TABLE carritos_compra ADD COLUMN tienda TEXT`,
   `CREATE TABLE IF NOT EXISTS ingresos (
@@ -580,6 +582,8 @@ const SCHEMA_ALTERS_PG = [
   `ALTER TABLE productos ADD COLUMN IF NOT EXISTS reserva_habilitada INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE productos ADD COLUMN IF NOT EXISTS anticipo_tipo TEXT NOT NULL DEFAULT 'porcentaje'`,
   `ALTER TABLE productos ADD COLUMN IF NOT EXISTS anticipo_valor INTEGER NOT NULL DEFAULT 50`,
+  `ALTER TABLE productos ADD COLUMN IF NOT EXISTS reserva_dias_minimos INTEGER NOT NULL DEFAULT 3`,
+  `ALTER TABLE productos ADD COLUMN IF NOT EXISTS reserva_cantidad_minima INTEGER NOT NULL DEFAULT 1`,
   `ALTER TABLE email_log ADD COLUMN IF NOT EXISTS reserva_id TEXT`,
   `ALTER TABLE carritos_compra ADD COLUMN IF NOT EXISTS tienda TEXT`,
   `CREATE TABLE IF NOT EXISTS ingresos (

@@ -54,11 +54,22 @@ type ProductoRow = {
   duraciones: string | null;
   anticipoTipo: string | null;
   anticipoValor: number | null;
+  reservaDiasMinimos: number | null;
+  reservaCantidadMinima: number | null;
 };
 
 function mapProducto(r: ProductoRow): ProductoApi {
   const anticipoTipo: AnticipoTipo =
     r.anticipoTipo === "monto" ? "monto" : "porcentaje";
+  const dias =
+    r.reservaDiasMinimos != null && Number.isFinite(Number(r.reservaDiasMinimos))
+      ? Math.max(0, Math.floor(Number(r.reservaDiasMinimos)))
+      : 3;
+  const qtyMin =
+    r.reservaCantidadMinima != null &&
+    Number.isFinite(Number(r.reservaCantidadMinima))
+      ? Math.max(1, Math.floor(Number(r.reservaCantidadMinima)))
+      : 1;
   return {
     id: r.id,
     categoriaId: r.categoriaId,
@@ -72,6 +83,8 @@ function mapProducto(r: ProductoRow): ProductoApi {
     reservaHabilitada: !!r.reservaHabilitada,
     anticipoTipo,
     anticipoValor: r.anticipoValor ?? (anticipoTipo === "porcentaje" ? 50 : 0),
+    reservaDiasMinimos: dias,
+    reservaCantidadMinima: qtyMin,
     duraciones: parseDuraciones(r.duraciones),
     ...(r.categoriaNombre !== undefined
       ? { categoriaNombre: r.categoriaNombre }
@@ -100,6 +113,8 @@ export async function listProductos(): Promise<
             COALESCE(p.reserva_habilitada, 0) as reservaHabilitada,
             COALESCE(p.anticipo_tipo, 'porcentaje') as anticipoTipo,
             COALESCE(p.anticipo_valor, 50) as anticipoValor,
+            COALESCE(p.reserva_dias_minimos, 3) as reservaDiasMinimos,
+            COALESCE(p.reserva_cantidad_minima, 1) as reservaCantidadMinima,
             c.nombre as categoriaNombre
      FROM productos p
      LEFT JOIN categorias c ON c.id = p.categoria_id
@@ -131,7 +146,9 @@ export async function getProducto(idProd: string): Promise<ProductoApi | null> {
             duraciones,
             COALESCE(reserva_habilitada, 0) as reservaHabilitada,
             COALESCE(anticipo_tipo, 'porcentaje') as anticipoTipo,
-            COALESCE(anticipo_valor, 50) as anticipoValor
+            COALESCE(anticipo_valor, 50) as anticipoValor,
+            COALESCE(reserva_dias_minimos, 3) as reservaDiasMinimos,
+            COALESCE(reserva_cantidad_minima, 1) as reservaCantidadMinima
      FROM productos WHERE id = ?`,
     idProd
   );
@@ -152,6 +169,8 @@ export async function upsertProducto(data: {
   reservaHabilitada?: boolean;
   anticipoTipo?: AnticipoTipo;
   anticipoValor?: number;
+  reservaDiasMinimos?: number;
+  reservaCantidadMinima?: number;
 }): Promise<ProductoApi> {
   await boot();
   const pid = data.id || id();
@@ -166,11 +185,24 @@ export async function upsertProducto(data: {
     data.anticipoValor ??
     existing?.anticipoValor ??
     (anticipoTipo === "porcentaje" ? 50 : 0);
+  const reservaDiasMinimos = Math.max(
+    0,
+    Math.floor(
+      data.reservaDiasMinimos ?? existing?.reservaDiasMinimos ?? 3
+    )
+  );
+  const reservaCantidadMinima = Math.max(
+    1,
+    Math.floor(
+      data.reservaCantidadMinima ?? existing?.reservaCantidadMinima ?? 1
+    )
+  );
   if (data.id) {
     await sqlRun(
       `UPDATE productos SET categoria_id=?, nombre=?, descripcion=?, precio=?,
        activo_catalogo=?, alergenos=?, orden=?, duraciones=?,
-       reserva_habilitada=?, anticipo_tipo=?, anticipo_valor=? WHERE id=?`,
+       reserva_habilitada=?, anticipo_tipo=?, anticipo_valor=?,
+       reserva_dias_minimos=?, reserva_cantidad_minima=? WHERE id=?`,
       data.categoriaId,
       data.nombre,
       data.descripcion,
@@ -182,12 +214,14 @@ export async function upsertProducto(data: {
       reservaHabilitada ? 1 : 0,
       anticipoTipo,
       anticipoValor,
+      reservaDiasMinimos,
+      reservaCantidadMinima,
       pid
     );
   } else {
     await sqlRun(
-      `INSERT INTO productos (id, categoria_id, nombre, descripcion, precio, activo_catalogo, foto_url, alergenos, orden, duraciones, reserva_habilitada, anticipo_tipo, anticipo_valor)
-       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO productos (id, categoria_id, nombre, descripcion, precio, activo_catalogo, foto_url, alergenos, orden, duraciones, reserva_habilitada, anticipo_tipo, anticipo_valor, reserva_dias_minimos, reserva_cantidad_minima)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
       pid,
       data.categoriaId,
       data.nombre,
@@ -199,7 +233,9 @@ export async function upsertProducto(data: {
       duracionesJson,
       reservaHabilitada ? 1 : 0,
       anticipoTipo,
-      anticipoValor
+      anticipoValor,
+      reservaDiasMinimos,
+      reservaCantidadMinima
     );
   }
   return (await getProducto(pid))!;

@@ -33,25 +33,37 @@ function codigoReserva(): string {
 
 export async function listProductosReserva(): Promise<ProductoReservaPublico[]> {
   await boot();
+  const { hoyISO, sumarDias } = await import("./utils");
+  const hoy = hoyISO();
   return (await listProductos())
     .filter((p) => p.activoCatalogo && p.reservaHabilitada)
-    .map((p) => ({
-      id: p.id,
-      nombre: p.nombre,
-      descripcion: p.descripcion,
-      precio: p.precio,
-      categoriaId: p.categoriaId,
-      categoriaNombre: p.categoriaNombre,
-      alergenos: p.alergenos,
-      fotoUrl: p.fotoUrl,
-      anticipoTipo: p.anticipoTipo,
-      anticipoValor: p.anticipoValor,
-      anticipoUnitario: calcularAnticipoUnitario(
-        p.precio,
-        p.anticipoTipo,
-        p.anticipoValor
-      ),
-    }));
+    .map((p) => {
+      const dias = p.reservaDiasMinimos;
+      const qtyMin = p.reservaCantidadMinima;
+      const fechaMinima = sumarDias(hoy, dias);
+      return {
+        id: p.id,
+        nombre: p.nombre,
+        descripcion: p.descripcion,
+        precio: p.precio,
+        categoriaId: p.categoriaId,
+        categoriaNombre: p.categoriaNombre,
+        alergenos: p.alergenos,
+        fotoUrl: p.fotoUrl,
+        anticipoTipo: p.anticipoTipo,
+        anticipoValor: p.anticipoValor,
+        anticipoUnitario: calcularAnticipoUnitario(
+          p.precio,
+          p.anticipoTipo,
+          p.anticipoValor
+        ),
+        reservaDiasMinimos: dias,
+        reservaCantidadMinima: qtyMin,
+        reserva_dias_minimos: dias,
+        reserva_cantidad_minima: qtyMin,
+        fecha_minima: fechaMinima,
+      };
+    });
 }
 
 async function mapReserva(row: Record<string, unknown>): Promise<ReservaPublica> {
@@ -255,15 +267,6 @@ export async function crearReserva(input: {
     return { ok: false, error: "Fecha de reserva inválida." };
   }
 
-  const { hoyISO } = await import("./utils");
-  const hoyIso = hoyISO();
-  if (input.fechaEntrega <= hoyIso) {
-    return {
-      ok: false,
-      error: "Las reservas son para una fecha futura. Para hoy usa el menú del día.",
-    };
-  }
-
   if (!input.clienteNombre?.trim() || !input.clienteTelefono?.trim()) {
     return { ok: false, error: "Nombre y teléfono son obligatorios." };
   }
@@ -280,8 +283,13 @@ export async function crearReserva(input: {
     };
   }
 
+  const { hoyISO, sumarDias } = await import("./utils");
+  const hoyIso = hoyISO();
+
   let subtotal = 0;
   let anticipoMonto = 0;
+  let diasMinimosPedido = 0;
+  let productoRestrictivoDias: string | null = null;
   const lineasResueltas: Array<{
     productoId: string;
     productoNombre: string;
@@ -292,7 +300,7 @@ export async function crearReserva(input: {
   }> = [];
 
   for (const l of input.lineas) {
-    if (l.cantidad < 1) {
+    if (!Number.isFinite(l.cantidad) || l.cantidad < 1) {
       return { ok: false, error: "Cantidad inválida." };
     }
     const prod = await getProducto(l.productoId);
@@ -305,6 +313,20 @@ export async function crearReserva(input: {
         error: `${prod.nombre} no admite reserva bajo pedido.`,
       };
     }
+
+    const qtyMin = prod.reservaCantidadMinima;
+    if (l.cantidad < qtyMin) {
+      return {
+        ok: false,
+        error: `La cantidad mínima para ${prod.nombre} es ${qtyMin}.`,
+      };
+    }
+
+    if (prod.reservaDiasMinimos > diasMinimosPedido) {
+      diasMinimosPedido = prod.reservaDiasMinimos;
+      productoRestrictivoDias = prod.nombre;
+    }
+
     const sub = prod.precio * l.cantidad;
     subtotal += sub;
     anticipoMonto +=
@@ -318,6 +340,20 @@ export async function crearReserva(input: {
       subtotal: sub,
       notas: l.notas || null,
     });
+  }
+
+  const fechaMinima = sumarDias(hoyIso, diasMinimosPedido);
+  if (input.fechaEntrega < fechaMinima) {
+    const nombre = productoRestrictivoDias
+      ? ` de ${productoRestrictivoDias}`
+      : "";
+    return {
+      ok: false,
+      error:
+        diasMinimosPedido <= 0
+          ? `La fecha de reserva no puede ser anterior a hoy (${fechaMinima}).`
+          : `La reserva${nombre} requiere al menos ${diasMinimosPedido} día${diasMinimosPedido === 1 ? "" : "s"} de anticipación. La fecha mínima es ${fechaMinima}.`,
+    };
   }
 
   if (anticipoMonto <= 0) {

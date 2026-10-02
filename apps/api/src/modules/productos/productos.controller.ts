@@ -64,7 +64,56 @@ function parseReservaFields(body: Record<string, unknown>) {
   } else if (body.anticipoPct != null) {
     anticipoValor = Number(body.anticipoPct);
   }
-  return { reservaHabilitada, anticipoTipo, anticipoValor };
+
+  let reservaDiasMinimos: number | undefined;
+  if (
+    body.reserva_dias_minimos != null ||
+    body.reservaDiasMinimos != null
+  ) {
+    const n = Number(body.reserva_dias_minimos ?? body.reservaDiasMinimos);
+    if (!Number.isFinite(n) || n < 0) {
+      throw new BadRequestException(
+        "reserva_dias_minimos debe ser un entero ≥ 0."
+      );
+    }
+    reservaDiasMinimos = Math.floor(n);
+  }
+
+  let reservaCantidadMinima: number | undefined;
+  if (
+    body.reserva_cantidad_minima != null ||
+    body.reservaCantidadMinima != null
+  ) {
+    const n = Number(
+      body.reserva_cantidad_minima ?? body.reservaCantidadMinima
+    );
+    if (!Number.isFinite(n) || n < 1) {
+      throw new BadRequestException(
+        "reserva_cantidad_minima debe ser un entero ≥ 1."
+      );
+    }
+    reservaCantidadMinima = Math.floor(n);
+  }
+
+  return {
+    reservaHabilitada,
+    anticipoTipo,
+    anticipoValor,
+    reservaDiasMinimos,
+    reservaCantidadMinima,
+  };
+}
+
+function productoReservaAliases(p: ProductoApi) {
+  return {
+    reserva_habilitada: p.reservaHabilitada,
+    anticipo_tipo: p.anticipoTipo,
+    anticipo_valor: p.anticipoValor,
+    reserva_dias_minimos: p.reservaDiasMinimos,
+    reserva_cantidad_minima: p.reservaCantidadMinima,
+    reservaDiasMinimos: p.reservaDiasMinimos,
+    reservaCantidadMinima: p.reservaCantidadMinima,
+  };
 }
 
 @Controller("productos")
@@ -82,9 +131,7 @@ export class ProductosController {
           : 0;
       productos.push({
         ...p,
-        reserva_habilitada: p.reservaHabilitada,
-        anticipo_tipo: p.anticipoTipo,
-        anticipo_valor: p.anticipoValor,
+        ...productoReservaAliases(p),
         costoTeorico: costo,
         costo_calculado: costo,
         costoCalculado: costo,
@@ -125,6 +172,8 @@ export class ProductosController {
       reservaHabilitada: reserva.reservaHabilitada ?? false,
       anticipoTipo: reserva.anticipoTipo ?? "porcentaje",
       anticipoValor: reserva.anticipoValor ?? 50,
+      reservaDiasMinimos: reserva.reservaDiasMinimos ?? 3,
+      reservaCantidadMinima: reserva.reservaCantidadMinima ?? 1,
     });
 
     if (Array.isArray(body.receta)) {
@@ -141,9 +190,7 @@ export class ProductosController {
     return {
       producto: {
         ...producto,
-        reserva_habilitada: producto.reservaHabilitada,
-        anticipo_tipo: producto.anticipoTipo,
-        anticipo_valor: producto.anticipoValor,
+        ...productoReservaAliases(producto),
         precio_venta: producto.precio,
       },
       receta: await getReceta(producto.id),
@@ -244,6 +291,8 @@ export class ProductosController {
       reservaHabilitada: reserva.reservaHabilitada,
       anticipoTipo: reserva.anticipoTipo,
       anticipoValor: reserva.anticipoValor,
+      reservaDiasMinimos: reserva.reservaDiasMinimos,
+      reservaCantidadMinima: reserva.reservaCantidadMinima,
     });
 
     if (Array.isArray(body.receta)) {
@@ -260,9 +309,7 @@ export class ProductosController {
     return {
       producto: {
         ...producto,
-        reserva_habilitada: producto.reservaHabilitada,
-        anticipo_tipo: producto.anticipoTipo,
-        anticipo_valor: producto.anticipoValor,
+        ...productoReservaAliases(producto),
         precio_venta: producto.precio,
       },
       receta: await getReceta(producto.id),

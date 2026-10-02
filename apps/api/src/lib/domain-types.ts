@@ -17,6 +17,10 @@ export type ProductoApi = {
   reservaHabilitada: boolean;
   anticipoTipo: AnticipoTipo;
   anticipoValor: number;
+  /** Anticipación mínima (días civiles CDMX). Default 3. */
+  reservaDiasMinimos: number;
+  /** Cantidad mínima por línea de reserva. Default 1. */
+  reservaCantidadMinima: number;
   duraciones?: Array<{
     id: string;
     etiqueta: string;
@@ -86,6 +90,13 @@ export type ProductoReservaPublico = {
   anticipoTipo: AnticipoTipo;
   anticipoValor: number;
   anticipoUnitario: number;
+  reservaDiasMinimos: number;
+  reservaCantidadMinima: number;
+  /** Alias snake_case para fronts. */
+  reserva_dias_minimos: number;
+  reserva_cantidad_minima: number;
+  /** Primera fecha civil CDMX permitida (hoy + N). */
+  fecha_minima: string;
 };
 
 export type MenuHoyResponse = {
