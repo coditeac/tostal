@@ -1,7 +1,7 @@
 import { sqlAll, sqlGet, sqlRun, sqlTransaction } from "./db";
 import { ensureSeed } from "./seed";
 import { getConfigPublica } from "./config";
-import { getDia, getDisponibilidad, getProducto, listZonas } from "./catalogo";
+import { getDia, getDisponibilidad, getProducto, getReceta, listZonas, cantidadInsumoParaPiezas } from "./catalogo";
 import { publishPedidoEvent } from "./pedido-events";
 import { id } from "./id";
 import type {
@@ -353,15 +353,16 @@ export async function actualizarEstadoPedido(
       );
 
       for (const linea of lineas) {
-        const receta = await sqlAll<{
-          insumoId: string;
-          cantidad: number;
-        }>(
-          `SELECT insumo_id as insumoId, cantidad FROM receta_lineas WHERE producto_id = ?`,
-          linea.productoId
-        );
+        const receta = await getReceta(linea.productoId);
+        const producto = await getProducto(linea.productoId);
+        const rendimiento = producto?.recetaRendimiento ?? 1;
         for (const r of receta) {
-          const qty = r.cantidad * linea.cantidad;
+          const qty = cantidadInsumoParaPiezas(
+            r.cantidad,
+            rendimiento,
+            linea.cantidad,
+            r.unidad
+          );
           await sqlRun(
             `UPDATE insumos SET stock_actual = stock_actual - ? WHERE id = ?`,
             qty,

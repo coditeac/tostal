@@ -95,12 +95,34 @@ function parseReservaFields(body: Record<string, unknown>) {
     reservaCantidadMinima = Math.floor(n);
   }
 
+  let recetaRendimiento: number | undefined;
+  if (
+    body.receta_rendimiento != null ||
+    body.recetaRendimiento != null ||
+    body.rinde_piezas != null ||
+    body.rindePiezas != null
+  ) {
+    const n = Number(
+      body.receta_rendimiento ??
+        body.recetaRendimiento ??
+        body.rinde_piezas ??
+        body.rindePiezas
+    );
+    if (!Number.isFinite(n) || n < 1) {
+      throw new BadRequestException(
+        "receta_rendimiento debe ser un entero ≥ 1."
+      );
+    }
+    recetaRendimiento = Math.floor(n);
+  }
+
   return {
     reservaHabilitada,
     anticipoTipo,
     anticipoValor,
     reservaDiasMinimos,
     reservaCantidadMinima,
+    recetaRendimiento,
   };
 }
 
@@ -113,6 +135,9 @@ function productoReservaAliases(p: ProductoApi) {
     reserva_cantidad_minima: p.reservaCantidadMinima,
     reservaDiasMinimos: p.reservaDiasMinimos,
     reservaCantidadMinima: p.reservaCantidadMinima,
+    receta_rendimiento: p.recetaRendimiento,
+    recetaRendimiento: p.recetaRendimiento,
+    rinde_piezas: p.recetaRendimiento,
   };
 }
 
@@ -174,6 +199,7 @@ export class ProductosController {
       anticipoValor: reserva.anticipoValor ?? 50,
       reservaDiasMinimos: reserva.reservaDiasMinimos ?? 3,
       reservaCantidadMinima: reserva.reservaCantidadMinima ?? 1,
+      recetaRendimiento: reserva.recetaRendimiento ?? 1,
     });
 
     if (Array.isArray(body.receta)) {
@@ -293,6 +319,7 @@ export class ProductosController {
       anticipoValor: reserva.anticipoValor,
       reservaDiasMinimos: reserva.reservaDiasMinimos,
       reservaCantidadMinima: reserva.reservaCantidadMinima,
+      recetaRendimiento: reserva.recetaRendimiento,
     });
 
     if (Array.isArray(body.receta)) {

@@ -7,11 +7,11 @@ import type {
   Categoria,
   DiaOperativo,
   Insumo,
-  LineaReceta,
   ZonaEnvio,
 } from "../../../../shared/types";
 import type {
   AnticipoTipo,
+  LineaRecetaApi,
   MenuHoyResponse,
   ProductoApi,
 } from "./domain-types";
@@ -56,7 +56,44 @@ type ProductoRow = {
   anticipoValor: number | null;
   reservaDiasMinimos: number | null;
   reservaCantidadMinima: number | null;
+  recetaRendimiento: number | null;
 };
+
+/** Normaliza rendimiento de lote (≥ 1). Default 1 = comportamiento por pieza. */
+export function normalizarRendimiento(
+  n: number | null | undefined
+): number {
+  const v = Number(n);
+  if (!Number.isFinite(v) || v < 1) return 1;
+  return Math.floor(v);
+}
+
+/** Insumo por 1 pieza = cantidad_lote / rendimiento. */
+export function cantidadInsumoPorPieza(
+  cantidadLote: number,
+  rendimiento: number
+): number {
+  return Number(cantidadLote) / normalizarRendimiento(rendimiento);
+}
+
+/**
+ * Necesidad de insumo para N piezas pedidas.
+ * Unidades discretas (`u`) se redondean hacia arriba; g/ml quedan decimales.
+ */
+export function cantidadInsumoParaPiezas(
+  cantidadLote: number,
+  rendimiento: number,
+  piezas: number,
+  unidad?: string | null
+): number {
+  const raw =
+    Number(piezas) *
+    cantidadInsumoPorPieza(cantidadLote, rendimiento);
+  if (unidad === "u") {
+    return Math.ceil(Math.max(0, raw) - 1e-9);
+  }
+  return Math.max(0, raw);
+}
 
 function mapProducto(r: ProductoRow): ProductoApi {
   const anticipoTipo: AnticipoTipo =
@@ -85,6 +122,7 @@ function mapProducto(r: ProductoRow): ProductoApi {
     anticipoValor: r.anticipoValor ?? (anticipoTipo === "porcentaje" ? 50 : 0),
     reservaDiasMinimos: dias,
     reservaCantidadMinima: qtyMin,
+    recetaRendimiento: normalizarRendimiento(r.recetaRendimiento),
     duraciones: parseDuraciones(r.duraciones),
     ...(r.categoriaNombre !== undefined
       ? { categoriaNombre: r.categoriaNombre }
@@ -115,6 +153,7 @@ export async function listProductos(): Promise<
             COALESCE(p.anticipo_valor, 50) as anticipoValor,
             COALESCE(p.reserva_dias_minimos, 3) as reservaDiasMinimos,
             COALESCE(p.reserva_cantidad_minima, 1) as reservaCantidadMinima,
+            COALESCE(p.receta_rendimiento, 1) as recetaRendimiento,
             c.nombre as categoriaNombre
      FROM productos p
      LEFT JOIN categorias c ON c.id = p.categoria_id
@@ -148,7 +187,8 @@ export async function getProducto(idProd: string): Promise<ProductoApi | null> {
             COALESCE(anticipo_tipo, 'porcentaje') as anticipoTipo,
             COALESCE(anticipo_valor, 50) as anticipoValor,
             COALESCE(reserva_dias_minimos, 3) as reservaDiasMinimos,
-            COALESCE(reserva_cantidad_minima, 1) as reservaCantidadMinima
+            COALESCE(reserva_cantidad_minima, 1) as reservaCantidadMinima,
+            COALESCE(receta_rendimiento, 1) as recetaRendimiento
      FROM productos WHERE id = ?`,
     idProd
   );
@@ -171,6 +211,7 @@ export async function upsertProducto(data: {
   anticipoValor?: number;
   reservaDiasMinimos?: number;
   reservaCantidadMinima?: number;
+  recetaRendimiento?: number;
 }): Promise<ProductoApi> {
   await boot();
   const pid = data.id || id();
@@ -197,12 +238,16 @@ export async function upsertProducto(data: {
       data.reservaCantidadMinima ?? existing?.reservaCantidadMinima ?? 1
     )
   );
+  const recetaRendimiento = normalizarRendimiento(
+    data.recetaRendimiento ?? existing?.recetaRendimiento ?? 1
+  );
   if (data.id) {
     await sqlRun(
       `UPDATE productos SET categoria_id=?, nombre=?, descripcion=?, precio=?,
        activo_catalogo=?, alergenos=?, orden=?, duraciones=?,
        reserva_habilitada=?, anticipo_tipo=?, anticipo_valor=?,
-       reserva_dias_minimos=?, reserva_cantidad_minima=? WHERE id=?`,
+       reserva_dias_minimos=?, reserva_cantidad_minima=?,
+       receta_rendimiento=? WHERE id=?`,
       data.categoriaId,
       data.nombre,
       data.descripcion,
@@ -216,12 +261,13 @@ export async function upsertProducto(data: {
       anticipoValor,
       reservaDiasMinimos,
       reservaCantidadMinima,
+      recetaRendimiento,
       pid
     );
   } else {
     await sqlRun(
-      `INSERT INTO productos (id, categoria_id, nombre, descripcion, precio, activo_catalogo, foto_url, alergenos, orden, duraciones, reserva_habilitada, anticipo_tipo, anticipo_valor, reserva_dias_minimos, reserva_cantidad_minima)
-       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO productos (id, categoria_id, nombre, descripcion, precio, activo_catalogo, foto_url, alergenos, orden, duraciones, reserva_habilitada, anticipo_tipo, anticipo_valor, reserva_dias_minimos, reserva_cantidad_minima, receta_rendimiento)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       pid,
       data.categoriaId,
       data.nombre,
@@ -235,7 +281,8 @@ export async function upsertProducto(data: {
       anticipoTipo,
       anticipoValor,
       reservaDiasMinimos,
-      reservaCantidadMinima
+      reservaCantidadMinima,
+      recetaRendimiento
     );
   }
   return (await getProducto(pid))!;
@@ -292,9 +339,20 @@ export async function upsertInsumo(data: {
   return (await listInsumos()).find((i) => i.id === iid)!;
 }
 
-export async function getReceta(productoId: string): Promise<LineaReceta[]> {
+export async function getReceta(
+  productoId: string
+): Promise<LineaRecetaApi[]> {
   await boot();
-  return sqlAll<LineaReceta>(
+  const producto = await getProducto(productoId);
+  const rendimiento = normalizarRendimiento(producto?.recetaRendimiento);
+  const rows = await sqlAll<{
+    id: string;
+    productoId: string;
+    insumoId: string;
+    cantidad: number;
+    insumoNombre: string;
+    unidad: "g" | "ml" | "u";
+  }>(
     `SELECT r.id, r.producto_id as productoId, r.insumo_id as insumoId, r.cantidad,
             i.nombre as insumoNombre, i.unidad
      FROM receta_lineas r
@@ -303,6 +361,20 @@ export async function getReceta(productoId: string): Promise<LineaReceta[]> {
      ORDER BY i.nombre`,
     productoId
   );
+  return rows.map((r) => {
+    const cantidadLote = Number(r.cantidad);
+    const porPieza = cantidadInsumoPorPieza(cantidadLote, rendimiento);
+    return {
+      id: r.id,
+      productoId: r.productoId,
+      insumoId: r.insumoId,
+      cantidad: cantidadLote,
+      cantidad_lote: cantidadLote,
+      por_pieza: porPieza,
+      insumoNombre: r.insumoNombre,
+      unidad: r.unidad,
+    };
+  });
 }
 
 export async function setReceta(
@@ -326,7 +398,10 @@ export async function setReceta(
   return getReceta(productoId);
 }
 
+/** Costo teórico por pieza = Σ (insumo_por_pieza × costo_unitario). */
 export async function costoTeoricoProducto(productoId: string): Promise<number> {
+  const producto = await getProducto(productoId);
+  const rendimiento = normalizarRendimiento(producto?.recetaRendimiento);
   const lineas = await getReceta(productoId);
   const insumos = Object.fromEntries(
     (await listInsumos()).map((i) => [i.id, i])
@@ -334,7 +409,8 @@ export async function costoTeoricoProducto(productoId: string): Promise<number> 
   return lineas.reduce((acc, l) => {
     const i = insumos[l.insumoId];
     if (!i) return acc;
-    return acc + Math.round(l.cantidad * i.costoUnitario);
+    const porPieza = cantidadInsumoPorPieza(l.cantidad, rendimiento);
+    return acc + Math.round(porPieza * i.costoUnitario);
   }, 0);
 }
 

@@ -3,6 +3,7 @@ import { ensureSeed } from "./seed";
 import { getConfigPublica } from "./config";
 import {
   calcularAnticipoUnitario,
+  cantidadInsumoPorPieza,
   getProducto,
   getReceta,
   listInsumos,
@@ -188,9 +189,13 @@ async function generarNecesidades(
 
   for (const linea of lineas) {
     const receta = await getReceta(linea.productoId);
+    const producto = await getProducto(linea.productoId);
+    const rendimiento = producto?.recetaRendimiento ?? 1;
     for (const r of receta) {
       const prev = acumulado.get(r.insumoId);
-      const add = r.cantidad * linea.cantidad;
+      // Acumular crudo; ceil de unidades discretas al persistir.
+      const add =
+        linea.cantidad * cantidadInsumoPorPieza(r.cantidad, rendimiento);
       if (prev) {
         prev.cantidad += add;
       } else {
@@ -208,7 +213,11 @@ async function generarNecesidades(
 
   for (const [insumoId, data] of acumulado) {
     const stock = insumos[insumoId]?.stockActual ?? 0;
-    const faltante = Math.max(0, data.cantidad - stock);
+    const cantidadNecesaria =
+      data.unidad === "u"
+        ? Math.ceil(Math.max(0, data.cantidad) - 1e-9)
+        : Math.max(0, data.cantidad);
+    const faltante = Math.max(0, cantidadNecesaria - stock);
     const requiereCompra = faltante > 0 ? 1 : 0;
     await sqlRun(
       `INSERT INTO reserva_necesidades
@@ -219,7 +228,7 @@ async function generarNecesidades(
       insumoId,
       data.nombre,
       data.unidad,
-      data.cantidad,
+      cantidadNecesaria,
       stock,
       faltante,
       requiereCompra
