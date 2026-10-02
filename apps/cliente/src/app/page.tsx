@@ -200,6 +200,7 @@ export default function ClienteHome() {
                 </AlertDescription>
               </Alert>
             )}
+            {/* Underline tabs — patrón menú restaurante Rappi (Mobbin). */}
             <div className="-mx-1 flex gap-0 overflow-x-auto border-b border-border px-1">
               <button
                 type="button"
@@ -208,7 +209,7 @@ export default function ClienteHome() {
                   categoria === "todas" ? "chip-cat-active" : "chip-cat-idle"
                 }`}
               >
-                Todas
+                {menu.categorias.length > 0 ? "Todas" : "Menú"}
               </button>
               {menu.categorias.map((c) => (
                 <button
@@ -224,6 +225,7 @@ export default function ClienteHome() {
               ))}
             </div>
 
+            {/* Fila: texto izq · foto der · + rápido (sin card). */}
             <ul className="list-plain mt-1">
               {productosFiltrados.map((p, idx) => (
                 <li
@@ -249,7 +251,7 @@ export default function ClienteHome() {
                         Alérgenos: {p.alergenos}
                       </p>
                     )}
-                    <p className="mt-2.5 text-[0.95rem] font-semibold tabular-nums">
+                    <p className="mt-2.5 text-[0.95rem] font-semibold tabular-nums text-miel">
                       {formatoMoneda(p.precio, menu.config.moneda)}
                     </p>
                   </button>
