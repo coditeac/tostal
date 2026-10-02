@@ -382,102 +382,102 @@ export function ProductosCatalogo() {
               />
             </div>
             {form.reservaHabilitada && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="label">Tipo de anticipo</label>
-                    <select
-                      className="field"
-                      value={form.anticipoTipo}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          anticipoTipo: e.target.value as "porcentaje" | "monto",
-                        })
-                      }
-                    >
-                      <option value="porcentaje">Porcentaje %</option>
-                      <option value="monto">Monto fijo (MXN)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label">
-                      {form.anticipoTipo === "monto" ? "Anticipo MXN" : "Anticipo %"}
-                    </label>
-                    <input
-                      className="field"
-                      type="number"
-                      min="0"
-                      step={form.anticipoTipo === "monto" ? "0.01" : "1"}
-                      value={form.anticipoValor}
-                      onChange={(e) =>
-                        setForm({ ...form, anticipoValor: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label">Días mínimos de anticipación</label>
-                  <div className="mb-2 flex flex-wrap gap-2">
-                    {[3, 5].map((n) => {
-                      const activo = Number(form.reservaDiasMinimos) === n;
-                      return (
-                        <button
-                          key={n}
-                          type="button"
-                          className={
-                            activo
-                              ? "rounded-lg bg-miel px-3 py-1.5 text-sm font-medium text-primary-foreground"
-                              : "rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground"
-                          }
-                          onClick={() =>
-                            setForm({ ...form, reservaDiasMinimos: String(n) })
-                          }
-                        >
-                          {n} días
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <label className="label">Tipo de anticipo</label>
+                  <select
+                    className="field"
+                    value={form.anticipoTipo}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        anticipoTipo: e.target.value as "porcentaje" | "monto",
+                      })
+                    }
+                  >
+                    <option value="porcentaje">Porcentaje %</option>
+                    <option value="monto">Monto fijo (MXN)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">
+                    {form.anticipoTipo === "monto" ? "Anticipo MXN" : "Anticipo %"}
+                  </label>
                   <input
                     className="field"
                     type="number"
                     min="0"
-                    step="1"
-                    inputMode="numeric"
-                    value={form.reservaDiasMinimos}
+                    step={form.anticipoTipo === "monto" ? "0.01" : "1"}
+                    value={form.anticipoValor}
                     onChange={(e) =>
-                      setForm({ ...form, reservaDiasMinimos: e.target.value })
+                      setForm({ ...form, anticipoValor: e.target.value })
                     }
-                    aria-label="Días mínimos de anticipación"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    La fecha de reserva debe ser al menos hoy (CDMX) + estos días.
-                  </p>
                 </div>
-
-                <div>
-                  <label className="label">Cantidad mínima</label>
-                  <input
-                    className="field"
-                    type="number"
-                    min="1"
-                    step="1"
-                    inputMode="numeric"
-                    value={form.reservaCantidadMinima}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        reservaCantidadMinima: e.target.value,
-                      })
-                    }
-                    aria-label="Cantidad mínima de reserva"
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Mínimo por línea o pedido de reserva (entero ≥ 1).
-                  </p>
+              </div>
+            )}
+            {form.reservaHabilitada && (
+              <div>
+                <label className="label">Días mínimos de anticipación</label>
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {[3, 5].map((n) => {
+                    const activo = Number(form.reservaDiasMinimos) === n;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        className={
+                          activo
+                            ? "rounded-lg bg-miel px-3 py-1.5 text-sm font-medium text-primary-foreground"
+                            : "rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground"
+                        }
+                        onClick={() =>
+                          setForm({ ...form, reservaDiasMinimos: String(n) })
+                        }
+                      >
+                        {n} días
+                      </button>
+                    );
+                  })}
                 </div>
+                <input
+                  className="field"
+                  type="number"
+                  min="0"
+                  step="1"
+                  inputMode="numeric"
+                  value={form.reservaDiasMinimos}
+                  onChange={(e) =>
+                    setForm({ ...form, reservaDiasMinimos: e.target.value })
+                  }
+                  aria-label="Días mínimos de anticipación"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  La fecha de reserva debe ser al menos hoy (CDMX) + estos días.
+                </p>
+              </div>
+            )}
+            {form.reservaHabilitada && (
+              <div>
+                <label className="label">Cantidad mínima</label>
+                <input
+                  className="field"
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputMode="numeric"
+                  value={form.reservaCantidadMinima}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      reservaCantidadMinima: e.target.value,
+                    })
+                  }
+                  aria-label="Cantidad mínima de reserva"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Mínimo por línea o pedido de reserva (entero ≥ 1).
+                </p>
               </div>
             )}
           </div>
