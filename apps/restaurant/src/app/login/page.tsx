@@ -1,9 +1,9 @@
 "use client";
 
-import { apiFetch } from "@/lib/api";
-
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { isStaffRol } from "@/lib/roles";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,14 +22,28 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      const supabase = createClient();
+      const { data, error: authErr } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "No se pudo entrar");
+      if (authErr) {
+        setError(authErr.message || "No se pudo entrar");
+        return;
+      }
+      const uid = data.user?.id;
+      if (!uid) {
+        setError("Sesión inválida");
+        return;
+      }
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles")
+        .select("rol, activo")
+        .eq("id", uid)
+        .maybeSingle();
+      if (pErr || !profile?.activo || !isStaffRol(profile.rol)) {
+        await supabase.auth.signOut();
+        setError("Esta cuenta no es staff de Tostal.");
         return;
       }
       router.push("/productos");

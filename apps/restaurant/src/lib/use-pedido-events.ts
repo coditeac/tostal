@@ -1,18 +1,16 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { PedidoPublico } from "../../../../shared/types";
-import { getApiBase } from "./api";
+import { subscribePedidosFecha } from "@/lib/data/pedidos";
 
 type Handlers = {
-  onSnapshot?: (pedidos: PedidoPublico[]) => void;
-  onEvent?: (type: string, pedido: PedidoPublico) => void;
+  onSnapshot?: (pedidos: unknown[]) => void;
+  onEvent?: (type: string, pedido: unknown) => void;
   onError?: (message: string) => void;
 };
 
 /**
- * SSE autenticado hacia NestJS (credentials / cookie Domain=.tostal.cafe).
- * GET /api/pedidos/events?fecha=
+ * Realtime Supabase en `pedidos` (reemplaza SSE Nest).
  */
 export function useRestaurantPedidoEvents(
   fecha: string,
@@ -23,51 +21,16 @@ export function useRestaurantPedidoEvents(
   handlersRef.current = handlers;
 
   useEffect(() => {
-    if (!enabled || typeof EventSource === "undefined") return;
-
-    const url = `${getApiBase()}/api/pedidos/events?fecha=${encodeURIComponent(fecha)}`;
-    const es = new EventSource(url, { withCredentials: true });
-
-    const onSnapshot = (raw: MessageEvent) => {
-      try {
-        const data = JSON.parse(String(raw.data)) as {
-          pedidos?: PedidoPublico[];
-        };
-        if (data.pedidos) handlersRef.current.onSnapshot?.(data.pedidos);
-      } catch {
-        /* ignore */
-      }
-    };
-
-    const onPedidoEvent = (raw: MessageEvent) => {
-      try {
-        const data = JSON.parse(String(raw.data)) as {
-          type?: string;
-          pedido?: PedidoPublico;
-        };
-        if (data.pedido) {
-          handlersRef.current.onEvent?.(data.type || "estado_cambiado", data.pedido);
-        }
-      } catch {
-        /* ignore */
-      }
-    };
-
-    es.addEventListener("snapshot", onSnapshot as EventListener);
-    for (const t of [
-      "pedido_creado",
-      "estado_cambiado",
-      "pago_confirmado",
-      "listo",
-      "entregado",
-    ]) {
-      es.addEventListener(t, onPedidoEvent as EventListener);
+    if (!enabled) return;
+    try {
+      const unsub = subscribePedidosFecha(fecha, () => {
+        handlersRef.current.onEvent?.("estado_cambiado", {});
+      });
+      return unsub;
+    } catch (e) {
+      handlersRef.current.onError?.(
+        e instanceof Error ? e.message : "Realtime no disponible"
+      );
     }
-
-    es.onerror = () => {
-      handlersRef.current.onError?.("Reconectando cola…");
-    };
-
-    return () => es.close();
   }, [fecha, enabled]);
 }

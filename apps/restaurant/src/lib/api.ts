@@ -1,54 +1,33 @@
 /**
- * Cliente HTTP hacia apps/api (NestJS).
- * En producción: NEXT_PUBLIC_API_URL=https://api.tostal.cafe
- * Local: http://127.0.0.1:4331
+ * Compat shim: la UI ya no habla con Nest.
+ * Preferir @/lib/supabase/client y módulos data/*.
  */
 export function getApiBase() {
   return (
-    process.env.NEXT_PUBLIC_API_URL ||
-    process.env.NEXT_PUBLIC_TOSTAL_API_URL ||
-    "http://127.0.0.1:4331"
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    "https://yoxsldirdgdpsabsivac.supabase.co"
   ).replace(/\/$/, "");
 }
 
+/** @deprecated */
 export async function apiFetch(
-  path: string,
-  init?: RequestInit
+  _path: string,
+  _init?: RequestInit
 ): Promise<Response> {
-  const url = path.startsWith("http") ? path : `${getApiBase()}${path}`;
-  const isFormData =
-    typeof FormData !== "undefined" && init?.body instanceof FormData;
-  return fetch(url, {
-    ...init,
-    credentials: "include",
-    headers: {
-      // FormData: el browser pone multipart boundary; no forzar JSON.
-      ...(init?.body && !isFormData
-        ? { "Content-Type": "application/json" }
-        : {}),
-      ...init?.headers,
-    },
-  });
+  return new Response(
+    JSON.stringify({
+      error:
+        "API Nest desconectada. Usa el cliente Supabase de la app restaurant.",
+    }),
+    { status: 410, headers: { "Content-Type": "application/json" } }
+  );
 }
 
-/** Server Components: reenvía cookie del browser a la API Nest. */
+/** @deprecated */
 export async function apiFetchServer(
   path: string,
-  cookieHeader?: string,
+  _cookieHeader?: string,
   init?: RequestInit
 ): Promise<Response> {
-  const url = path.startsWith("http") ? path : `${getApiBase()}${path}`;
-  const isFormData =
-    typeof FormData !== "undefined" && init?.body instanceof FormData;
-  return fetch(url, {
-    ...init,
-    cache: "no-store",
-    headers: {
-      ...(cookieHeader ? { cookie: cookieHeader } : {}),
-      ...(init?.body && !isFormData
-        ? { "Content-Type": "application/json" }
-        : {}),
-      ...init?.headers,
-    },
-  });
+  return apiFetch(path, init);
 }
