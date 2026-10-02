@@ -1,4 +1,7 @@
-data/
+# SQLite / local volumes (not src/lib/data)
+/data/
+apps/api/data/
+apps/restaurant/data/
 .env*.local
 .next/
 .logs/
@@ -7,5 +10,4 @@ node_modules/
 *.sqlite-*
 agent-tools/
 
-apps/api/data/
 apps/api/dist/
