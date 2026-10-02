@@ -1,27 +1,32 @@
 "use client";
 
 import { useState } from "react";
+import { getApiBase } from "@/lib/api";
+import {
+  resolveProductoFotoUrl,
+  type ProductoFotoFields,
+} from "@/lib/contract";
 import { cn } from "@/lib/utils";
 
-/** Extrae URL de foto desde campos API (fotoUrl / imagen_url / …). */
+/** Convierte path relativo `/api/media/...` en URL absoluta al API. */
+export function absolutizeMediaUrl(url: string | null | undefined): string | null {
+  if (!url || typeof url !== "string") return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("data:")) {
+    return trimmed;
+  }
+  const base = getApiBase();
+  if (trimmed.startsWith("/")) return `${base}${trimmed}`;
+  return `${base}/${trimmed}`;
+}
+
+/** Extrae URL de foto desde campos API (imagen_url / foto_url / fotoUrl / …). */
 export function resolveFotoUrl(
-  source?: {
-    fotoUrl?: string | null;
-    foto_url?: string | null;
-    imagen_url?: string | null;
-    imagenUrl?: string | null;
-  } | null
+  source?: ProductoFotoFields | null
 ): string | null {
   if (!source) return null;
-  const raw =
-    source.fotoUrl ||
-    source.foto_url ||
-    source.imagen_url ||
-    source.imagenUrl ||
-    null;
-  if (typeof raw !== "string") return null;
-  const trimmed = raw.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  return absolutizeMediaUrl(resolveProductoFotoUrl(source));
 }
 
 type ProductImageProps = {
@@ -43,7 +48,7 @@ const SIZE: Record<NonNullable<ProductImageProps["size"]>, string> = {
 
 /**
  * Foto de producto con placeholder marca si falta URL o falla la carga.
- * Mobile-first; no fuerza next/image (URLs de storage variables).
+ * Consume `imagen_url` / `foto_url` / `fotoUrl` del menú público (PR #31).
  */
 export function ProductImage({
   src,
@@ -53,7 +58,8 @@ export function ProductImage({
   fallbackLabel,
 }: ProductImageProps) {
   const [broken, setBroken] = useState(false);
-  const showImg = Boolean(src) && !broken;
+  const resolved = absolutizeMediaUrl(src);
+  const showImg = Boolean(resolved) && !broken;
   const label =
     (fallbackLabel || alt || "?").trim().split(/\s+/)[0]?.slice(0, 10) || "·";
 
@@ -70,7 +76,7 @@ export function ProductImage({
       {showImg ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={src!}
+          src={resolved!}
           alt={alt}
           className="h-full w-full object-cover"
           loading="lazy"

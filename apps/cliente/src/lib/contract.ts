@@ -13,10 +13,19 @@ import type {
 
 export type AnticipoTipo = "porcentaje" | "monto" | "percent" | "fixed";
 
-export type MenuProducto = Producto & {
-  categoriaNombre: string | null;
-  disponible?: boolean;
+/** Campos foto del menú público (PR #31: aliases). */
+export type ProductoFotoFields = {
+  fotoUrl?: string | null;
+  foto_url?: string | null;
+  imagenUrl?: string | null;
+  imagen_url?: string | null;
 };
+
+export type MenuProducto = Producto &
+  ProductoFotoFields & {
+    categoriaNombre: string | null;
+    disponible?: boolean;
+  };
 
 /** Respuesta normalizada de GET /api/public/menu (hoy). */
 export type MenuHoy = {
@@ -162,16 +171,17 @@ export function normalizeMenuHoy(raw: RawMenu, fallbackFecha: string): MenuHoy {
   };
 }
 
-/** Normaliza foto: fotoUrl | foto_url | imagen_url | imagenUrl. */
+/** Normaliza foto: imagen_url | foto_url | fotoUrl | imagenUrl (PR #31). */
 export function resolveProductoFotoUrl(
-  raw: Record<string, unknown> | MenuProducto
+  raw: Record<string, unknown> | ProductoFotoFields | MenuProducto
 ): string | null {
   const r = raw as Record<string, unknown>;
+  // Preferir nombres de contrato snake_case del menú público.
   const candidates = [
-    r.fotoUrl,
-    r.foto_url,
     r.imagen_url,
+    r.foto_url,
     r.imagenUrl,
+    r.fotoUrl,
   ];
   for (const c of candidates) {
     if (typeof c === "string" && c.trim()) return c.trim();
