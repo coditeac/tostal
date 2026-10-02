@@ -14,14 +14,18 @@ import { Spinner } from "@/components/ui/spinner";
 import { SiteHeader } from "@/components/site-header";
 import {
   crearReserva,
+  fechaMinimaReservaISO,
   fetchReservasProductos,
   formatoMoneda,
   labelFecha,
-  mananaISO,
 } from "@/lib/api";
 import {
   calcularAnticipo,
   labelAnticipo,
+  labelCantidadMinima,
+  labelDiasMinimos,
+  maxDiasMinimos,
+  RESERVA_DIAS_MINIMOS_DEFAULT,
   type ReservaProducto,
 } from "@/lib/contract";
 import { METODO_PAGO } from "@/lib/labels";
@@ -35,7 +39,9 @@ export default function ReservasPage() {
   const [error, setError] = useState<string | null>(null);
   const [apiPendiente, setApiPendiente] = useState(false);
 
-  const [fecha, setFecha] = useState(mananaISO());
+  const [fecha, setFecha] = useState(() =>
+    fechaMinimaReservaISO(RESERVA_DIAS_MINIMOS_DEFAULT)
+  );
   const [lineas, setLineas] = useState<LineaLocal[]>([]);
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -91,6 +97,31 @@ export default function ReservasPage() {
     return m;
   }, [productos]);
 
+  const productosEnCarrito = useMemo(
+    () =>
+      lineas
+        .map((l) => byId.get(l.productoId))
+        .filter((p): p is ReservaProducto => Boolean(p)),
+    [lineas, byId]
+  );
+
+  /** Si hay líneas, exige el máximo N de esas; si no, el del catálogo (o default). */
+  const diasMinimosEfectivos = useMemo(() => {
+    if (productosEnCarrito.length > 0) {
+      return maxDiasMinimos(productosEnCarrito);
+    }
+    return maxDiasMinimos(productos, RESERVA_DIAS_MINIMOS_DEFAULT);
+  }, [productosEnCarrito, productos]);
+
+  const minFecha = useMemo(
+    () => fechaMinimaReservaISO(diasMinimosEfectivos),
+    [diasMinimosEfectivos]
+  );
+
+  useEffect(() => {
+    setFecha((prev) => (prev < minFecha ? minFecha : prev));
+  }, [minFecha]);
+
   const total = useMemo(() => {
     return lineas.reduce((acc, l) => {
       const p = byId.get(l.productoId);
@@ -100,7 +131,6 @@ export default function ReservasPage() {
 
   const anticipo = useMemo(() => {
     if (lineas.length === 0) return 0;
-    // Si hay varios productos, suma anticipos por línea (o % del total del primero dominante)
     return lineas.reduce((acc, l) => {
       const p = byId.get(l.productoId);
       if (!p) return acc;
@@ -109,20 +139,74 @@ export default function ReservasPage() {
     }, 0);
   }, [lineas, byId]);
 
+  const lineasBajoMinimo = useMemo(() => {
+    return lineas
+      .map((l) => {
+        const p = byId.get(l.productoId);
+        if (!p) return null;
+        if (l.cantidad >= p.reservaCantidadMinima) return null;
+        return {
+          nombre: p.nombre,
+          cantidad: l.cantidad,
+          minimo: p.reservaCantidadMinima,
+        };
+      })
+      .filter(
+        (x): x is { nombre: string; cantidad: number; minimo: number } =>
+          Boolean(x)
+      );
+  }, [lineas, byId]);
+
+  const fechaInvalida = Boolean(fecha && fecha < minFecha);
+
+  const bloqueoReglas = useMemo(() => {
+    if (fechaInvalida) {
+      return `La fecha debe ser desde el ${labelFecha(minFecha)} (${labelDiasMinimos(diasMinimosEfectivos).toLowerCase()}).`;
+    }
+    if (lineasBajoMinimo.length > 0) {
+      const detalle = lineasBajoMinimo
+        .map((x) => `${x.nombre}: mínimo ${x.minimo}`)
+        .join("; ");
+      return `Ajusta las cantidades: ${detalle}.`;
+    }
+    return null;
+  }, [fechaInvalida, minFecha, diasMinimosEfectivos, lineasBajoMinimo]);
+
   function qtyOf(id: string) {
     return lineas.find((l) => l.productoId === id)?.cantidad || 0;
   }
 
   function setQty(id: string, cantidad: number) {
+    const p = byId.get(id);
+    const minimo = p?.reservaCantidadMinima ?? 1;
     setLineas((prev) => {
       const rest = prev.filter((l) => l.productoId !== id);
       if (cantidad <= 0) return rest;
-      return [...rest, { productoId: id, cantidad }];
+      // No permitir cantidades entre 1 y (mínimo−1): saltar al mínimo.
+      const next = cantidad < minimo ? minimo : cantidad;
+      return [...rest, { productoId: id, cantidad: next }];
     });
   }
 
+  function agregarProducto(id: string) {
+    const p = byId.get(id);
+    const minimo = p?.reservaCantidadMinima ?? 1;
+    setQty(id, minimo);
+  }
+
+  function decrementar(id: string) {
+    const p = byId.get(id);
+    const minimo = p?.reservaCantidadMinima ?? 1;
+    const actual = qtyOf(id);
+    if (actual <= minimo) {
+      setLineas((prev) => prev.filter((l) => l.productoId !== id));
+      return;
+    }
+    setQty(id, actual - 1);
+  }
+
   async function confirmar() {
-    if (lineas.length === 0) return;
+    if (lineas.length === 0 || bloqueoReglas) return;
     setEnviando(true);
     setError(null);
     try {
@@ -159,8 +243,6 @@ export default function ReservasPage() {
     }
   }
 
-  const minFecha = mananaISO();
-
   return (
     <div className="page-shell">
       <div className="px-6 pt-5">
@@ -195,6 +277,12 @@ export default function ReservasPage() {
           </Alert>
         )}
 
+        {bloqueoReglas && lineas.length > 0 && (
+          <Alert variant="destructive">
+            <AlertDescription>{bloqueoReglas}</AlertDescription>
+          </Alert>
+        )}
+
         {loading ? (
           <div className="space-y-4">
             <Skeleton className="h-14 w-full rounded-lg" />
@@ -225,10 +313,19 @@ export default function ReservasPage() {
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value || minFecha)}
                 className="max-w-xs"
+                aria-invalid={fechaInvalida || undefined}
               />
               <p className="text-xs text-muted-foreground">
-                Desde mañana (calendario CDMX) · {labelFecha(fecha)}
+                {labelDiasMinimos(diasMinimosEfectivos)} · desde{" "}
+                {labelFecha(minFecha)}
+                {fecha ? ` · elegida ${labelFecha(fecha)}` : ""}
               </p>
+              {fechaInvalida && (
+                <p className="text-xs text-destructive">
+                  Esa fecha es demasiado pronto. Elige desde el{" "}
+                  {labelFecha(minFecha)}.
+                </p>
+              )}
             </section>
 
             <section className="section-block">
@@ -236,6 +333,8 @@ export default function ReservasPage() {
               <ul className="list-plain mt-2">
                 {productos.map((p, idx) => {
                   const qty = qtyOf(p.id);
+                  const bajoMinimo =
+                    qty > 0 && qty < p.reservaCantidadMinima;
                   return (
                     <li
                       key={p.id}
@@ -260,7 +359,18 @@ export default function ReservasPage() {
                             p.anticipoValor,
                             formatoMoneda
                           )}
+                          {" · "}
+                          {labelCantidadMinima(p.reservaCantidadMinima)}
+                          {p.reservaDiasMinimos > 0
+                            ? ` · ${p.reservaDiasMinimos} día${p.reservaDiasMinimos === 1 ? "" : "s"} de anticipación`
+                            : ""}
                         </p>
+                        {bajoMinimo && (
+                          <p className="mt-1 text-[11px] text-destructive">
+                            Mínimo {p.reservaCantidadMinima} unidades para
+                            reservar.
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5">
                         {qty > 0 ? (
@@ -269,7 +379,7 @@ export default function ReservasPage() {
                               type="button"
                               variant="outline"
                               size="icon-sm"
-                              onClick={() => setQty(p.id, qty - 1)}
+                              onClick={() => decrementar(p.id)}
                               aria-label="Quitar uno"
                             >
                               <Minus size={16} />
@@ -292,9 +402,11 @@ export default function ReservasPage() {
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => setQty(p.id, 1)}
+                            onClick={() => agregarProducto(p.id)}
                           >
-                            Agregar
+                            {p.reservaCantidadMinima > 1
+                              ? `Agregar ${p.reservaCantidadMinima}`
+                              : "Agregar"}
                           </Button>
                         )}
                       </div>
@@ -415,6 +527,7 @@ export default function ReservasPage() {
                     className="mx-auto flex w-full max-w-lg"
                     disabled={
                       enviando ||
+                      Boolean(bloqueoReglas) ||
                       !nombre.trim() ||
                       !telefono.trim() ||
                       !email.trim() ||
@@ -428,6 +541,8 @@ export default function ReservasPage() {
                         <Spinner />
                         Reservando…
                       </>
+                    ) : bloqueoReglas ? (
+                      "Revisa fecha o cantidades"
                     ) : (
                       `Reservar · anticipo ${formatoMoneda(anticipo)}`
                     )}

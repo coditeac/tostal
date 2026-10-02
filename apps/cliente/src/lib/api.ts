@@ -150,6 +150,18 @@ export function mananaISO(now: Date = new Date()): string {
   return sumarDiasISO(hoyISO(now), 1);
 }
 
+/**
+ * Fecha mínima de reserva según anticipación del producto:
+ * hoy CDMX + `diasMinimos` (0 = hoy permitido).
+ */
+export function fechaMinimaReservaISO(
+  diasMinimos: number,
+  now: Date = new Date()
+): string {
+  const n = Number.isFinite(diasMinimos) ? Math.max(0, Math.trunc(diasMinimos)) : 0;
+  return sumarDiasISO(hoyISO(now), n);
+}
+
 export function labelFecha(fecha: string): string {
   // Mediodía CDMX (UTC−6 fijo post-DST) para etiquetar el día calendario.
   const d = new Date(`${fecha}T12:00:00-06:00`);

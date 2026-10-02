@@ -31,6 +31,10 @@ export type MenuHoy = {
   config: ConfiguracionPublica;
 };
 
+/** Defaults contrato cuando el producto no define reglas. */
+export const RESERVA_DIAS_MINIMOS_DEFAULT = 3;
+export const RESERVA_CANTIDAD_MINIMA_DEFAULT = 1;
+
 /** Producto elegible para reserva (contrato). */
 export type ReservaProducto = {
   id: string;
@@ -43,6 +47,10 @@ export type ReservaProducto = {
   reservaHabilitada: boolean;
   anticipoTipo: AnticipoTipo | null;
   anticipoValor: number | null;
+  /** Anticipación mínima: fecha ≥ hoy CDMX + N días. */
+  reservaDiasMinimos: number;
+  /** Cantidad mínima por línea de reserva. */
+  reservaCantidadMinima: number;
 };
 
 export type ReservasProductosResponse = {
@@ -149,6 +157,17 @@ export function normalizeMenuHoy(raw: RawMenu, fallbackFecha: string): MenuHoy {
 
 type RawReservaProducto = Record<string, unknown>;
 
+function intOrDefault(raw: unknown, fallback: number, min: number): number {
+  const n =
+    typeof raw === "number"
+      ? raw
+      : typeof raw === "string" && raw.trim() !== ""
+        ? Number(raw)
+        : NaN;
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.trunc(n));
+}
+
 export function normalizeReservaProducto(raw: RawReservaProducto): ReservaProducto {
   const anticipoTipoRaw =
     (raw.anticipo_tipo as string | null | undefined) ??
@@ -177,7 +196,37 @@ export function normalizeReservaProducto(raw: RawReservaProducto): ReservaProduc
     anticipoTipo: (anticipoTipoRaw as AnticipoTipo | null) || "porcentaje",
     anticipoValor:
       typeof anticipoValorRaw === "number" ? anticipoValorRaw : 30,
+    reservaDiasMinimos: intOrDefault(
+      raw.reserva_dias_minimos ?? raw.reservaDiasMinimos,
+      RESERVA_DIAS_MINIMOS_DEFAULT,
+      0
+    ),
+    reservaCantidadMinima: intOrDefault(
+      raw.reserva_cantidad_minima ?? raw.reservaCantidadMinima,
+      RESERVA_CANTIDAD_MINIMA_DEFAULT,
+      1
+    ),
   };
+}
+
+/** Máximo de días mínimos entre productos seleccionados (o catálogo). */
+export function maxDiasMinimos(
+  productos: ReservaProducto[],
+  fallback = RESERVA_DIAS_MINIMOS_DEFAULT
+): number {
+  if (productos.length === 0) return fallback;
+  return Math.max(...productos.map((p) => p.reservaDiasMinimos));
+}
+
+export function labelDiasMinimos(dias: number): string {
+  if (dias <= 0) return "Puedes reservar desde hoy (CDMX)";
+  if (dias === 1) return "Con al menos 1 día de anticipación (CDMX)";
+  return `Con al menos ${dias} días de anticipación (CDMX)`;
+}
+
+export function labelCantidadMinima(min: number): string {
+  if (min <= 1) return "Cantidad mínima: 1";
+  return `Cantidad mínima: ${min}`;
 }
 
 /** Calcula anticipo en centavos a partir del total de líneas. */
