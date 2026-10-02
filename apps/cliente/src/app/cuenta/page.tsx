@@ -3,11 +3,16 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useClienteSession } from "@/lib/cliente-auth";
-import { getApiBase } from "@/lib/api";
-import { CLIENTE_AUTH_API } from "@tostal/shared/api-public";
-import type { PedidoPublico } from "@tostal/shared/types";
-import { formatoMoneda } from "@/lib/api";
+import { fetchMisPedidos, formatoMoneda } from "@/lib/api";
 import { labelEstado } from "@/lib/labels";
+
+type PedidoResumen = {
+  id: string;
+  codigo: string;
+  fechaEntrega: string;
+  estado: string;
+  total: number;
+};
 
 export default function CuentaPage() {
   const { user, loading, login, register, logout, refresh } =
@@ -19,15 +24,11 @@ export default function CuentaPage() {
   const [telefono, setTelefono] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [pedidos, setPedidos] = useState<PedidoPublico[]>([]);
+  const [pedidos, setPedidos] = useState<PedidoResumen[]>([]);
 
   async function loadPedidos() {
     try {
-      const res = await fetch(`${getApiBase()}${CLIENTE_AUTH_API.pedidos}`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (res.ok) setPedidos(data.pedidos || []);
+      setPedidos(await fetchMisPedidos());
     } catch {
       /* ignore */
     }

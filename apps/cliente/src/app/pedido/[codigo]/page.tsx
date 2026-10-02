@@ -32,34 +32,11 @@ function PedidoView() {
     setPaying(true);
     setError(null);
     try {
-      const base =
-        process.env.NEXT_PUBLIC_API_URL ||
-        process.env.NEXT_PUBLIC_TOSTAL_API_URL ||
-        "http://127.0.0.1:4331";
-      const res = await fetch(`${base.replace(/\/$/, "")}/api/pagos/stripe/checkout`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ codigo: pedido.codigo }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "No se pudo iniciar el pago");
-      if (data.mock) {
-        const conf = await fetch(
-          `${base.replace(/\/$/, "")}/api/pagos/stripe/mock-confirm`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ codigo: pedido.codigo }),
-          }
-        );
-        const confData = await conf.json();
-        if (!conf.ok) throw new Error(confData.error || "Mock falló");
-        setPedido(confData.pedido);
-      } else if (data.url) {
-        window.location.href = data.url;
-      }
+      // Stripe Checkout se cableará con Edge Function / Route Handler.
+      // Cutover Supabase: sin Nest. Mientras, transferencia / contra entrega.
+      throw new Error(
+        "Pago con tarjeta aún no disponible. Usa transferencia o contra entrega."
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error de pago");
     } finally {
