@@ -44,7 +44,12 @@ export async function updateStaffProfile(input: {
     updated_at: new Date().toISOString(),
   };
   if (input.nombre != null) patch.nombre = input.nombre;
-  if (input.rol != null) patch.rol = input.rol;
+  if (input.rol != null) {
+    if (input.rol === "superadmin") {
+      throw new Error("No se puede asignar superadmin desde la app.");
+    }
+    patch.rol = input.rol;
+  }
   if (input.activo != null) patch.activo = input.activo;
   const { error } = await supabase
     .from("profiles")
@@ -54,9 +59,8 @@ export async function updateStaffProfile(input: {
 }
 
 /**
- * Alta de staff: signup Auth + forzar rol en profiles.
- * Requiere que el actor sea admin/superadmin (RLS).
- * Password reset / invite admin API necesita SUPABASE_SERVICE_ROLE_KEY en server.
+ * Alta de staff vía API server (service_role).
+ * No usa signUp del browser: evita robar sesión admin y escalada por metadata.
  */
 export async function createStaffUser(input: {
   email: string;
@@ -64,29 +68,26 @@ export async function createStaffUser(input: {
   password: string;
   rol: StaffRol;
 }) {
-  const supabase = createClient();
-  const email = input.email.trim().toLowerCase();
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password: input.password,
-    options: {
-      data: { nombre: input.nombre, rol: input.rol },
-    },
-  });
-  if (error) throw new Error(error.message);
-  const id = data.user?.id;
-  if (!id) throw new Error("No se creó el usuario Auth");
-
-  // Trigger crea profile con rol metadata; reforzamos por si default quedó cliente.
-  const { error: e2 } = await supabase
-    .from("profiles")
-    .update({
-      nombre: input.nombre,
+  if (input.rol === "superadmin") {
+    throw new Error("No se puede crear superadmin desde la app.");
+  }
+  const res = await fetch("/api/staff", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: input.email.trim().toLowerCase(),
+      nombre: input.nombre.trim(),
+      password: input.password,
       rol: input.rol,
-      activo: true,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
-  if (e2) throw new Error(e2.message);
-  return id;
+    }),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    id?: string;
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(data.error || "No se pudo crear el usuario");
+  }
+  if (!data.id) throw new Error("No se creó el usuario Auth");
+  return data.id;
 }
