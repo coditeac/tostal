@@ -102,15 +102,18 @@ export function AlmacenStock() {
   return (
     <div className="space-y-4">
       {error && (
-        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error">{error}</p>
+        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error" role="alert">{error}</p>
       )}
 
       {alertas.length > 0 && (
-        <section className="surface border-alerta/40 p-4">
-          <h2 className="font-semibold text-alerta">Falta stock</h2>
+        <section className="surface border-alerta/40 p-4" aria-labelledby="alerta-stock">
+          <h2 id="alerta-stock" className="font-semibold text-alerta">Falta stock</h2>
           <ul className="mt-2 space-y-1 text-sm">
             {alertas.map((a) => (
               <li key={a.id}>
+                {a.critico ? (
+                  <span className="sr-only">Crítico: </span>
+                ) : null}
                 {a.critico ? "⚠ " : ""}
                 {a.nombre}: {a.stockActual} {a.unidad} (mín. {a.stockMinimo})
               </li>
@@ -122,8 +125,11 @@ export function AlmacenStock() {
       <section className="surface space-y-3 p-4">
         <h2 className="font-semibold">Registrar movimiento</h2>
         <div>
-          <label className="label">Insumo</label>
+          <label className="label" htmlFor="mov-insumo">
+            Insumo
+          </label>
           <select
+            id="mov-insumo"
             className="field"
             value={form.insumoId}
             onChange={(e) => setForm({ ...form, insumoId: e.target.value })}
@@ -137,8 +143,11 @@ export function AlmacenStock() {
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="label">Tipo</label>
+            <label className="label" htmlFor="mov-tipo">
+              Tipo
+            </label>
             <select
+              id="mov-tipo"
               className="field"
               value={form.tipo}
               onChange={(e) => setForm({ ...form, tipo: e.target.value })}
@@ -150,8 +159,11 @@ export function AlmacenStock() {
             </select>
           </div>
           <div>
-            <label className="label">Cantidad</label>
+            <label className="label" htmlFor="mov-cantidad">
+              Cantidad
+            </label>
             <input
+              id="mov-cantidad"
               className="field"
               type="number"
               value={form.cantidad}
@@ -161,8 +173,11 @@ export function AlmacenStock() {
         </div>
         {form.tipo === "entrada" && (
           <div>
-            <label className="label">Costo unitario (MXN, opcional)</label>
+            <label className="label" htmlFor="mov-costo">
+              Costo unitario (MXN, opcional)
+            </label>
             <input
+              id="mov-costo"
               className="field"
               type="number"
               step="0.001"
@@ -172,8 +187,11 @@ export function AlmacenStock() {
           </div>
         )}
         <div>
-          <label className="label">Motivo</label>
+          <label className="label" htmlFor="mov-motivo">
+            Motivo
+          </label>
           <input
+            id="mov-motivo"
             className="field"
             value={form.motivo}
             onChange={(e) => setForm({ ...form, motivo: e.target.value })}
@@ -213,10 +231,11 @@ export function AlmacenStock() {
               </div>
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  Mín.
+                  <span>Mín.</span>
                   <input
                     className="field w-16 py-1 text-sm"
                     type="number"
+                    aria-label={`Umbral mínimo de ${i.nombre}`}
                     defaultValue={i.stockMinimo}
                     onBlur={(e) => {
                       const v = Number(e.target.value);

@@ -355,27 +355,33 @@ export function ProductosCatalogo() {
       </div>
 
       {error && (
-        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error">
+        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error" role="alert">
           {error}
         </p>
       )}
 
       {editId && (
-        <section className="surface space-y-3 p-4">
-          <h2 className="font-semibold">
+        <section className="surface space-y-3 p-4" aria-labelledby="producto-editor-title">
+          <h2 id="producto-editor-title" className="font-semibold">
             {editId === "nuevo" ? "Nuevo producto" : "Editar producto"}
           </h2>
           <div>
-            <label className="label">Nombre</label>
+            <label className="label" htmlFor="prod-nombre">
+              Nombre
+            </label>
             <input
+              id="prod-nombre"
               className="field"
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
             />
           </div>
           <div>
-            <label className="label">Descripción</label>
+            <label className="label" htmlFor="prod-desc">
+              Descripción
+            </label>
             <textarea
+              id="prod-desc"
               className="field min-h-20"
               value={form.descripcion}
               onChange={(e) =>
@@ -493,8 +499,11 @@ export function ProductosCatalogo() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Precio (MXN)</label>
+              <label className="label" htmlFor="prod-precio">
+                Precio (MXN)
+              </label>
               <input
+                id="prod-precio"
                 className="field"
                 type="number"
                 step="0.01"
@@ -505,8 +514,11 @@ export function ProductosCatalogo() {
               />
             </div>
             <div>
-              <label className="label">Categoría</label>
+              <label className="label" htmlFor="prod-categoria">
+                Categoría
+              </label>
               <select
+                id="prod-categoria"
                 className="field"
                 value={form.categoriaId}
                 onChange={(e) =>
@@ -523,16 +535,22 @@ export function ProductosCatalogo() {
             </div>
           </div>
           <div>
-            <label className="label">Alérgenos</label>
+            <label className="label" htmlFor="prod-alergenos">
+              Alérgenos
+            </label>
             <input
+              id="prod-alergenos"
               className="field"
               value={form.alergenos}
               onChange={(e) => setForm({ ...form, alergenos: e.target.value })}
             />
           </div>
           <div>
-            <label className="label">Duraciones (admin Tostal, no Stripe)</label>
+            <label className="label" htmlFor="prod-duraciones">
+              Duraciones (admin Tostal, no Stripe)
+            </label>
             <input
+              id="prod-duraciones"
               className="field"
               placeholder="mismo día, 2 días, fin de semana…"
               value={form.duracionesTexto}
@@ -541,7 +559,7 @@ export function ProductosCatalogo() {
               }
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Separadas por coma. Precio y duraciones viven en Postgres vía API.
+              Separadas por coma. Se guardan con el producto.
             </p>
           </div>
           <label className="flex items-center gap-2 text-sm">
@@ -587,8 +605,11 @@ export function ProductosCatalogo() {
             {form.reservaHabilitada && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label">Tipo de anticipo</label>
+                  <label className="label" htmlFor="prod-anticipo-tipo">
+                    Tipo de anticipo
+                  </label>
                   <select
+                    id="prod-anticipo-tipo"
                     className="field"
                     value={form.anticipoTipo}
                     onChange={(e) =>
@@ -603,10 +624,11 @@ export function ProductosCatalogo() {
                   </select>
                 </div>
                 <div>
-                  <label className="label">
+                  <label className="label" htmlFor="prod-anticipo-valor">
                     {form.anticipoTipo === "monto" ? "Anticipo MXN" : "Anticipo %"}
                   </label>
                   <input
+                    id="prod-anticipo-valor"
                     className="field"
                     type="number"
                     min="0"
@@ -621,14 +643,17 @@ export function ProductosCatalogo() {
             )}
             {form.reservaHabilitada && (
               <div>
-                <label className="label">Días mínimos de anticipación</label>
-                <div className="mb-2 flex flex-wrap gap-2">
+                <label className="label" htmlFor="prod-dias-min">
+                  Días mínimos de anticipación
+                </label>
+                <div className="mb-2 flex flex-wrap gap-2" role="group" aria-label="Atajos de días mínimos">
                   {[3, 5].map((n) => {
                     const activo = Number(form.reservaDiasMinimos) === n;
                     return (
                       <button
                         key={n}
                         type="button"
+                        aria-pressed={activo}
                         className={
                           activo
                             ? "rounded-lg bg-miel px-3 py-1.5 text-sm font-medium text-primary-foreground"
@@ -644,6 +669,7 @@ export function ProductosCatalogo() {
                   })}
                 </div>
                 <input
+                  id="prod-dias-min"
                   className="field"
                   type="number"
                   min="0"
@@ -653,7 +679,6 @@ export function ProductosCatalogo() {
                   onChange={(e) =>
                     setForm({ ...form, reservaDiasMinimos: e.target.value })
                   }
-                  aria-label="Días mínimos de anticipación"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
                   La fecha de reserva debe ser al menos hoy (CDMX) + estos días.
@@ -662,8 +687,11 @@ export function ProductosCatalogo() {
             )}
             {form.reservaHabilitada && (
               <div>
-                <label className="label">Cantidad mínima</label>
+                <label className="label" htmlFor="prod-cant-min">
+                  Cantidad mínima
+                </label>
                 <input
+                  id="prod-cant-min"
                   className="field"
                   type="number"
                   min="1"
@@ -676,7 +704,6 @@ export function ProductosCatalogo() {
                       reservaCantidadMinima: e.target.value,
                     })
                   }
-                  aria-label="Cantidad mínima de reserva"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
                   Mínimo por línea o pedido de reserva (entero ≥ 1).
@@ -695,7 +722,7 @@ export function ProductosCatalogo() {
               </div>
               <button
                 type="button"
-                className="text-sm font-semibold text-miel-dark"
+                className="text-sm font-semibold text-miel-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 onClick={() =>
                   setRecetaDraft([
                     ...recetaDraft,
@@ -707,8 +734,11 @@ export function ProductosCatalogo() {
               </button>
             </div>
             <div>
-              <label className="label">Esta receta rinde N piezas</label>
+              <label className="label" htmlFor="prod-rendimiento">
+                Esta receta rinde N piezas
+              </label>
               <input
+                id="prod-rendimiento"
                 className="field"
                 type="number"
                 min="1"
@@ -718,7 +748,6 @@ export function ProductosCatalogo() {
                 onChange={(e) =>
                   setForm({ ...form, recetaRendimiento: e.target.value })
                 }
-                aria-label="Esta receta rinde N piezas"
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 Ej. 9 roles con 2 huevos en el lote → ≈ {formatCantidad(2 / Math.max(1, rendimientoDraft))} huevos por pieza.
@@ -730,6 +759,7 @@ export function ProductosCatalogo() {
                   <select
                     className="field"
                     value={r.insumoId}
+                    aria-label={`Insumo de la línea ${idx + 1}`}
                     onChange={(e) => {
                       const next = [...recetaDraft];
                       next[idx] = { ...r, insumoId: e.target.value };
@@ -748,7 +778,7 @@ export function ProductosCatalogo() {
                     min="0"
                     step="any"
                     placeholder="Cant. lote"
-                    aria-label="Cantidad del lote"
+                    aria-label={`Cantidad del lote, línea ${idx + 1}`}
                     value={r.cantidad}
                     onChange={(e) => {
                       const next = [...recetaDraft];
@@ -762,7 +792,7 @@ export function ProductosCatalogo() {
             {previewLineas.length > 0 && (
               <div className="rounded-xl bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                 <p className="font-medium text-foreground">
-                  Por pieza (API · rinde {rendimientoDraft})
+                  Por pieza (rinde {rendimientoDraft})
                 </p>
                 <ul className="mt-1 space-y-0.5">
                   {previewLineas.map((l) => (
@@ -776,12 +806,6 @@ export function ProductosCatalogo() {
                 </ul>
                 <p className="mt-2 font-medium text-foreground">
                   Costo calculado / pieza ≈ {formatoMoneda(previewCostoPieza)}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Preview local = lote ÷ rendimiento (igual que{" "}
-                  <code className="text-[10px]">por_pieza</code> /{" "}
-                  <code className="text-[10px]">costo_calculado</code> al
-                  guardar).
                 </p>
               </div>
             )}
@@ -825,7 +849,7 @@ export function ProductosCatalogo() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={p.fotoUrl}
-                        alt=""
+                        alt={p.nombre}
                         className="h-full w-full object-cover"
                       />
                     ) : (
@@ -881,7 +905,8 @@ export function ProductosCatalogo() {
               )}
               <button
                 type="button"
-                className="mt-3 text-sm font-semibold text-miel-dark"
+                className="mt-3 min-h-[var(--tap)] text-sm font-semibold text-miel-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                aria-label={`Editar ${p.nombre}`}
                 onClick={() => startEdit(p)}
               >
                 Editar

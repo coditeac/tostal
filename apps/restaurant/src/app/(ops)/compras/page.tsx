@@ -260,17 +260,20 @@ export default function ComprasPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Compras</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Tienda → recomendaciones → confirmar (`cerrar_compra` → gasto)
+          Elige tienda, arma la lista y cierra la compra (entra stock y gasto)
         </p>
       </div>
 
       {error && (
-        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error">
+        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error" role="alert">
           {error}
         </p>
       )}
       {okMsg && (
-        <p className="rounded-xl bg-[color-mix(in_srgb,var(--tostal-ok)_12%,white)] px-3 py-2 text-sm text-ok">
+        <p
+          className="rounded-xl bg-[color-mix(in_srgb,var(--tostal-ok)_12%,white)] px-3 py-2 text-sm text-ok"
+          role="status"
+        >
           {okMsg}
         </p>
       )}
@@ -338,20 +341,31 @@ export default function ComprasPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Agregar insumo</h2>
+        <label className="label" htmlFor="compra-buscar">
+          Buscar en catálogo
+        </label>
         <input
+          id="compra-buscar"
           className="field"
           placeholder="Buscar insumo…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoComplete="off"
+          aria-autocomplete="list"
+          aria-controls={matches.length > 0 ? "compra-matches" : undefined}
         />
         {matches.length > 0 && (
-          <ul className="overflow-hidden rounded-xl border border-border divide-y divide-border">
+          <ul
+            id="compra-matches"
+            role="listbox"
+            aria-label="Resultados de insumos"
+            className="overflow-hidden rounded-xl border border-border divide-y divide-border"
+          >
             {matches.map((i) => (
-              <li key={i.id}>
+              <li key={i.id} role="option">
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between gap-2 px-3 py-3 text-left text-sm hover:bg-secondary"
+                  className="flex w-full items-center justify-between gap-2 px-3 py-3 text-left text-sm hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   onClick={() => addInsumo(i)}
                 >
                   <span>
@@ -368,7 +382,8 @@ export default function ComprasPage() {
         )}
         <button
           type="button"
-          className="text-sm font-semibold text-miel"
+          className="text-sm font-semibold text-miel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          aria-expanded={nuevoOpen}
           onClick={() => setNuevoOpen((v) => !v)}
         >
           {nuevoOpen ? "Cancelar insumo nuevo" : "+ Insumo nuevo"}
@@ -376,8 +391,11 @@ export default function ComprasPage() {
         {nuevoOpen && (
           <div className="space-y-3 border-y border-border py-4">
             <div>
-              <label className="label">Nombre</label>
+              <label className="label" htmlFor="nuevo-nombre">
+                Nombre
+              </label>
               <input
+                id="nuevo-nombre"
                 className="field"
                 value={nuevo.nombre}
                 onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })}
@@ -385,8 +403,11 @@ export default function ComprasPage() {
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="label">Unidad</label>
+                <label className="label" htmlFor="nuevo-unidad">
+                  Unidad
+                </label>
                 <select
+                  id="nuevo-unidad"
                   className="field"
                   value={nuevo.unidad}
                   onChange={(e) =>
@@ -399,8 +420,11 @@ export default function ComprasPage() {
                 </select>
               </div>
               <div>
-                <label className="label">Cantidad</label>
+                <label className="label" htmlFor="nuevo-cantidad">
+                  Cantidad
+                </label>
                 <input
+                  id="nuevo-cantidad"
                   className="field"
                   type="number"
                   value={nuevo.cantidad}
@@ -410,8 +434,11 @@ export default function ComprasPage() {
                 />
               </div>
               <div>
-                <label className="label">Costo / u (MXN)</label>
+                <label className="label" htmlFor="nuevo-costo">
+                  Costo / u (MXN)
+                </label>
                 <input
+                  id="nuevo-costo"
                   className="field"
                   type="number"
                   step="0.01"
@@ -458,8 +485,11 @@ export default function ComprasPage() {
                   <p className="text-xs text-muted-foreground">{l.unidad}</p>
                 </div>
                 <div>
-                  <label className="label">Cant.</label>
+                  <label className="label" htmlFor={`linea-cant-${l.key}`}>
+                    Cant.
+                  </label>
                   <input
+                    id={`linea-cant-${l.key}`}
                     className="field"
                     type="number"
                     value={l.cantidad}
@@ -475,8 +505,11 @@ export default function ComprasPage() {
                   />
                 </div>
                 <div>
-                  <label className="label">$/u</label>
+                  <label className="label" htmlFor={`linea-costo-${l.key}`}>
+                    $/u
+                  </label>
                   <input
+                    id={`linea-costo-${l.key}`}
                     className="field"
                     type="number"
                     step="0.01"
@@ -494,7 +527,8 @@ export default function ComprasPage() {
                 </div>
                 <button
                   type="button"
-                  className="pb-2 text-xs text-muted-foreground"
+                  className="min-h-[var(--tap)] pb-2 text-xs text-muted-foreground underline-offset-2 hover:underline"
+                  aria-label={`Quitar ${l.nombre} de la compra`}
                   onClick={() =>
                     setLineas((prev) => prev.filter((x) => x.key !== l.key))
                   }
