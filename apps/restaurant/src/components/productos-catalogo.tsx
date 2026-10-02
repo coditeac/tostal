@@ -20,6 +20,10 @@ type Producto = {
   reservaHabilitada?: boolean;
   anticipoTipo?: "porcentaje" | "monto" | null;
   anticipoValor?: number | null;
+  /** Anticipación mínima en días (CDMX): fecha ≥ hoy + N. */
+  reservaDiasMinimos?: number;
+  /** Cantidad mínima por línea/pedido de reserva. */
+  reservaCantidadMinima?: number;
   duraciones?: Array<{ id: string; etiqueta: string }> | null;
   receta: Array<{
     id: string;
@@ -51,6 +55,8 @@ export function ProductosCatalogo() {
     reservaHabilitada: false,
     anticipoTipo: "porcentaje" as "porcentaje" | "monto",
     anticipoValor: "",
+    reservaDiasMinimos: "3",
+    reservaCantidadMinima: "1",
   });
   const [recetaDraft, setRecetaDraft] = useState<
     Array<{ insumoId: string; cantidad: string }>
@@ -88,6 +94,12 @@ export function ProductosCatalogo() {
               : p.anticipo_valor != null
                 ? Number(p.anticipo_valor)
                 : null,
+          reservaDiasMinimos: Number(
+            p.reservaDiasMinimos ?? p.reserva_dias_minimos ?? 3
+          ),
+          reservaCantidadMinima: Number(
+            p.reservaCantidadMinima ?? p.reserva_cantidad_minima ?? 1
+          ),
         })
       ) as Producto[];
       setProductos(list);
@@ -117,6 +129,8 @@ export function ProductosCatalogo() {
       reservaHabilitada: false,
       anticipoTipo: "porcentaje",
       anticipoValor: "30",
+      reservaDiasMinimos: "3",
+      reservaCantidadMinima: "1",
     });
     setRecetaDraft([{ insumoId: insumos[0]?.id || "", cantidad: "" }]);
   }
@@ -141,6 +155,16 @@ export function ProductosCatalogo() {
       reservaHabilitada: Boolean(p.reservaHabilitada),
       anticipoTipo: p.anticipoTipo === "monto" ? "monto" : "porcentaje",
       anticipoValor: anticipoMostrar || (p.reservaHabilitada ? "30" : ""),
+      reservaDiasMinimos: String(
+        p.reservaDiasMinimos != null && p.reservaDiasMinimos >= 0
+          ? p.reservaDiasMinimos
+          : 3
+      ),
+      reservaCantidadMinima: String(
+        p.reservaCantidadMinima != null && p.reservaCantidadMinima >= 1
+          ? p.reservaCantidadMinima
+          : 1
+      ),
     });
     setRecetaDraft(
       p.receta.length
@@ -161,6 +185,8 @@ export function ProductosCatalogo() {
         form.anticipoTipo === "monto"
           ? Math.round(anticipoValorNum * 100)
           : anticipoValorNum;
+      const diasMin = Math.max(0, Math.floor(Number(form.reservaDiasMinimos) || 0));
+      const cantMin = Math.max(1, Math.floor(Number(form.reservaCantidadMinima) || 1));
       const payload = {
         id: editId === "nuevo" ? undefined : editId,
         nombre: form.nombre,
@@ -176,6 +202,10 @@ export function ProductosCatalogo() {
         anticipoTipo: form.reservaHabilitada ? form.anticipoTipo : null,
         anticipo_valor: form.reservaHabilitada ? anticipoValorPayload : null,
         anticipoValor: form.reservaHabilitada ? anticipoValorPayload : null,
+        reserva_dias_minimos: diasMin,
+        reservaDiasMinimos: diasMin,
+        reserva_cantidad_minima: cantMin,
+        reservaCantidadMinima: cantMin,
         receta: recetaDraft
           .filter((r) => r.insumoId && Number(r.cantidad) > 0)
           .map((r) => ({
@@ -338,6 +368,14 @@ export function ProductosCatalogo() {
                     reservaHabilitada: checked,
                     anticipoValor:
                       checked && !form.anticipoValor ? "30" : form.anticipoValor,
+                    reservaDiasMinimos:
+                      checked && !form.reservaDiasMinimos
+                        ? "3"
+                        : form.reservaDiasMinimos,
+                    reservaCantidadMinima:
+                      checked && !form.reservaCantidadMinima
+                        ? "1"
+                        : form.reservaCantidadMinima,
                   })
                 }
                 aria-label="Habilitar reserva"
@@ -376,6 +414,70 @@ export function ProductosCatalogo() {
                     }
                   />
                 </div>
+              </div>
+            )}
+            {form.reservaHabilitada && (
+              <div>
+                <label className="label">Días mínimos de anticipación</label>
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {[3, 5].map((n) => {
+                    const activo = Number(form.reservaDiasMinimos) === n;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        className={
+                          activo
+                            ? "rounded-lg bg-miel px-3 py-1.5 text-sm font-medium text-primary-foreground"
+                            : "rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground"
+                        }
+                        onClick={() =>
+                          setForm({ ...form, reservaDiasMinimos: String(n) })
+                        }
+                      >
+                        {n} días
+                      </button>
+                    );
+                  })}
+                </div>
+                <input
+                  className="field"
+                  type="number"
+                  min="0"
+                  step="1"
+                  inputMode="numeric"
+                  value={form.reservaDiasMinimos}
+                  onChange={(e) =>
+                    setForm({ ...form, reservaDiasMinimos: e.target.value })
+                  }
+                  aria-label="Días mínimos de anticipación"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  La fecha de reserva debe ser al menos hoy (CDMX) + estos días.
+                </p>
+              </div>
+            )}
+            {form.reservaHabilitada && (
+              <div>
+                <label className="label">Cantidad mínima</label>
+                <input
+                  className="field"
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputMode="numeric"
+                  value={form.reservaCantidadMinima}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      reservaCantidadMinima: e.target.value,
+                    })
+                  }
+                  aria-label="Cantidad mínima de reserva"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Mínimo por línea o pedido de reserva (entero ≥ 1).
+                </p>
               </div>
             )}
           </div>
@@ -480,7 +582,7 @@ export function ProductosCatalogo() {
                       p.anticipoTipo === "monto"
                         ? formatoMoneda(p.anticipoValor || 0)
                         : `${p.anticipoValor ?? 0}%`
-                    }`
+                    } · min ${p.reservaDiasMinimos ?? 3}d / qty ${p.reservaCantidadMinima ?? 1}`
                   : ""}
               </p>
               {p.receta.length > 0 && (
