@@ -162,7 +162,7 @@ export default function FinanzasPage() {
       </div>
 
       {error && (
-        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error">
+        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error" role="alert">
           {error}
         </p>
       )}
@@ -194,30 +194,42 @@ export default function FinanzasPage() {
         </div>
       )}
 
-      <div className="flex gap-4 border-b border-border text-sm">
+      <div
+        role="tablist"
+        aria-label="Secciones de finanzas"
+        className="flex gap-4 border-b border-border text-sm"
+      >
         {(
           [
             { id: "gastos", label: "Gastos" },
             { id: "ingresos", label: "Ingresos" },
           ] as const
-        ).map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`border-b-2 pb-2.5 transition-colors ${
-              tab === t.id
-                ? "border-miel font-medium text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+        ).map((t) => {
+          const selected = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              id={`tab-${t.id}`}
+              aria-selected={selected}
+              aria-controls={`panel-${t.id}`}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => setTab(t.id)}
+              className={`border-b-2 pb-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                selected
+                  ? "border-miel font-medium text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {tab === "ingresos" ? (
-        <>
+        <div role="tabpanel" id="panel-ingresos" aria-labelledby="tab-ingresos">
           {resumen &&
             (resumen.ventasPedidos || resumen.anticiposReservas) && (
               <ul className="divide-y divide-border border-y border-border text-sm">
@@ -242,8 +254,11 @@ export default function FinanzasPage() {
             <h2 className="text-sm font-semibold">Nuevo ingreso</h2>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="label">Categoría</label>
+                <label className="label" htmlFor="ingreso-categoria">
+                  Categoría
+                </label>
                 <select
+                  id="ingreso-categoria"
                   className="field"
                   value={ingresoForm.categoria}
                   onChange={(e) =>
@@ -264,8 +279,11 @@ export default function FinanzasPage() {
                 </select>
               </div>
               <div>
-                <label className="label">Monto (MXN)</label>
+                <label className="label" htmlFor="ingreso-monto">
+                  Monto (MXN)
+                </label>
                 <input
+                  id="ingreso-monto"
                   className="field"
                   type="number"
                   step="0.01"
@@ -281,8 +299,11 @@ export default function FinanzasPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="label">Fecha</label>
+                <label className="label" htmlFor="ingreso-fecha">
+                  Fecha
+                </label>
                 <input
+                  id="ingreso-fecha"
                   className="field"
                   type="date"
                   value={ingresoForm.fecha}
@@ -292,8 +313,11 @@ export default function FinanzasPage() {
                 />
               </div>
               <div>
-                <label className="label">Pago</label>
+                <label className="label" htmlFor="ingreso-pago">
+                  Pago
+                </label>
                 <select
+                  id="ingreso-pago"
                   className="field"
                   value={ingresoForm.metodoPago}
                   onChange={(e) =>
@@ -310,8 +334,11 @@ export default function FinanzasPage() {
               </div>
             </div>
             <div>
-              <label className="label">Notas</label>
+              <label className="label" htmlFor="ingreso-notas">
+                Notas
+              </label>
               <input
+                id="ingreso-notas"
                 className="field"
                 value={ingresoForm.notas}
                 onChange={(e) =>
@@ -353,7 +380,8 @@ export default function FinanzasPage() {
                       </p>
                       <button
                         type="button"
-                        className="text-xs text-muted-foreground"
+                        className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                        aria-label={`Borrar ingreso ${g.categoria} del ${g.fecha}`}
                         onClick={() => void borrarIngreso(g.id)}
                       >
                         Borrar
@@ -364,15 +392,18 @@ export default function FinanzasPage() {
               </ul>
             )}
           </section>
-        </>
+        </div>
       ) : (
-        <>
+        <div role="tabpanel" id="panel-gastos" aria-labelledby="tab-gastos">
           <section className="space-y-3 border-y border-border py-4">
             <h2 className="text-sm font-semibold">Nuevo gasto</h2>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="label">Categoría</label>
+                <label className="label" htmlFor="gasto-categoria">
+                  Categoría
+                </label>
                 <select
+                  id="gasto-categoria"
                   className="field"
                   value={gastoForm.categoria}
                   onChange={(e) =>
@@ -390,8 +421,11 @@ export default function FinanzasPage() {
                 </select>
               </div>
               <div>
-                <label className="label">Monto (MXN)</label>
+                <label className="label" htmlFor="gasto-monto">
+                  Monto (MXN)
+                </label>
                 <input
+                  id="gasto-monto"
                   className="field"
                   type="number"
                   step="0.01"
@@ -404,8 +438,11 @@ export default function FinanzasPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="label">Fecha</label>
+                <label className="label" htmlFor="gasto-fecha">
+                  Fecha
+                </label>
                 <input
+                  id="gasto-fecha"
                   className="field"
                   type="date"
                   value={gastoForm.fecha}
@@ -415,8 +452,11 @@ export default function FinanzasPage() {
                 />
               </div>
               <div>
-                <label className="label">Pago</label>
+                <label className="label" htmlFor="gasto-pago">
+                  Pago
+                </label>
                 <select
+                  id="gasto-pago"
                   className="field"
                   value={gastoForm.metodoPago}
                   onChange={(e) =>
@@ -430,8 +470,11 @@ export default function FinanzasPage() {
               </div>
             </div>
             <div>
-              <label className="label">Notas</label>
+              <label className="label" htmlFor="gasto-notas">
+                Notas
+              </label>
               <input
+                id="gasto-notas"
                 className="field"
                 value={gastoForm.notas}
                 onChange={(e) =>
@@ -473,7 +516,8 @@ export default function FinanzasPage() {
                       </p>
                       <button
                         type="button"
-                        className="text-xs text-muted-foreground"
+                        className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                        aria-label={`Borrar gasto ${g.categoria} del ${g.fecha}`}
                         onClick={() => void borrarGasto(g.id)}
                       >
                         Borrar
@@ -484,7 +528,7 @@ export default function FinanzasPage() {
               </ul>
             )}
           </section>
-        </>
+        </div>
       )}
     </div>
   );

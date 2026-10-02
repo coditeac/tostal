@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AlmacenStock } from "@/components/almacen-stock";
 import { InsumosCatalogo } from "@/components/insumos-catalogo";
+import { ModuleTabPanel, ModuleTabs } from "@/components/module-tabs";
 
 type Tab = "stock" | "insumos";
 
@@ -18,29 +19,22 @@ export default function AlmacenPage() {
         </p>
       </div>
 
-      <div className="flex gap-4 border-b border-border text-sm">
-        {(
-          [
-            { id: "stock", label: "Stock" },
-            { id: "insumos", label: "Insumos" },
-          ] as const
-        ).map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`border-b-2 pb-2.5 transition-colors ${
-              tab === t.id
-                ? "border-miel font-medium text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <ModuleTabs
+        label="Secciones de almacén"
+        tabs={[
+          { id: "stock", label: "Stock" },
+          { id: "insumos", label: "Insumos" },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
 
-      {tab === "stock" ? <AlmacenStock /> : <InsumosCatalogo />}
+      <ModuleTabPanel id="stock" labelledBy="stock" active={tab === "stock"}>
+        <AlmacenStock />
+      </ModuleTabPanel>
+      <ModuleTabPanel id="insumos" labelledBy="insumos" active={tab === "insumos"}>
+        <InsumosCatalogo />
+      </ModuleTabPanel>
     </div>
   );
 }

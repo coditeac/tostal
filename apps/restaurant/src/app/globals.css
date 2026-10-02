@@ -56,7 +56,7 @@
   --secondary: var(--tostal-papel-2);
   --secondary-foreground: var(--tostal-ink);
   --muted: var(--tostal-papel-2);
-  --muted-foreground: #71717a;
+  --muted-foreground: #52525b;
   --accent: var(--tostal-marca-soft);
   --accent-foreground: var(--tostal-ink);
   --destructive: var(--tostal-error);
@@ -324,6 +324,27 @@ a {
   border-top: 1px solid var(--border);
   backdrop-filter: blur(12px);
   padding: 0.35rem 0.35rem calc(0.4rem + env(safe-area-inset-bottom));
+}
+
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: 0.75rem;
+  z-index: 100;
+  transform: translateY(-160%);
+  border-radius: var(--radius);
+  background: var(--tostal-marca);
+  color: var(--tostal-crema-logo);
+  padding: 0.55rem 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: transform 0.15s ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid var(--tostal-crema-logo);
+  outline-offset: 2px;
 }
 
 .badge {

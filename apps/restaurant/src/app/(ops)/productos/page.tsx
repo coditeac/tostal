@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ProductosCatalogo } from "@/components/productos-catalogo";
 import { MenuDiaPanel } from "@/components/menu-dia-panel";
+import { ModuleTabPanel, ModuleTabs } from "@/components/module-tabs";
 
 type Tab = "catalogo" | "dia";
 
@@ -18,29 +19,22 @@ export default function ProductosPage() {
         </p>
       </div>
 
-      <div className="flex gap-4 border-b border-border text-sm">
-        {(
-          [
-            { id: "catalogo", label: "Catálogo" },
-            { id: "dia", label: "Día de venta" },
-          ] as const
-        ).map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`border-b-2 pb-2.5 transition-colors ${
-              tab === t.id
-                ? "border-miel font-medium text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <ModuleTabs
+        label="Secciones de productos"
+        tabs={[
+          { id: "catalogo", label: "Catálogo" },
+          { id: "dia", label: "Día de venta" },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
 
-      {tab === "catalogo" ? <ProductosCatalogo /> : <MenuDiaPanel />}
+      <ModuleTabPanel id="catalogo" labelledBy="catalogo" active={tab === "catalogo"}>
+        <ProductosCatalogo />
+      </ModuleTabPanel>
+      <ModuleTabPanel id="dia" labelledBy="dia" active={tab === "dia"}>
+        <MenuDiaPanel />
+      </ModuleTabPanel>
     </div>
   );
 }

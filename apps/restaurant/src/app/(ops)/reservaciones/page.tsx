@@ -119,12 +119,12 @@ export default function ReservasPage() {
       )}
 
       {error && (
-        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error">
+        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-error" role="alert">
           {error}
         </p>
       )}
       {info && (
-        <p className="rounded-xl bg-secondary px-3 py-2 text-sm text-muted-foreground">
+        <p className="rounded-xl bg-secondary px-3 py-2 text-sm text-muted-foreground" role="status">
           {info}
         </p>
       )}
@@ -147,7 +147,9 @@ export default function ReservasPage() {
               <li key={r.id} className="space-y-3 py-4">
                 <button
                   type="button"
-                  className="flex w-full items-start justify-between gap-3 text-left"
+                  className="flex w-full items-start justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  aria-expanded={open}
+                  aria-controls={`reserva-detalle-${r.id}`}
                   onClick={() => setOpenId(open ? null : r.id)}
                 >
                   <div className="min-w-0">
@@ -187,7 +189,10 @@ export default function ReservasPage() {
                 />
 
                 {open && (
-                  <div className="space-y-3 rounded-xl bg-secondary/60 px-3 py-3">
+                  <div
+                    id={`reserva-detalle-${r.id}`}
+                    className="space-y-3 rounded-xl bg-secondary/60 px-3 py-3"
+                  >
                     {r.clienteTelefono && (
                       <p className="text-xs text-muted-foreground">
                         Tel. {r.clienteTelefono}

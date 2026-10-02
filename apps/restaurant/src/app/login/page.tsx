@@ -10,6 +10,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 
+function mensajeAuth(raw: string | undefined): string {
+  const m = (raw || "").toLowerCase();
+  if (
+    m.includes("invalid login") ||
+    m.includes("invalid credentials") ||
+    m.includes("invalid_credentials")
+  ) {
+    return "Correo o contraseña incorrectos.";
+  }
+  if (m.includes("email not confirmed") || m.includes("not confirmed")) {
+    return "Confirma tu correo antes de entrar.";
+  }
+  if (m.includes("too many") || m.includes("rate limit")) {
+    return "Demasiados intentos. Espera un momento e inténtalo de nuevo.";
+  }
+  if (m.includes("network") || m.includes("fetch")) {
+    return "Error de conexión. Intenta de nuevo.";
+  }
+  return "No se pudo entrar. Revisa correo y contraseña.";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -28,7 +49,7 @@ export default function LoginPage() {
         password,
       });
       if (authErr) {
-        setError(authErr.message || "No se pudo entrar");
+        setError(mensajeAuth(authErr.message));
         return;
       }
       const uid = data.user?.id;
@@ -104,15 +125,15 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" role="alert">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <Button type="submit" className="w-full" size="lg" disabled={loading}>
+          <Button type="submit" className="w-full" size="lg" disabled={loading} aria-busy={loading}>
             {loading ? (
               <>
-                <Spinner />
+                <Spinner aria-label="Cargando" />
                 Entrando…
               </>
             ) : (

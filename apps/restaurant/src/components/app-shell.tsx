@@ -44,6 +44,9 @@ export function AppShell({
 
   return (
     <div className="toastal-shell mx-auto w-full max-w-lg md:max-w-3xl">
+      <a href="#contenido-principal" className="skip-link">
+        Saltar al contenido
+      </a>
       <header className="sticky top-0 z-40 border-b border-border bg-[color-mix(in_srgb,#fafafa_90%,transparent)] px-5 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))] backdrop-blur-md">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -63,9 +66,9 @@ export function AppShell({
             <Link
               href="/ajustes"
               aria-label="Ajustes"
-              className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="inline-flex size-11 min-h-[var(--tap)] min-w-[var(--tap)] items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
-              <Settings size={16} strokeWidth={1.75} />
+              <Settings size={16} strokeWidth={1.75} aria-hidden />
             </Link>
             <Button
               type="button"
@@ -75,14 +78,16 @@ export function AppShell({
               className="text-muted-foreground"
               aria-label="Cerrar sesión"
             >
-              <LogOut size={16} strokeWidth={1.75} />
+              <LogOut size={16} strokeWidth={1.75} aria-hidden />
               Salir
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 px-5 py-6 pb-28">{children}</main>
+      <main id="contenido-principal" className="flex-1 px-5 py-6 pb-28" tabIndex={-1}>
+        {children}
+      </main>
 
       <nav className="nav-bottom" aria-label="Módulos">
         <div className="mx-auto grid max-w-lg grid-cols-6 gap-0.5">
@@ -94,14 +99,15 @@ export function AppShell({
               <Link
                 key={l.href}
                 href={l.href}
-                className={`flex min-h-[3.1rem] flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 py-1.5 text-[9px] font-medium transition-colors sm:text-[11px] ${
+                aria-current={active ? "page" : undefined}
+                className={`flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 py-1.5 text-[10px] font-medium leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:text-[11px] ${
                   active
                     ? "bg-secondary text-miel"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Icon size={18} strokeWidth={active ? 2.2 : 1.65} />
-                <span className="truncate">{l.label}</span>
+                <Icon size={18} strokeWidth={active ? 2.2 : 1.65} aria-hidden />
+                <span className="max-w-full truncate">{l.label}</span>
               </Link>
             );
           })}
