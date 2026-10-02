@@ -1,4 +1,3 @@
 # Root monorepo — default. Servicios definen buildCommand propio.
-# API usa apps/api/nixpacks.toml vía nixpacksConfigPath.
 [variables]
 NIXPACKS_NODE_VERSION = "22"

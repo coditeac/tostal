@@ -106,6 +106,24 @@ export type Database = {
           },
         ]
       }
+      configuracion: {
+        Row: {
+          clave: string
+          updated_at: string
+          valor: string
+        }
+        Insert: {
+          clave: string
+          updated_at?: string
+          valor?: string
+        }
+        Update: {
+          clave?: string
+          updated_at?: string
+          valor?: string
+        }
+        Relationships: []
+      }
       estado_historial: {
         Row: {
           created_at: string
