@@ -15,6 +15,7 @@ import type {
   MenuHoyResponse,
   ProductoApi,
 } from "./domain-types";
+import { productoFotoAliases } from "./media-storage";
 
 async function boot() {
   await ensureSeed();
@@ -286,6 +287,20 @@ export async function upsertProducto(data: {
     );
   }
   return (await getProducto(pid))!;
+}
+
+/** Persiste URL pública de foto (local `/api/media/…` o externa). */
+export async function setProductoFotoUrl(
+  productoId: string,
+  fotoUrl: string | null
+): Promise<ProductoApi> {
+  await boot();
+  const existing = await getProducto(productoId);
+  if (!existing) {
+    throw new Error("Producto no encontrado.");
+  }
+  await sqlRun(`UPDATE productos SET foto_url=? WHERE id=?`, fotoUrl, productoId);
+  return (await getProducto(productoId))!;
 }
 
 export async function listInsumos(): Promise<Insumo[]> {
@@ -563,6 +578,7 @@ export async function getMenuPorDia(fecha: string): Promise<MenuHoyResponse> {
     .filter((p) => p.activoCatalogo)
     .map((p) => ({
       ...p,
+      ...productoFotoAliases(p.fotoUrl),
       disponible: !!disp[p.id],
       categoriaNombre: p.categoriaNombre ?? null,
     }))

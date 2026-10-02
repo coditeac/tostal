@@ -61,6 +61,9 @@ Root Directory: monorepo `""` (incluye `shared/`).
 | `STRIPE_CURRENCY` | default `mxn` |
 | `NIXPACKS_NODE_VERSION` | `22` |
 | `PORT` | Railway lo inyecta |
+| `MEDIA_DIR` | Volumen fotos (`/data/uploads`). Montar volumen Railway en `/data` |
+| `PUBLIC_API_URL` | Base absoluta para URLs de media (`https://api.tostal.cafe`) |
+| `S3_BUCKET` / `S3_ENDPOINT` / `S3_*` | Opcional R2/S3; si hay bucket+endpoint+keys, sube ahí en vez del volumen |
 
 **Email:** Resend SDK. Sin `RESEND_API_KEY` o con `MAIL_MOCK=1` → log `[mail:mock]` + `email_log`.  
 DNS Resend: verificar `tostal.cafe` (SPF/DKIM en panel Resend) antes de usar `pedidos@tostal.cafe`.
