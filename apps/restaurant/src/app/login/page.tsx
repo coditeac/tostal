@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useId, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isStaffRol } from "@/lib/roles";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -33,8 +34,10 @@ function mensajeAuth(raw: string | undefined): string {
 
 export default function LoginPage() {
   const router = useRouter();
+  const errorId = useId();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -89,8 +92,11 @@ export default function LoginPage() {
         />
       </header>
 
-      <main className="flex flex-1 flex-col px-6 pb-10 pt-8 rise-in" style={{ animationDelay: "80ms" }}>
-        <p className="text-xs font-medium tracking-wide text-muted-foreground">
+      <main
+        className="flex flex-1 flex-col px-6 pb-10 pt-8 rise-in"
+        style={{ animationDelay: "80ms" }}
+      >
+        <p className="text-sm font-medium tracking-wide text-muted-foreground">
           Operación
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">
@@ -100,7 +106,11 @@ export default function LoginPage() {
           Solo para personal Tostal (superadmin, admin, cocina, caja).
         </p>
 
-        <form onSubmit={onSubmit} className="mt-8 space-y-5">
+        <form
+          onSubmit={onSubmit}
+          className="mt-8 space-y-5"
+          aria-describedby={error ? errorId : undefined}
+        >
           <div className="space-y-2">
             <Label htmlFor="email">Correo</Label>
             <Input
@@ -110,27 +120,55 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              aria-invalid={error ? true : undefined}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Contraseña</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="pr-12"
+                aria-invalid={error ? true : undefined}
+              />
+              <button
+                type="button"
+                className="absolute top-1/2 right-1.5 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={
+                  showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                }
+                aria-pressed={showPassword}
+              >
+                {showPassword ? (
+                  <EyeOff size={18} strokeWidth={1.75} aria-hidden />
+                ) : (
+                  <Eye size={18} strokeWidth={1.75} aria-hidden />
+                )}
+              </button>
+            </div>
           </div>
 
           {error && (
-            <Alert variant="destructive" role="alert">
-              <AlertDescription>{error}</AlertDescription>
+            <Alert variant="destructive" id={errorId}>
+              <AlertDescription className="font-medium text-destructive">
+                {error}
+              </AlertDescription>
             </Alert>
           )}
 
-          <Button type="submit" className="w-full" size="lg" disabled={loading} aria-busy={loading}>
+          <Button
+            type="submit"
+            className="w-full"
+            size="lg"
+            disabled={loading}
+            aria-busy={loading}
+          >
             {loading ? (
               <>
                 <Spinner aria-label="Cargando" />
@@ -142,7 +180,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-6 text-sm leading-relaxed text-muted-foreground">
           Acceso con la cuenta que te creó el superadmin.
         </p>
       </main>
