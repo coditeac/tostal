@@ -650,17 +650,52 @@ export type Database = {
           },
         ]
       }
+      zonas_envio: {
+        Row: {
+          activa: boolean
+          cobertura: string | null
+          costo_envio: number
+          created_at: string
+          id: string
+          nombre: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          cobertura?: string | null
+          costo_envio?: number
+          created_at?: string
+          id?: string
+          nombre: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          cobertura?: string | null
+          costo_envio?: number
+          created_at?: string
+          id?: string
+          nombre?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      calcular_costo_envio: { Args: { p_zona_id: string }; Returns: Json }
       current_rol: {
         Args: never
         Returns: Database["public"]["Enums"]["user_rol"]
       }
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      list_zonas_activas: { Args: never; Returns: Json }
     }
     Enums: {
       user_rol: "superadmin" | "admin" | "cocina" | "caja" | "cliente"
