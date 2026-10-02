@@ -117,9 +117,13 @@ export type ReservaPublicaSeguimiento = {
   notas: string | null;
   creadoEn: string;
   estado_historial?: Array<{
-    estado: string;
+    estado?: string;
+    estado_nuevo?: string;
+    estado_anterior?: string | null;
     at?: string;
+    creado_en?: string;
     nota?: string;
+    motivo?: string | null;
   }>;
   lineas: Array<{
     id: string;
@@ -142,8 +146,10 @@ export const CONTRATO_API = {
   reservasProductos: "/api/public/reservas/productos",
   reservas: "/api/public/reservas",
   pedidos: "/api/public/pedidos",
-  /** SSE pedidos — si existe en API. */
+  /** SSE pedidos */
   pedidosEvents: "/api/public/pedidos/events",
+  /** SSE reservas — GET ?codigo= */
+  reservasEvents: "/api/public/reservas/events",
 } as const;
 
 type RawMenu = Record<string, unknown> & {
