@@ -1,7 +1,14 @@
 "use client";
 
 import { apiFetch } from "@/lib/api";
-import { useEffect, useState } from "react";
+import {
+  FOTO_ACCEPT,
+  fotoUrlFromProducto,
+  removeProductoFoto,
+  uploadProductoFoto,
+  validateFotoFile,
+} from "@/lib/producto-foto";
+import { useEffect, useRef, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
 import { Switch } from "@/components/ui/switch";
 
@@ -25,6 +32,8 @@ type Producto = {
   alergenos: string | null;
   categoriaId: string | null;
   categoriaNombre: string | null;
+  /** URL pública de la foto (API: foto_url / imagen_url). */
+  fotoUrl: string | null;
   /** Costo auto por pieza desde receta (API: costo_calculado). */
   costoCalculado: number;
   margenPct: number;
@@ -82,6 +91,12 @@ export function ProductosCatalogo() {
     Array<{ insumoId: string; cantidad: string }>
   >([]);
   const [saving, setSaving] = useState(false);
+  /** Preview local (object URL) o URL remota al editar. */
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [fotoRemota, setFotoRemota] = useState<string | null>(null);
+  const [fotoPendiente, setFotoPendiente] = useState<File | null>(null);
+  const [fotoBusy, setFotoBusy] = useState(false);
+  const fotoInputRef = useRef<HTMLInputElement>(null);
 
   const rendimientoDraft = Math.max(
     1,
@@ -165,6 +180,9 @@ export function ProductosCatalogo() {
           return {
             ...p,
             precio: Number(p.precio ?? p.precio_venta ?? 0),
+            fotoUrl: fotoUrlFromProducto(
+              p as unknown as Record<string, unknown>
+            ),
             costoCalculado: Number(
               p.costoCalculado ?? p.costo_calculado ?? p.costoTeorico ?? 0
             ),
@@ -215,8 +233,67 @@ export function ProductosCatalogo() {
     load();
   }, []);
 
+  function clearFotoLocalPreview() {
+    setFotoPreview((prev) => {
+      if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setFotoPendiente(null);
+    if (fotoInputRef.current) fotoInputRef.current.value = "";
+  }
+
+  function resetFotoEditor(remote: string | null = null) {
+    clearFotoLocalPreview();
+    setFotoRemota(remote);
+    setFotoPreview(remote);
+  }
+
+  function onPickFoto(file: File | null) {
+    if (!file) return;
+    const err = validateFotoFile(file);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setError(null);
+    setFotoPreview((prev) => {
+      if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+    setFotoPendiente(file);
+  }
+
+  async function applyFotoUpload(productoId: string, file: File) {
+    setFotoBusy(true);
+    try {
+      const { fotoUrl } = await uploadProductoFoto(productoId, file);
+      setFotoPendiente(null);
+      setFotoRemota(fotoUrl);
+      setFotoPreview(fotoUrl);
+      setProductos((prev) =>
+        prev.map((p) => (p.id === productoId ? { ...p, fotoUrl } : p))
+      );
+    } finally {
+      setFotoBusy(false);
+    }
+  }
+
+  async function applyFotoRemove(productoId: string) {
+    setFotoBusy(true);
+    try {
+      await removeProductoFoto(productoId);
+      resetFotoEditor(null);
+      setProductos((prev) =>
+        prev.map((p) => (p.id === productoId ? { ...p, fotoUrl: null } : p))
+      );
+    } finally {
+      setFotoBusy(false);
+    }
+  }
+
   function startNew() {
     setEditId("nuevo");
+    resetFotoEditor(null);
     setForm({
       nombre: "",
       descripcion: "",
@@ -237,6 +314,7 @@ export function ProductosCatalogo() {
 
   function startEdit(p: Producto) {
     setEditId(p.id);
+    resetFotoEditor(p.fotoUrl);
     const anticipoEsMonto = p.anticipoTipo === "monto";
     const anticipoMostrar =
       p.anticipoValor == null
@@ -347,7 +425,23 @@ export function ProductosCatalogo() {
       }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "No se pudo guardar");
+
+      const savedId =
+        editId !== "nuevo"
+          ? editId
+          : String(
+              data.producto?.id ??
+                data.id ??
+                (typeof data.productoId === "string" ? data.productoId : "")
+            );
+      if (!savedId) throw new Error("Producto guardado sin id.");
+
+      if (fotoPendiente) {
+        await applyFotoUpload(savedId, fotoPendiente);
+      }
+
       setEditId(null);
+      resetFotoEditor(null);
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al guardar");
@@ -364,7 +458,7 @@ export function ProductosCatalogo() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          Receta por lote, costo por pieza y precio de venta
+          Foto, receta por lote, costo por pieza y precio de venta
         </p>
         <button type="button" className="btn btn-primary" onClick={startNew}>
           Nuevo
@@ -400,6 +494,114 @@ export function ProductosCatalogo() {
               }
             />
           </div>
+
+          <div className="space-y-2 border-t border-border pt-3">
+            <p className="label mb-0">Foto del producto</p>
+            <p className="text-xs text-muted-foreground">
+              JPG, PNG o WebP · máx. 5 MB. Se sube al guardar
+              {editId !== "nuevo" ? " o al cambiar." : "."}
+            </p>
+            <div className="flex flex-wrap items-start gap-3">
+              <div className="relative h-24 w-24 overflow-hidden rounded-xl bg-muted">
+                {fotoPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={fotoPreview}
+                    alt="Vista previa"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center px-2 text-center text-[11px] text-muted-foreground">
+                    Sin foto
+                  </div>
+                )}
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <input
+                  ref={fotoInputRef}
+                  type="file"
+                  accept={FOTO_ACCEPT}
+                  className="sr-only"
+                  aria-label="Elegir foto del producto"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    onPickFoto(file);
+                  }}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={saving || fotoBusy}
+                    onClick={() => fotoInputRef.current?.click()}
+                  >
+                    {fotoPreview || fotoRemota ? "Cambiar foto" : "Subir foto"}
+                  </button>
+                  {editId !== "nuevo" && fotoPendiente && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={saving || fotoBusy}
+                      onClick={async () => {
+                        setError(null);
+                        try {
+                          await applyFotoUpload(editId, fotoPendiente);
+                        } catch (e) {
+                          setError(
+                            e instanceof Error
+                              ? e.message
+                              : "No se pudo subir la foto"
+                          );
+                        }
+                      }}
+                    >
+                      {fotoBusy ? "Subiendo…" : "Subir ahora"}
+                    </button>
+                  )}
+                  {(fotoPreview || fotoRemota) && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={saving || fotoBusy}
+                      onClick={async () => {
+                        setError(null);
+                        if (editId === "nuevo" || (!fotoRemota && fotoPendiente)) {
+                          clearFotoLocalPreview();
+                          setFotoPreview(null);
+                          return;
+                        }
+                        if (fotoPendiente && fotoRemota) {
+                          clearFotoLocalPreview();
+                          setFotoPreview(fotoRemota);
+                          return;
+                        }
+                        try {
+                          await applyFotoRemove(editId!);
+                        } catch (e) {
+                          setError(
+                            e instanceof Error
+                              ? e.message
+                              : "No se pudo quitar la foto"
+                          );
+                        }
+                      }}
+                    >
+                      {fotoBusy ? "…" : "Quitar"}
+                    </button>
+                  )}
+                </div>
+                {fotoPendiente && (
+                  <p className="text-xs text-muted-foreground">
+                    Pendiente: {fotoPendiente.name}
+                    {editId === "nuevo"
+                      ? " (se sube al guardar el producto)"
+                      : ""}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Precio (MXN)</label>
@@ -708,7 +910,10 @@ export function ProductosCatalogo() {
             <button
               type="button"
               className="btn btn-secondary"
-              onClick={() => setEditId(null)}
+              onClick={() => {
+                setEditId(null);
+                resetFotoEditor(null);
+              }}
             >
               Cancelar
             </button>
@@ -725,16 +930,34 @@ export function ProductosCatalogo() {
           {productos.map((p) => (
             <li key={p.id} className="border-b border-border py-4 first:border-t">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold">{p.nombre}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {p.categoriaNombre || "Sin categoría"}
-                    {!p.activoCatalogo ? " · oculto" : ""}
-                    {p.reservaHabilitada ? " · reserva" : ""}
-                  </p>
-                  {p.descripcion && (
-                    <p className="mt-1 text-sm text-muted-foreground">{p.descripcion}</p>
-                  )}
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
+                    {p.fotoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.fotoUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
+                        Sin foto
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold">{p.nombre}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {p.categoriaNombre || "Sin categoría"}
+                      {!p.activoCatalogo ? " · oculto" : ""}
+                      {p.reservaHabilitada ? " · reserva" : ""}
+                    </p>
+                    {p.descripcion && (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {p.descripcion}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <p className="font-semibold">{formatoMoneda(p.precio)}</p>
               </div>

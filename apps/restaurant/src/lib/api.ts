@@ -16,11 +16,16 @@ export async function apiFetch(
   init?: RequestInit
 ): Promise<Response> {
   const url = path.startsWith("http") ? path : `${getApiBase()}${path}`;
+  const isFormData =
+    typeof FormData !== "undefined" && init?.body instanceof FormData;
   return fetch(url, {
     ...init,
     credentials: "include",
     headers: {
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      // FormData: el browser pone multipart boundary; no forzar JSON.
+      ...(init?.body && !isFormData
+        ? { "Content-Type": "application/json" }
+        : {}),
       ...init?.headers,
     },
   });
@@ -33,12 +38,16 @@ export async function apiFetchServer(
   init?: RequestInit
 ): Promise<Response> {
   const url = path.startsWith("http") ? path : `${getApiBase()}${path}`;
+  const isFormData =
+    typeof FormData !== "undefined" && init?.body instanceof FormData;
   return fetch(url, {
     ...init,
     cache: "no-store",
     headers: {
       ...(cookieHeader ? { cookie: cookieHeader } : {}),
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(init?.body && !isFormData
+        ? { "Content-Type": "application/json" }
+        : {}),
       ...init?.headers,
     },
   });
