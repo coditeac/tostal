@@ -539,6 +539,17 @@ const SCHEMA_SQLITE = `
       faltante REAL NOT NULL,
       requiere_compra INTEGER NOT NULL DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS estado_historial (
+      id TEXT PRIMARY KEY,
+      entidad_tipo TEXT NOT NULL,
+      entidad_id TEXT NOT NULL,
+      estado_anterior TEXT,
+      estado_nuevo TEXT NOT NULL,
+      motivo TEXT,
+      usuario_id TEXT,
+      creado_en TEXT NOT NULL
+    );
 `;
 
 const SCHEMA_ALTERS_SQLITE = [
@@ -569,6 +580,25 @@ const SCHEMA_ALTERS_SQLITE = [
       reserva_id TEXT,
       creado_en TEXT NOT NULL
     )`,
+  `CREATE TABLE IF NOT EXISTS estado_historial (
+      id TEXT PRIMARY KEY,
+      entidad_tipo TEXT NOT NULL,
+      entidad_id TEXT NOT NULL,
+      estado_anterior TEXT,
+      estado_nuevo TEXT NOT NULL,
+      motivo TEXT,
+      usuario_id TEXT,
+      creado_en TEXT NOT NULL
+    )`,
+  // Migración one-shot de estados legacy → unificados
+  `UPDATE pedidos SET estado = 'aceptado' WHERE estado = 'confirmado'`,
+  `UPDATE pedidos SET estado = 'preparando' WHERE estado = 'en_produccion'`,
+  `UPDATE reservas SET estado = 'recibido' WHERE estado = 'pendiente_anticipo'`,
+  `UPDATE reservas SET estado = 'aceptado' WHERE estado = 'confirmada'`,
+  `UPDATE reservas SET estado = 'preparando' WHERE estado = 'en_produccion'`,
+  `UPDATE reservas SET estado = 'listo' WHERE estado = 'lista'`,
+  `UPDATE reservas SET estado = 'entregado' WHERE estado = 'entregada'`,
+  `UPDATE reservas SET estado = 'cancelado' WHERE estado = 'cancelada'`,
 ];
 
 const SCHEMA_ALTERS_PG = [
@@ -662,6 +692,25 @@ const SCHEMA_ALTERS_PG = [
       faltante REAL NOT NULL,
       requiere_compra INTEGER NOT NULL DEFAULT 0
     )`,
+  `CREATE TABLE IF NOT EXISTS estado_historial (
+      id TEXT PRIMARY KEY,
+      entidad_tipo TEXT NOT NULL,
+      entidad_id TEXT NOT NULL,
+      estado_anterior TEXT,
+      estado_nuevo TEXT NOT NULL,
+      motivo TEXT,
+      usuario_id TEXT,
+      creado_en TEXT NOT NULL
+    )`,
+  // Migración one-shot de estados legacy → unificados
+  `UPDATE pedidos SET estado = 'aceptado' WHERE estado = 'confirmado'`,
+  `UPDATE pedidos SET estado = 'preparando' WHERE estado = 'en_produccion'`,
+  `UPDATE reservas SET estado = 'recibido' WHERE estado = 'pendiente_anticipo'`,
+  `UPDATE reservas SET estado = 'aceptado' WHERE estado = 'confirmada'`,
+  `UPDATE reservas SET estado = 'preparando' WHERE estado = 'en_produccion'`,
+  `UPDATE reservas SET estado = 'listo' WHERE estado = 'lista'`,
+  `UPDATE reservas SET estado = 'entregado' WHERE estado = 'entregada'`,
+  `UPDATE reservas SET estado = 'cancelado' WHERE estado = 'cancelada'`,
   // Ampliar CHECK de roles para incluir superadmin (idempotente).
   `DO $$ BEGIN
      ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check;

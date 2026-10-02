@@ -12,7 +12,10 @@ import { requireUser } from "../../common/session.decorator";
 import { actualizarEstadoPedido, listPedidos } from "../../lib/pedidos";
 import { enviarAVitrinaDesdePedido } from "../../lib/caja";
 import { hoyISO } from "../../lib/utils";
-import type { EstadoPedido } from "../../../../../shared/types";
+import {
+  ordenColaEstado,
+  type EstadoUnificado,
+} from "../../lib/estados";
 
 @Controller("produccion")
 export class ProduccionController {
@@ -24,15 +27,9 @@ export class ProduccionController {
       (p) =>
         !["entregado", "cancelado"].includes(p.estado) || p.estado === "listo"
     );
-    const orden: Record<string, number> = {
-      en_produccion: 0,
-      confirmado: 1,
-      recibido: 2,
-      listo: 3,
-    };
     pedidos.sort(
       (a, b) =>
-        (orden[a.estado] ?? 9) - (orden[b.estado] ?? 9) ||
+        ordenColaEstado(a.estado) - ordenColaEstado(b.estado) ||
         a.codigo.localeCompare(b.codigo)
     );
     return { fecha, pedidos };
@@ -40,14 +37,17 @@ export class ProduccionController {
 
   @Post()
   async post(@Req() req: Request, @Body() body: Record<string, unknown>) {
-    const auth = await requireUser(req, ["admin", "cocina"]);
+    const auth = await requireUser(req, ["admin", "cocina", "superadmin"]);
     if (!body?.pedidoId || !body?.accion) {
       throw new BadRequestException("Faltan pedidoId o acción.");
     }
-    const mapa: Record<string, EstadoPedido> = {
-      confirmar: "confirmado",
-      iniciar: "en_produccion",
+    const mapa: Record<string, EstadoUnificado> = {
+      confirmar: "aceptado",
+      aceptar: "aceptado",
+      iniciar: "preparando",
+      preparar: "preparando",
       listo: "listo",
+      en_camino: "en_camino",
       entregar: "entregado",
       cancelar: "cancelado",
     };
@@ -67,7 +67,8 @@ export class ProduccionController {
 
     return {
       pedido: result.pedido,
-      descuentoInsumos: body.accion === "iniciar",
+      descuentoInsumos:
+        body.accion === "iniciar" || body.accion === "preparar",
     };
   }
 }

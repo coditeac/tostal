@@ -231,7 +231,7 @@ export async function calcularSugerencia(
      FROM pedido_lineas pl
      JOIN pedidos p ON p.id = pl.pedido_id
      WHERE p.fecha_entrega >= ? AND p.fecha_entrega <= ?
-       AND p.estado IN ('recibido','confirmado','en_produccion')
+       AND p.estado IN ('recibido','aceptado','preparando','confirmado','en_produccion')
        AND p.insumos_descontados = 0`,
     desde,
     hasta
@@ -257,7 +257,7 @@ export async function calcularSugerencia(
      FROM reserva_necesidades n
      JOIN reservas r ON r.id = n.reserva_id
      WHERE n.requiere_compra = 1
-       AND r.estado NOT IN ('cancelada', 'entregada')
+       AND r.estado NOT IN ('cancelado', 'entregado', 'cancelada', 'entregada')
        AND r.fecha_entrega >= ? AND r.fecha_entrega <= ?
      GROUP BY n.insumo_id`,
     desde,

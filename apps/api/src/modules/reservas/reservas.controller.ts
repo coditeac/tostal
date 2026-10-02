@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Patch,
   Query,
   Req,
@@ -18,7 +19,7 @@ import {
   listReservas,
   sugerirComprasDesdeReservas,
 } from "../../lib/reservas";
-import type { EstadoReserva } from "../../lib/domain-types";
+import { ESTADOS_UNIFICADOS, normalizarEstado } from "../../lib/estados";
 
 @Controller(["reservas", "reservaciones"])
 export class ReservasController {
@@ -29,7 +30,8 @@ export class ReservasController {
     @Query("estado") estado?: string
   ) {
     await requireUser(req);
-    const reservas = await listReservas({ fecha, estado });
+    const estadoNorm = estado ? normalizarEstado(estado) || estado : undefined;
+    const reservas = await listReservas({ fecha, estado: estadoNorm });
     return {
       reservas: reservas.map((r) => ({
         ...r,
@@ -66,7 +68,7 @@ export class ReservasController {
   async detalle(@Req() req: Request, @Query("id") id?: string) {
     await requireUser(req);
     if (!id) throw new BadRequestException("Falta id o código.");
-    const reserva = await getReserva(id);
+    const reserva = await getReserva(id, { conHistorial: true });
     if (!reserva) throw new NotFoundException("Reserva no encontrada.");
     const necesidades = await getNecesidades(reserva.id);
     return {
@@ -86,34 +88,71 @@ export class ReservasController {
     };
   }
 
+  /** Contrato: PATCH /api/reservas/:id/estado (y /reservaciones/…) */
+  @Patch(":id/estado")
+  async patchEstadoParam(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: { estado?: string; motivo?: string }
+  ) {
+    const auth = await requireUser(req, [
+      "superadmin",
+      "admin",
+      "cocina",
+      "caja",
+    ]);
+    if (!body?.estado) throw new BadRequestException("Falta estado.");
+    const canon = normalizarEstado(body.estado);
+    if (!canon) {
+      throw new BadRequestException(
+        `Estado inválido. Usa: ${ESTADOS_UNIFICADOS.join(", ")}.`
+      );
+    }
+    const result = await actualizarEstadoReserva(id, canon, {
+      usuarioId: auth.id,
+      motivo: body.motivo || null,
+    });
+    if (!result.ok) throw new BadRequestException(result.error);
+    return { reserva: result.reserva };
+  }
+
+  /** Legacy: PATCH /api/reservas/estado { id, estado } */
   @Patch("estado")
   async estado(
     @Req() req: Request,
-    @Body() body: { id?: string; estado?: EstadoReserva }
+    @Body() body: { id?: string; estado?: string; motivo?: string }
   ) {
-    await requireUser(req, ["admin", "cocina"]);
+    const auth = await requireUser(req, [
+      "superadmin",
+      "admin",
+      "cocina",
+      "caja",
+    ]);
     if (!body?.id || !body?.estado) {
       throw new BadRequestException("Faltan id y estado.");
     }
-    const ok: EstadoReserva[] = [
-      "pendiente_anticipo",
-      "confirmada",
-      "en_produccion",
-      "lista",
-      "entregada",
-      "cancelada",
-    ];
-    if (!ok.includes(body.estado)) {
-      throw new BadRequestException("Estado inválido.");
+    const canon = normalizarEstado(body.estado);
+    if (!canon) {
+      throw new BadRequestException(
+        `Estado inválido. Usa: ${ESTADOS_UNIFICADOS.join(", ")}.`
+      );
     }
-    const reserva = await actualizarEstadoReserva(body.id, body.estado);
-    if (!reserva) throw new NotFoundException("Reserva no encontrada.");
-    return { reserva };
+    const result = await actualizarEstadoReserva(body.id, canon, {
+      usuarioId: auth.id,
+      motivo: body.motivo || null,
+    });
+    if (!result.ok) {
+      if (result.error.includes("no encontrada")) {
+        throw new NotFoundException(result.error);
+      }
+      throw new BadRequestException(result.error);
+    }
+    return { reserva: result.reserva };
   }
 
   @Patch("anticipo")
   async anticipo(@Req() req: Request, @Body() body: { id?: string }) {
-    await requireUser(req, ["admin"]);
+    await requireUser(req, ["admin", "superadmin"]);
     if (!body?.id) throw new BadRequestException("Falta id.");
     const reserva = await confirmarAnticipoReserva(body.id);
     if (!reserva) throw new NotFoundException("Reserva no encontrada.");

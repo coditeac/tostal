@@ -49,13 +49,28 @@ export type LineaRecetaApi = {
   unidad?: "g" | "ml" | "u";
 };
 
+/**
+ * Estados unificados (pedidos + reservaciones).
+ * Alias legacy aún se aceptan en PATCH y se normalizan al escribir.
+ */
 export type EstadoReserva =
+  | "recibido"
+  | "aceptado"
+  | "preparando"
+  | "listo"
+  | "en_camino"
+  | "entregado"
+  | "cancelado"
+  // legacy (solo lectura/entrada)
   | "pendiente_anticipo"
   | "confirmada"
   | "en_produccion"
   | "lista"
   | "entregada"
   | "cancelada";
+
+/** Re-export canónico para callers API. */
+export type { EstadoUnificado, EstadoHistorialEntry } from "./estados";
 
 export type EstadoAnticipo = "pendiente" | "pagado" | "reembolsado";
 

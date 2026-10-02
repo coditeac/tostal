@@ -5,11 +5,16 @@ export type CanalVenta = "remoto" | "mostrador";
 export type ModoEntrega = "retiro" | "envio";
 export type EstadoPedido =
   | "recibido"
-  | "confirmado"
-  | "en_produccion"
+  | "aceptado"
+  | "preparando"
   | "listo"
+  | "en_camino"
   | "entregado"
-  | "cancelado";
+  | "cancelado"
+  /** @deprecated alias — API normaliza a aceptado */
+  | "confirmado"
+  /** @deprecated alias — API normaliza a preparando */
+  | "en_produccion";
 export type EstadoPago =
   | "pendiente"
   | "pagado"
