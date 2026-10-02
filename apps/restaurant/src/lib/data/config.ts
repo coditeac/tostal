@@ -68,7 +68,7 @@ export async function saveConfigNegocio(
 ): Promise<void> {
   const supabase = createClient();
   const now = new Date().toISOString();
-  const rows = [
+  const rows: Array<{ clave: string; valor: string; updated_at: string }> = [
     { clave: CONFIG_KEYS.marca, valor: input.marca.trim() || "Tostal", updated_at: now },
     {
       clave: CONFIG_KEYS.telefonoWhatsapp,
