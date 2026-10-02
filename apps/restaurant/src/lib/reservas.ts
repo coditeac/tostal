@@ -16,6 +16,7 @@ export type ReservaCola = {
   fecha: string;
   estado: string;
   estadoAnticipo?: string;
+  modoEntrega?: "retiro" | "envio" | string | null;
   clienteNombre: string;
   clienteTelefono?: string | null;
   anticipo: number;
@@ -89,6 +90,7 @@ function mapReserva(raw: Record<string, unknown>): ReservaCola {
     })
     .filter(Boolean);
 
+  const modoRaw = raw.modoEntrega ?? raw.modo_entrega;
   return {
     id: String(raw.id ?? ""),
     codigo: raw.codigo ? String(raw.codigo) : undefined,
@@ -101,6 +103,7 @@ function mapReserva(raw: Record<string, unknown>): ReservaCola {
       : raw.estado_anticipo
         ? String(raw.estado_anticipo)
         : undefined,
+    modoEntrega: modoRaw ? String(modoRaw) : null,
     clienteNombre: String(
       raw.clienteNombre ?? raw.cliente_nombre ?? "Cliente"
     ),
