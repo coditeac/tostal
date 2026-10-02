@@ -1,7 +1,5 @@
 "use client";
 
-import { apiFetch } from "@/lib/api";
-
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -14,6 +12,7 @@ import {
   UtensilsCrossed,
   Wallet,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 
 /** Únicos módulos del nav (contrato 6 módulos). */
@@ -37,7 +36,8 @@ export function AppShell({
   const router = useRouter();
 
   async function salir() {
-    await apiFetch("/api/auth/session", { method: "POST" });
+    const supabase = createClient();
+    await supabase.auth.signOut();
     router.push("/login");
     router.refresh();
   }

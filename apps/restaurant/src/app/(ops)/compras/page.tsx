@@ -1,6 +1,11 @@
 "use client";
 
-import { apiFetch } from "@/lib/api";
+import {
+  altaInsumoCompra,
+  cerrarCompra,
+  loadComprasSugerencia,
+} from "@/lib/data/compras";
+import { listInsumos, mapInsumoUi } from "@/lib/data/insumos";
 import { useEffect, useMemo, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -68,18 +73,9 @@ export default function ComprasPage() {
     setLoading(true);
     setError(null);
     try {
-      const q = tiendaCtx?.trim()
-        ? `?tienda=${encodeURIComponent(tiendaCtx.trim())}`
-        : "";
-      const res = await apiFetch(`/api/compras${q}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error al cargar compras");
+      const data = await loadComprasSugerencia(tiendaCtx);
       setSugerencia(data.sugerencia || []);
-      setTiendas(
-        (data.tiendas || []).map((t: Tienda | string) =>
-          typeof t === "string" ? { nombre: t } : t
-        )
-      );
+      setTiendas(data.tiendas || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -107,14 +103,10 @@ export default function ComprasPage() {
     }
     const t = setTimeout(async () => {
       try {
-        const res = await apiFetch(
-          `/api/compras/insumos?q=${encodeURIComponent(q)}&limit=8`
-        );
-        const data = await res.json();
-        if (!res.ok) return;
+        const rows = await listInsumos({ q, limit: 8 });
         const ya = new Set(lineas.map((l) => l.insumoId).filter(Boolean));
         setMatches(
-          ((data.insumos || []) as Insumo[]).filter((i) => !ya.has(i.id))
+          rows.map(mapInsumoUi).filter((i) => !ya.has(i.id)) as Insumo[]
         );
       } catch {
         /* ignore */
@@ -177,21 +169,13 @@ export default function ComprasPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/compras", {
-        method: "POST",
-        body: JSON.stringify({
-          accion: "alta_insumo",
-          nombre: nuevo.nombre.trim(),
-          unidad: nuevo.unidad,
-          cantidad: Number(nuevo.cantidad),
-          costoPesos: Number(nuevo.costoPesos),
-          stockMinimo: Number(nuevo.stockMinimo || 0),
-          tienda: tienda.trim() || null,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "No se pudo crear el insumo");
-      const insumo = data.insumo as Insumo;
+      const insumo = (await altaInsumoCompra({
+        nombre: nuevo.nombre.trim(),
+        unidad: nuevo.unidad,
+        cantidad: Number(nuevo.cantidad),
+        costoPesos: Number(nuevo.costoPesos),
+        stockMinimo: Number(nuevo.stockMinimo || 0),
+      })) as Insumo;
       setLineas((prev) => [
         ...prev,
         {
@@ -241,48 +225,15 @@ export default function ComprasPage() {
     setError(null);
     setOkMsg(null);
     try {
-      await apiFetch("/api/compras", {
-        method: "POST",
-        body: JSON.stringify({
-          accion: "set_tienda",
-          nombre: tienda.trim(),
-        }),
+      const markData = await cerrarCompra({
+        tienda: tienda.trim(),
+        lineas: validas.map((l) => ({
+          insumoId: l.insumoId!,
+          nombre: l.nombre,
+          cantidad: Number(l.cantidad),
+          costoPesos: Number(l.costoPesos),
+        })),
       });
-
-      const cartRes = await apiFetch("/api/compras", {
-        method: "POST",
-        body: JSON.stringify({
-          accion: "crear_carrito",
-          tienda: tienda.trim(),
-          proveedor: tienda.trim(),
-          lineas: validas.map((l) => ({
-            insumoId: l.insumoId,
-            cantidad: Number(l.cantidad),
-            costoUnitario: Math.round(Number(l.costoPesos) * 100),
-            costoPesos: Number(l.costoPesos),
-          })),
-        }),
-      });
-      const cartData = await cartRes.json();
-      if (!cartRes.ok) {
-        throw new Error(cartData.error || "No se pudo crear la compra");
-      }
-      const carritoId = cartData.carrito?.id;
-      if (!carritoId) throw new Error("Respuesta de carrito sin id");
-
-      const markRes = await apiFetch("/api/compras", {
-        method: "POST",
-        body: JSON.stringify({
-          accion: "cerrar_compra",
-          carritoId,
-          registrarGasto: true,
-        }),
-      });
-      const markData = await markRes.json();
-      if (!markRes.ok) {
-        throw new Error(markData.error || "No se pudo cerrar la compra");
-      }
-
       const gastoMonto = markData.gasto?.monto;
       setLineas([]);
       setOkMsg(

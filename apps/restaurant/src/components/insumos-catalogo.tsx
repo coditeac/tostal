@@ -1,6 +1,6 @@
 "use client";
 
-import { apiFetch } from "@/lib/api";
+import { createInsumo, listInsumos, mapInsumoUi, updateInsumo } from "@/lib/data/insumos";
 
 import { useEffect, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
@@ -37,10 +37,8 @@ export function InsumosCatalogo() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/insumos");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error");
-      setInsumos(data.insumos || []);
+      const rows = await listInsumos();
+      setInsumos(rows.map(mapInsumoUi) as unknown as Insumo[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -82,23 +80,15 @@ export function InsumosCatalogo() {
     setSaving(true);
     setError(null);
     try {
-      const payload = {
-        id: editId === "nuevo" ? undefined : editId,
+      const body = {
         nombre: form.nombre,
         unidad: form.unidad,
-        stockActual: Number(form.stockActual),
-        stockMinimo: Number(form.stockMinimo),
-        costoPesos: Number(form.costoPesos),
-        ubicacion: form.ubicacion || null,
-        proveedorPreferido: form.proveedorPreferido || null,
+        stock: Number(form.stockActual),
+        umbral_pocos: Number(form.stockMinimo),
+        costo_unitario: Math.round(Number(form.costoPesos) * 100),
       };
-      const res = await apiFetch("/api/insumos", {
-        method: editId === "nuevo" ? "POST" : "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "No se pudo guardar");
+      if (editId === "nuevo") await createInsumo(body);
+      else if (editId) await updateInsumo(editId, body);
       setEditId(null);
       await load();
     } catch (e) {

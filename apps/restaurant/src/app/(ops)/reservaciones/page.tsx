@@ -181,7 +181,7 @@ export default function ReservasPage() {
 
                 <EstadoAcciones
                   estado={estadoUi}
-                  modoEntrega={r.modoEntrega}
+                  modoEntrega={"retiro"}
                   busy={busyId === r.id}
                   onCambiar={(estado) => void cambiarEstado(r.id, estado)}
                 />

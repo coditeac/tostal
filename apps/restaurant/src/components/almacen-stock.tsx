@@ -1,9 +1,13 @@
 "use client";
 
-import { apiFetch } from "@/lib/api";
-
 import { useEffect, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
+import {
+  listInsumos,
+  mapInsumoUi,
+  moverStock,
+  updateInsumo,
+} from "@/lib/data/insumos";
 
 type Insumo = {
   id: string;
@@ -15,21 +19,10 @@ type Insumo = {
   bajoMinimo?: boolean;
 };
 
-type Movimiento = {
-  id: string;
-  insumoNombre: string;
-  unidad: string;
-  tipo: string;
-  cantidad: number;
-  motivo: string | null;
-  creadoEn: string;
-};
-
 type Alerta = Insumo & { faltante: number; critico: boolean };
 
 export function AlmacenStock() {
   const [insumos, setInsumos] = useState<Insumo[]>([]);
-  const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,22 +39,18 @@ export function AlmacenStock() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/almacen");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error");
-      const list = (data.insumos || []).map(
-        (i: Insumo & Record<string, unknown>) => ({
-          ...i,
-          stockActual: Number(i.stockActual ?? i.stock_actual ?? 0),
-          stockMinimo: Number(
-            i.stockMinimo ?? i.stock_minimo ?? i.umbral_pocos ?? 0
-          ),
-          bajoMinimo: Boolean(i.bajoMinimo ?? i.pocos),
-        })
-      ) as Insumo[];
+      const rows = await listInsumos();
+      const list = rows.map(mapInsumoUi) as Insumo[];
       setInsumos(list);
-      setMovimientos(data.movimientos || []);
-      setAlertas((data.pocos || data.alertas || []) as Alerta[]);
+      setAlertas(
+        list
+          .filter((i) => i.bajoMinimo)
+          .map((i) => ({
+            ...i,
+            faltante: Math.max(0, i.stockMinimo - i.stockActual),
+            critico: i.stockActual <= 0,
+          }))
+      );
       if (!form.insumoId && list[0]) {
         setForm((f) => ({ ...f, insumoId: list[0].id }));
       }
@@ -74,25 +63,19 @@ export function AlmacenStock() {
 
   useEffect(() => {
     void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function registrar() {
     setSaving(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/almacen", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          insumoId: form.insumoId,
-          tipo: form.tipo,
-          cantidad: Number(form.cantidad),
-          motivo: form.motivo || null,
-          costoPesos: form.costoPesos ? Number(form.costoPesos) : null,
-        }),
+      await moverStock({
+        insumoId: form.insumoId,
+        tipo: form.tipo,
+        cantidad: Number(form.cantidad),
+        costoPesos: form.costoPesos ? Number(form.costoPesos) : null,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "No se pudo registrar");
       setForm((f) => ({ ...f, cantidad: "", motivo: "", costoPesos: "" }));
       await load();
     } catch (e) {
@@ -104,16 +87,12 @@ export function AlmacenStock() {
 
   async function guardarUmbral(insumoId: string, stockMinimo: number) {
     setError(null);
-    const res = await apiFetch("/api/almacen/umbral", {
-      method: "PUT",
-      body: JSON.stringify({ insumoId, stockMinimo, umbral_pocos: stockMinimo }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setError(data.error || "No se pudo guardar el umbral");
-      return;
+    try {
+      await updateInsumo(insumoId, { umbral_pocos: stockMinimo });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo guardar el umbral");
     }
-    await load();
   }
 
   if (loading) {
@@ -205,7 +184,7 @@ export function AlmacenStock() {
           type="button"
           className="btn btn-primary w-full"
           disabled={saving || !form.cantidad}
-          onClick={registrar}
+          onClick={() => void registrar()}
         >
           {saving ? "Guardando…" : "Registrar"}
         </button>
@@ -254,30 +233,6 @@ export function AlmacenStock() {
             </li>
           ))}
         </ul>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="font-semibold">Últimos movimientos</h2>
-        {movimientos.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aún no hay movimientos.</p>
-        ) : (
-          <ul className="space-y-2">
-            {movimientos.map((m) => (
-              <li key={m.id} className="border-b border-border py-3.5 text-sm first:border-t">
-                <p className="font-medium">
-                  {m.tipo}: {m.cantidad} {m.unidad} · {m.insumoNombre}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {m.motivo || "—"} ·{" "}
-                  {new Date(m.creadoEn).toLocaleString("es-MX", {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                  })}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
     </div>
   );

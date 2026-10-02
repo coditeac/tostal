@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import {
+  createStaffUser,
+  listStaff,
+  updateStaffProfile,
+  type StaffUser,
+} from "@/lib/data/usuarios";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-type User = {
-  id: string;
-  email: string;
-  nombre: string;
-  rol: "superadmin" | "admin" | "cocina" | "caja";
-  activo: boolean;
-};
+type User = StaffUser;
 
 const ROLES_CREABLES: Array<User["rol"]> = ["admin", "cocina", "caja"];
 
@@ -30,15 +29,19 @@ export default function PersonalPanel() {
 
   async function load() {
     setLoading(true);
-    const res = await apiFetch("/api/usuarios");
-    const data = await res.json().catch(() => ({}));
-    setLoading(false);
-    if (!res.ok) {
-      setError(data.error || "Sin permiso (solo admin/superadmin)");
-      return;
+    try {
+      const list = await listStaff();
+      setUsuarios(list);
+      setError(null);
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Sin permiso (solo admin/superadmin)"
+      );
+    } finally {
+      setLoading(false);
     }
-    setUsuarios(data.usuarios || []);
-    setError(null);
   }
 
   useEffect(() => {
@@ -66,25 +69,23 @@ export default function PersonalPanel() {
     setError(null);
     try {
       if (editId === "nuevo") {
-        const res = await apiFetch("/api/usuarios", {
-          method: "POST",
-          body: JSON.stringify(form),
+        await createStaffUser({
+          email: form.email,
+          nombre: form.nombre,
+          password: form.password,
+          rol: form.rol,
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "No se pudo crear");
       } else if (editId) {
-        const body: Record<string, unknown> = {
+        await updateStaffProfile({
           id: editId,
           nombre: form.nombre,
           rol: form.rol,
-        };
-        if (form.password.trim()) body.password = form.password;
-        const res = await apiFetch("/api/usuarios", {
-          method: "PATCH",
-          body: JSON.stringify(body),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "No se pudo actualizar");
+        if (form.password.trim()) {
+          setError(
+            "Perfil actualizado. Cambio de contraseña requiere service_role (Dashboard/Railway)."
+          );
+        }
       }
       setEditId(null);
       await load();
@@ -96,18 +97,16 @@ export default function PersonalPanel() {
   }
 
   async function toggleActivo(u: User) {
-    const res = await apiFetch("/api/usuarios", {
-      method: "PATCH",
-      body: JSON.stringify({ id: u.id, activo: !u.activo }),
-    });
-    if (res.ok) await load();
+    await updateStaffProfile({ id: u.id, activo: !u.activo });
+    await load();
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          Cuentas staff (admin, cocina, caja). Solo superadmin/admin.
+          Cuentas staff (admin, cocina, caja). Solo superadmin/admin. Superadmin:{" "}
+          <span className="font-medium text-foreground">cocina@tostal.cafe</span>
         </p>
         <Button type="button" size="sm" onClick={startNew}>
           Nuevo
@@ -120,136 +119,112 @@ export default function PersonalPanel() {
         </p>
       )}
 
+      {loading ? (
+        <p className="loading-pulse text-muted-foreground">Cargando…</p>
+      ) : (
+        <ul className="divide-y divide-border border-y border-border">
+          {usuarios.map((u) => (
+            <li
+              key={u.id}
+              className="flex flex-wrap items-center justify-between gap-3 py-3"
+            >
+              <div>
+                <p className="font-medium">
+                  {u.nombre}{" "}
+                  {!u.activo && (
+                    <Badge variant="secondary" size="sm">
+                      inactivo
+                    </Badge>
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {u.email} · {u.rol}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => startEdit(u)}
+                >
+                  Editar
+                </Button>
+                {u.rol !== "superadmin" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void toggleActivo(u)}
+                  >
+                    {u.activo ? "Desactivar" : "Activar"}
+                  </Button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {editId && (
-        <form
-          onSubmit={(e) => void onSave(e)}
-          className="space-y-3 border-y border-border py-4"
-        >
+        <form onSubmit={onSave} className="space-y-3 border-t border-border pt-4">
           <h2 className="font-semibold">
-            {editId === "nuevo" ? "Nueva cuenta" : "Editar cuenta"}
+            {editId === "nuevo" ? "Nuevo staff" : "Editar"}
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="label">Nombre</label>
-              <input
-                className="field"
-                value={form.nombre}
-                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="label">Email</label>
-              <input
-                className="field"
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                required={editId === "nuevo"}
-                disabled={editId !== "nuevo"}
-              />
-            </div>
-            <div>
-              <label className="label">
-                {editId === "nuevo"
-                  ? "Contraseña"
-                  : "Nueva contraseña (opcional)"}
-              </label>
-              <input
-                className="field"
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required={editId === "nuevo"}
-                minLength={editId === "nuevo" ? 6 : undefined}
-                placeholder={editId === "nuevo" ? "Mín. 6" : "Sin cambios"}
-              />
-            </div>
-            <div>
-              <label className="label">Rol</label>
-              <select
-                className="field"
-                value={form.rol}
-                onChange={(e) =>
-                  setForm({ ...form, rol: e.target.value as User["rol"] })
-                }
-              >
-                {ROLES_CREABLES.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {editId === "nuevo" && (
+            <input
+              className="field"
+              type="email"
+              placeholder="Correo"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+            />
+          )}
+          <input
+            className="field"
+            placeholder="Nombre"
+            value={form.nombre}
+            onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+            required
+          />
+          <input
+            className="field"
+            type="password"
+            placeholder={
+              editId === "nuevo" ? "Contraseña" : "Nueva contraseña (opcional)"
+            }
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            required={editId === "nuevo"}
+            minLength={6}
+          />
+          <select
+            className="field"
+            value={form.rol}
+            onChange={(e) =>
+              setForm({ ...form, rol: e.target.value as User["rol"] })
+            }
+          >
+            {ROLES_CREABLES.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
           <div className="flex gap-2">
-            <Button type="submit" disabled={saving} className="flex-1">
+            <Button type="submit" disabled={saving}>
               {saving ? "Guardando…" : "Guardar"}
             </Button>
             <Button
               type="button"
-              variant="secondary"
+              variant="ghost"
               onClick={() => setEditId(null)}
             >
               Cancelar
             </Button>
           </div>
         </form>
-      )}
-
-      {loading ? (
-        <p className="loading-pulse text-sm text-muted-foreground">
-          Cargando personal…
-        </p>
-      ) : (
-        <ul className="divide-y divide-border border-y border-border">
-          {usuarios.map((u) => (
-            <li
-              key={u.id}
-              className="flex items-center justify-between gap-3 py-3.5"
-            >
-              <div className="min-w-0">
-                <p className="font-medium">
-                  {u.nombre}{" "}
-                  <Badge
-                    variant={u.activo ? "secondary" : "outline"}
-                    radius="default"
-                    className="ml-1 align-middle"
-                  >
-                    {u.rol}
-                  </Badge>
-                </p>
-                <p className="truncate text-sm text-muted-foreground">
-                  {u.email}
-                  {!u.activo ? " · inactivo" : ""}
-                </p>
-              </div>
-              <div className="flex shrink-0 gap-3 text-xs font-semibold">
-                {u.rol !== "superadmin" && (
-                  <button
-                    type="button"
-                    className="text-miel"
-                    onClick={() => startEdit(u)}
-                  >
-                    Editar
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="text-muted-foreground"
-                  onClick={() => void toggleActivo(u)}
-                >
-                  {u.activo ? "Desactivar" : "Activar"}
-                </button>
-              </div>
-            </li>
-          ))}
-          {usuarios.length === 0 && !error && (
-            <li className="py-4 text-sm text-muted-foreground">
-              Sin usuarios. Crea el primero con el botón Nuevo.
-            </li>
-          )}
-        </ul>
       )}
     </div>
   );

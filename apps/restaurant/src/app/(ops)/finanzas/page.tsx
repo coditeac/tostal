@@ -1,6 +1,12 @@
 "use client";
 
-import { apiFetch } from "@/lib/api";
+import {
+  createGasto,
+  createIngreso,
+  deleteGasto,
+  deleteIngreso,
+  loadFinanzas,
+} from "@/lib/data/finanzas";
 import { useEffect, useState } from "react";
 import { formatoMoneda, hoyISO } from "@/lib/format";
 
@@ -65,27 +71,12 @@ export default function FinanzasPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/finanzas");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error");
+      const data = await loadFinanzas();
       setGastos(data.gastos || []);
       setIngresos(data.ingresos || []);
-      const r = data.resumen || {};
-      setResumen({
-        totalGastos: Number(r.totalGastos ?? r.total_gastos ?? 0),
-        totalIngresos: Number(r.totalIngresos ?? r.total_ingresos ?? 0),
-        balance: Number(r.balance ?? 0),
-        desde: String(r.desde || ""),
-        hasta: String(r.hasta || ""),
-        ventasPedidos: Number(r.ventasPedidos ?? r.ventas_pedidos ?? 0),
-        anticiposReservas: Number(
-          r.anticiposReservas ?? r.anticipos_reservas ?? 0
-        ),
-      });
-      setCategoriasGasto(data.categorias_gasto || data.categoriasGasto || []);
-      setCategoriasIngreso(
-        data.categorias_ingreso || data.categoriasIngreso || []
-      );
+      setResumen(data.resumen);
+      setCategoriasGasto(data.categorias_gasto || []);
+      setCategoriasIngreso(data.categorias_ingreso || []);
       if ((data.categorias_gasto || [])[0]) {
         setGastoForm((f) => ({
           ...f,
@@ -113,18 +104,11 @@ export default function FinanzasPage() {
     setSaving(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/finanzas/gastos", {
-        method: "POST",
-        body: JSON.stringify({
-          categoria: gastoForm.categoria,
-          montoPesos: Number(gastoForm.montoPesos),
-          fecha: gastoForm.fecha,
-          metodoPago: gastoForm.metodoPago,
-          notas: gastoForm.notas || null,
-        }),
+      await createGasto({
+        categoria: gastoForm.categoria,
+        montoPesos: Number(gastoForm.montoPesos),
+        notas: gastoForm.notas || undefined,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error");
       setGastoForm((f) => ({ ...f, montoPesos: "", notas: "" }));
       await load();
     } catch (e) {
@@ -138,31 +122,11 @@ export default function FinanzasPage() {
     setSaving(true);
     setError(null);
     try {
-      // Prefer /api/ingresos; fallback finanzas/ingresos
-      let res = await apiFetch("/api/ingresos", {
-        method: "POST",
-        body: JSON.stringify({
-          categoria: ingresoForm.categoria,
-          montoPesos: Number(ingresoForm.montoPesos),
-          fecha: ingresoForm.fecha,
-          metodoPago: ingresoForm.metodoPago,
-          notas: ingresoForm.notas || null,
-        }),
+      await createIngreso({
+        categoria: ingresoForm.categoria,
+        montoPesos: Number(ingresoForm.montoPesos),
+        notas: ingresoForm.notas || undefined,
       });
-      if (res.status === 404) {
-        res = await apiFetch("/api/finanzas/ingresos", {
-          method: "POST",
-          body: JSON.stringify({
-            categoria: ingresoForm.categoria,
-            montoPesos: Number(ingresoForm.montoPesos),
-            fecha: ingresoForm.fecha,
-            metodoPago: ingresoForm.metodoPago,
-            notas: ingresoForm.notas || null,
-          }),
-        });
-      }
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error");
       setIngresoForm((f) => ({ ...f, montoPesos: "", notas: "" }));
       await load();
     } catch (e) {
@@ -173,17 +137,12 @@ export default function FinanzasPage() {
   }
 
   async function borrarGasto(id: string) {
-    await apiFetch(`/api/finanzas/gastos?id=${id}`, { method: "DELETE" });
+    await deleteGasto(id);
     await load();
   }
 
   async function borrarIngreso(id: string) {
-    let res = await apiFetch(`/api/ingresos?id=${id}`, { method: "DELETE" });
-    if (res.status === 404) {
-      res = await apiFetch(`/api/finanzas/ingresos?id=${id}`, {
-        method: "DELETE",
-      });
-    }
+    await deleteIngreso(id);
     await load();
   }
 

@@ -1,8 +1,9 @@
 /**
  * Estados unificados pedidos + reservaciones (contrato Project Tostal).
- * Solo UI restaurant — normaliza legacy API mientras se despliega el nuevo contrato.
+ * Persistencia vía Supabase (`lib/data/pedidos` / `lib/data/reservas`).
  */
-import { apiFetch } from "@/lib/api";
+import { updatePedidoEstado } from "@/lib/data/pedidos";
+import { updateReservaEstado } from "@/lib/data/reservas";
 
 export type EstadoFlujo =
   | "recibido"
@@ -56,21 +57,6 @@ const LEGACY_TO_CONTRATO: Record<string, EstadoFlujo> = {
   entregada: "entregado",
   cancelada: "cancelado",
   pendiente: "recibido",
-};
-
-/** Contrato → códigos legacy (fallback API vieja). */
-const CONTRATO_TO_PEDIDO_LEGACY: Partial<Record<EstadoFlujo, string>> = {
-  aceptado: "confirmado",
-  preparando: "en_produccion",
-};
-
-const CONTRATO_TO_RESERVA_LEGACY: Partial<Record<EstadoFlujo, string>> = {
-  recibido: "pendiente_anticipo",
-  aceptado: "confirmada",
-  preparando: "en_produccion",
-  listo: "lista",
-  entregado: "entregada",
-  cancelado: "cancelada",
 };
 
 export function normalizarEstado(raw: string | null | undefined): EstadoFlujo {
@@ -181,95 +167,32 @@ export function varianteBadgeEstado(
   return "secondary";
 }
 
-async function parseError(res: Response): Promise<string> {
-  const data = await res.json().catch(() => ({}));
-  return (
-    (data as { error?: string; message?: string }).error ||
-    (data as { message?: string }).message ||
-    `Error ${res.status}`
-  );
-}
-
-/**
- * PATCH estado de pedido.
- * Prefiere contrato `PATCH /api/pedidos/:id/estado`;
- * fallback a `PATCH /api/pedidos` + códigos legacy.
- */
 export async function patchEstadoPedido(
   id: string,
   estado: EstadoFlujo
 ): Promise<{ ok: true; pedido: Record<string, unknown> } | { ok: false; error: string }> {
-  const tryPaths: Array<{ path: string; body: Record<string, string> }> = [
-    { path: `/api/pedidos/${id}/estado`, body: { estado } },
-    { path: `/api/pedidos`, body: { id, estado } },
-  ];
-
-  const legacy = CONTRATO_TO_PEDIDO_LEGACY[estado];
-  if (legacy) {
-    tryPaths.push({ path: `/api/pedidos`, body: { id, estado: legacy } });
-  }
-
-  let lastError = "No se pudo actualizar el estado";
-  for (const t of tryPaths) {
-    const res = await apiFetch(t.path, {
-      method: "PATCH",
-      body: JSON.stringify(t.body),
-    });
-    if (res.status === 404 || res.status === 405) continue;
-    if (!res.ok) {
-      lastError = await parseError(res);
-      // Si el API rechaza el código nuevo, probar siguiente (legacy).
-      if (res.status === 400) continue;
-      return { ok: false, error: lastError };
-    }
-    const data = await res.json().catch(() => ({}));
+  try {
+    const pedido = await updatePedidoEstado(id, estado);
+    return { ok: true, pedido: pedido as unknown as Record<string, unknown> };
+  } catch (e) {
     return {
-      ok: true,
-      pedido: ((data as { pedido?: Record<string, unknown> }).pedido ||
-        data) as Record<string, unknown>,
+      ok: false,
+      error: e instanceof Error ? e.message : "No se pudo actualizar el estado",
     };
   }
-  return { ok: false, error: lastError };
 }
 
-/**
- * PATCH estado de reservación.
- * Prefiere `PATCH /api/reservaciones/:id/estado` y alias `/api/reservas/...`;
- * fallback a `PATCH /api/reservaciones/estado` + códigos legacy.
- */
 export async function patchEstadoReserva(
   id: string,
   estado: EstadoFlujo
 ): Promise<{ ok: true; reserva: Record<string, unknown> } | { ok: false; error: string }> {
-  const legacy = CONTRATO_TO_RESERVA_LEGACY[estado] ?? estado;
-
-  const tryPaths: Array<{ path: string; body: Record<string, string> }> = [
-    { path: `/api/reservas/${id}/estado`, body: { estado } },
-    { path: `/api/reservaciones/${id}/estado`, body: { estado } },
-    { path: `/api/reservas/estado`, body: { id, estado } },
-    { path: `/api/reservaciones/estado`, body: { id, estado } },
-    { path: `/api/reservas/estado`, body: { id, estado: legacy } },
-    { path: `/api/reservaciones/estado`, body: { id, estado: legacy } },
-  ];
-
-  let lastError = "No se pudo actualizar el estado";
-  for (const t of tryPaths) {
-    const res = await apiFetch(t.path, {
-      method: "PATCH",
-      body: JSON.stringify(t.body),
-    });
-    if (res.status === 404 || res.status === 405) continue;
-    if (!res.ok) {
-      lastError = await parseError(res);
-      if (res.status === 400) continue;
-      return { ok: false, error: lastError };
-    }
-    const data = await res.json().catch(() => ({}));
+  try {
+    const reserva = await updateReservaEstado(id, estado);
+    return { ok: true, reserva: reserva as unknown as Record<string, unknown> };
+  } catch (e) {
     return {
-      ok: true,
-      reserva: ((data as { reserva?: Record<string, unknown> }).reserva ||
-        data) as Record<string, unknown>,
+      ok: false,
+      error: e instanceof Error ? e.message : "No se pudo actualizar el estado",
     };
   }
-  return { ok: false, error: lastError };
 }

@@ -1,25 +1,35 @@
-import { cookies } from "next/headers";
-import { apiFetchServer } from "./api";
+import { createClient } from "@/lib/supabase/server";
+import { isStaffRol, type StaffRol } from "@/lib/roles";
+
+export type { StaffRol };
+export { isStaffRol };
 
 export type SessionUser = {
   id: string;
   email: string;
   nombre: string;
-  rol: "superadmin" | "admin" | "cocina" | "caja";
+  rol: StaffRol;
 };
 
 export async function getSession(): Promise<SessionUser | null> {
-  const jar = await cookies();
-  const cookieHeader = jar
-    .getAll()
-    .map((c) => `${c.name}=${c.value}`)
-    .join("; ");
-  try {
-    const res = await apiFetchServer("/api/auth/session", cookieHeader);
-    if (!res.ok) return null;
-    const data = (await res.json()) as { user?: SessionUser | null };
-    return data.user || null;
-  } catch {
-    return null;
-  }
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, email, nombre, rol, activo")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile || !profile.activo || !isStaffRol(profile.rol)) return null;
+
+  return {
+    id: profile.id,
+    email: profile.email || user.email || "",
+    nombre: profile.nombre || profile.email?.split("@")[0] || "Staff",
+    rol: profile.rol,
+  };
 }

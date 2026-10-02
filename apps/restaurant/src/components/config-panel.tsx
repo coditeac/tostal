@@ -1,162 +1,103 @@
 "use client";
 
-import { apiFetch } from "@/lib/api";
-
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 
+type ConfigLocal = {
+  nombreNegocio: string;
+  telefono: string;
+  horaLimiteDefault: string;
+  mensajeWhatsapp: string;
+};
+
+const KEY = "tostal.restaurant.config.v1";
+const DEFAULTS: ConfigLocal = {
+  nombreNegocio: "Tostal",
+  telefono: "",
+  horaLimiteDefault: "18:00",
+  mensajeWhatsapp: "",
+};
+
+/**
+ * Config local (sin tabla Supabase aún). Persistencia en localStorage del staff.
+ */
 export default function ConfigPanel() {
-  const [form, setForm] = useState({
-    marca: "Tostal",
-    eslogan: "Sabores que unen culturas",
-    moneda: "MXN",
-    canal_remoto_activo: "1",
-    canal_mostrador_activo: "0",
-    telefono_whatsapp: "",
-    direccion_retiro: "",
-  });
-  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState<ConfigLocal>(DEFAULTS);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await apiFetch("/api/config");
-        const data = await res.json();
-        if (data.all) {
-          setForm((f) => ({
-            ...f,
-            marca: data.all.marca || f.marca,
-            eslogan: data.all.eslogan || f.eslogan,
-            moneda: data.all.moneda || f.moneda,
-            canal_remoto_activo: data.all.canal_remoto_activo || "1",
-            canal_mostrador_activo: data.all.canal_mostrador_activo || "0",
-            telefono_whatsapp: data.all.telefono_whatsapp || "",
-            direccion_retiro: data.all.direccion_retiro || "",
-          }));
-        }
-      } catch {
-        setError("No se pudo cargar la configuración");
-      } finally {
-        setLoading(false);
-      }
-    })();
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) setForm({ ...DEFAULTS, ...JSON.parse(raw) });
+    } catch {
+      /* ignore */
+    }
   }, []);
 
-  async function guardar() {
+  function onSave(e: React.FormEvent) {
+    e.preventDefault();
     setSaving(true);
-    setMsg(null);
-    setError(null);
+    setOk(null);
     try {
-      const res = await apiFetch("/api/config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error");
-      setMsg("Guardado");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      localStorage.setItem(KEY, JSON.stringify(form));
+      setOk("Configuración guardada en este dispositivo.");
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) return <p className="loading-pulse text-muted-foreground">Cargando…</p>;
-
   return (
-    <div className="space-y-4">
+    <form onSubmit={onSave} className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Marca, canales y datos de contacto
+        Ajustes locales del panel. Auth y datos operativos van por Supabase (
+        <code className="text-xs">profiles.rol</code>).
       </p>
-
-      <section className="surface space-y-3 p-4">
-        <div>
-          <label className="label">Marca</label>
-          <input
-            className="field"
-            value={form.marca}
-            onChange={(e) => setForm({ ...form, marca: e.target.value })}
-          />
-        </div>
-        <div>
-          <label className="label">Eslogan</label>
-          <input
-            className="field"
-            value={form.eslogan}
-            onChange={(e) => setForm({ ...form, eslogan: e.target.value })}
-          />
-        </div>
-        <div>
-          <label className="label">WhatsApp del negocio</label>
-          <input
-            className="field"
-            value={form.telefono_whatsapp}
-            onChange={(e) =>
-              setForm({ ...form, telefono_whatsapp: e.target.value })
-            }
-          />
-        </div>
-        <div>
-          <label className="label">Dirección de retiro</label>
-          <input
-            className="field"
-            value={form.direccion_retiro}
-            onChange={(e) =>
-              setForm({ ...form, direccion_retiro: e.target.value })
-            }
-          />
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={form.canal_remoto_activo === "1"}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                canal_remoto_activo: e.target.checked ? "1" : "0",
-              })
-            }
-          />
-          Canal remoto activo
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={form.canal_mostrador_activo === "1"}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                canal_mostrador_activo: e.target.checked ? "1" : "0",
-              })
-            }
-          />
-          Canal mostrador activo (local)
-        </label>
-
-        {msg && <p className="text-sm text-ok">{msg}</p>}
-        {error && <p className="text-sm text-error">{error}</p>}
-
-        <button
-          type="button"
-          className="btn btn-primary w-full"
-          disabled={saving}
-          onClick={guardar}
-        >
-          {saving ? "Guardando…" : "Guardar"}
-        </button>
-      </section>
-
-      <section className="surface p-4 text-sm text-muted-foreground">
-        <p className="font-semibold text-cacao">Pagos Stripe</p>
-        <p className="mt-1">
-          Sin <code>STRIPE_SECRET_KEY</code> el checkout usa modo mock: los
-          pedidos con método Stripe quedan marcados como pagados. Documentado en
-          el README.
+      <div>
+        <label className="label">Nombre del negocio</label>
+        <input
+          className="field"
+          value={form.nombreNegocio}
+          onChange={(e) => setForm({ ...form, nombreNegocio: e.target.value })}
+        />
+      </div>
+      <div>
+        <label className="label">Teléfono</label>
+        <input
+          className="field"
+          value={form.telefono}
+          onChange={(e) => setForm({ ...form, telefono: e.target.value })}
+        />
+      </div>
+      <div>
+        <label className="label">Hora límite default (CDMX)</label>
+        <input
+          className="field"
+          type="time"
+          value={form.horaLimiteDefault}
+          onChange={(e) =>
+            setForm({ ...form, horaLimiteDefault: e.target.value })
+          }
+        />
+      </div>
+      <div>
+        <label className="label">Mensaje WhatsApp</label>
+        <textarea
+          className="field min-h-24"
+          value={form.mensajeWhatsapp}
+          onChange={(e) =>
+            setForm({ ...form, mensajeWhatsapp: e.target.value })
+          }
+        />
+      </div>
+      {ok && (
+        <p className="rounded-xl bg-[color-mix(in_srgb,var(--tostal-ok)_12%,white)] px-3 py-2 text-sm text-ok">
+          {ok}
         </p>
-      </section>
-    </div>
+      )}
+      <Button type="submit" disabled={saving}>
+        {saving ? "Guardando…" : "Guardar"}
+      </Button>
+    </form>
   );
 }

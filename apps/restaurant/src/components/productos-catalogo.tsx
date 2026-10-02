@@ -1,6 +1,10 @@
 "use client";
 
-import { apiFetch } from "@/lib/api";
+import { listInsumos } from "@/lib/data/insumos";
+import {
+  listProductosConReceta,
+  upsertProducto,
+} from "@/lib/data/productos";
 import {
   FOTO_ACCEPT,
   fotoUrlFromProducto,
@@ -132,94 +136,18 @@ export function ProductosCatalogo() {
     setLoading(true);
     setError(null);
     try {
-      const [pRes, iRes] = await Promise.all([
-        apiFetch("/api/productos"),
-        apiFetch("/api/insumos"),
+      const [list, iRows] = await Promise.all([
+        listProductosConReceta(),
+        listInsumos(),
       ]);
-      const pData = await pRes.json();
-      const iData = await iRes.json();
-      if (!pRes.ok) throw new Error(pData.error || "Error al cargar");
-      const list = (pData.productos || []).map(
-        (p: Producto & Record<string, unknown>) => {
-          const rendimiento = Math.max(
-            1,
-            Math.floor(
-              Number(
-                p.recetaRendimiento ??
-                  p.receta_rendimiento ??
-                  p.rinde_piezas ??
-                  1
-              ) || 1
-            )
-          );
-          const recetaRaw = Array.isArray(p.receta) ? p.receta : [];
-          const receta = recetaRaw.map(
-            (r: LineaRecetaUi & Record<string, unknown>) => {
-              // API #25: cantidad = lote; alias cantidad_lote; por_pieza calculado.
-              const cantidad = Number(
-                r.cantidad ?? r.cantidad_lote ?? 0
-              );
-              const porPiezaApi = r.por_pieza ?? r.porPieza;
-              return {
-                id: String(r.id ?? ""),
-                insumoId: String(r.insumoId ?? r.insumo_id ?? ""),
-                cantidad,
-                porPieza:
-                  porPiezaApi != null && Number.isFinite(Number(porPiezaApi))
-                    ? Number(porPiezaApi)
-                    : rendimiento > 0
-                      ? cantidad / rendimiento
-                      : cantidad,
-                insumoNombre:
-                  (r.insumoNombre as string | undefined) ??
-                  (r.insumo_nombre as string | undefined),
-                unidad: r.unidad as string | undefined,
-              };
-            }
-          );
-          return {
-            ...p,
-            precio: Number(p.precio ?? p.precio_venta ?? 0),
-            fotoUrl: fotoUrlFromProducto(
-              p as unknown as Record<string, unknown>
-            ),
-            costoCalculado: Number(
-              p.costoCalculado ?? p.costo_calculado ?? p.costoTeorico ?? 0
-            ),
-            recetaRendimiento: rendimiento,
-            reservaHabilitada: Boolean(
-              p.reservaHabilitada ?? p.reserva_habilitada ?? false
-            ),
-            anticipoTipo:
-              (p.anticipoTipo as Producto["anticipoTipo"]) ??
-              (p.anticipo_tipo as Producto["anticipoTipo"]) ??
-              null,
-            anticipoValor:
-              p.anticipoValor != null
-                ? Number(p.anticipoValor)
-                : p.anticipo_valor != null
-                  ? Number(p.anticipo_valor)
-                  : null,
-            reservaDiasMinimos: Number(
-              p.reservaDiasMinimos ?? p.reserva_dias_minimos ?? 3
-            ),
-            reservaCantidadMinima: Number(
-              p.reservaCantidadMinima ?? p.reserva_cantidad_minima ?? 1
-            ),
-            receta,
-          };
-        }
-      ) as Producto[];
-      setProductos(list);
-      setCategorias(pData.categorias || []);
+      setProductos(list as unknown as Producto[]);
+      setCategorias([]);
       setInsumos(
-        (iData.insumos || []).map((i: Insumo & Record<string, unknown>) => ({
-          id: String(i.id),
-          nombre: String(i.nombre),
-          unidad: String(i.unidad),
-          costoUnitario: Number(
-            i.costoUnitario ?? i.costo_unitario ?? 0
-          ),
+        iRows.map((i) => ({
+          id: i.id,
+          nombre: i.nombre,
+          unidad: i.unidad,
+          costoUnitario: Number(i.costo_unitario) || 0,
         }))
       );
     } catch (e) {
@@ -374,66 +302,27 @@ export function ProductosCatalogo() {
         1,
         Math.floor(Number(form.recetaRendimiento) || 1)
       );
-      const payload = {
-        id: editId === "nuevo" ? undefined : editId,
+
+      const precioCentavos = Math.round(Number(form.precioPesos) * 100);
+      const savedId = await upsertProducto({
+        id: editId === "nuevo" ? undefined : editId || undefined,
         nombre: form.nombre,
         descripcion: form.descripcion || null,
-        precioPesos: Number(form.precioPesos),
-        categoriaId: form.categoriaId || null,
-        alergenos: form.alergenos || null,
-        activoCatalogo: form.activoCatalogo,
-        duracionesTexto: form.duracionesTexto,
-        receta_rendimiento: rendimiento,
-        recetaRendimiento: rendimiento,
-        rinde_piezas: rendimiento,
+        precio_venta: precioCentavos,
+        activo: form.activoCatalogo,
         reserva_habilitada: form.reservaHabilitada,
-        reservaHabilitada: form.reservaHabilitada,
-        anticipo_tipo: form.reservaHabilitada ? form.anticipoTipo : null,
-        anticipoTipo: form.reservaHabilitada ? form.anticipoTipo : null,
-        anticipo_valor: form.reservaHabilitada ? anticipoValorPayload : null,
-        anticipoValor: form.reservaHabilitada ? anticipoValorPayload : null,
+        anticipo_tipo: form.reservaHabilitada ? form.anticipoTipo : "porcentaje",
+        anticipo_valor: form.reservaHabilitada ? anticipoValorPayload : 0,
         reserva_dias_minimos: diasMin,
-        reservaDiasMinimos: diasMin,
         reserva_cantidad_minima: cantMin,
-        reservaCantidadMinima: cantMin,
+        receta_rendimiento: rendimiento,
         receta: recetaDraft
           .filter((r) => r.insumoId && Number(r.cantidad) > 0)
           .map((r) => ({
             insumoId: r.insumoId,
             cantidad: Number(r.cantidad),
           })),
-      };
-
-      let res: Response;
-      if (editId !== "nuevo") {
-        // Contrato: PATCH /api/productos/:id — fallback PUT /api/productos
-        res = await apiFetch(`/api/productos/${editId}`, {
-          method: "PATCH",
-          body: JSON.stringify(payload),
-        });
-        if (res.status === 404) {
-          res = await apiFetch("/api/productos", {
-            method: "PUT",
-            body: JSON.stringify(payload),
-          });
-        }
-      } else {
-        res = await apiFetch("/api/productos", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-      }
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "No se pudo guardar");
-
-      const savedId =
-        editId !== "nuevo"
-          ? editId
-          : String(
-              data.producto?.id ??
-                data.id ??
-                (typeof data.productoId === "string" ? data.productoId : "")
-            );
+      });
       if (!savedId) throw new Error("Producto guardado sin id.");
 
       if (fotoPendiente) {
