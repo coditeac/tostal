@@ -232,28 +232,40 @@ async function notifyStaffNuevoPedido(pedido: PedidoPublico) {
 
 export async function notifyEstadoPedido(
   pedido: PedidoPublico,
-  email?: string | null
+  email?: string | null,
+  motivo?: string | null
 ) {
   if (!email) return;
   const titulos: Record<string, string> = {
-    confirmado: "confirmado",
-    en_produccion: "en preparación",
-    listo: "listo",
+    recibido: "recibido",
+    aceptado: "aceptado",
+    preparando: "en preparación",
+    listo: "listo (esperando recolección)",
+    en_camino: "en camino",
     entregado: "entregado",
     cancelado: "cancelado",
+    // legacy
+    confirmado: "aceptado",
+    en_produccion: "en preparación",
   };
   const label = titulos[pedido.estado];
   if (!label) return;
 
   const extras: Record<string, string> = {
+    recibido: "Ya lo tenemos registrado.",
+    aceptado: "Ya lo tenemos en cola.",
+    preparando: "Nuestro equipo lo está preparando.",
     listo:
       pedido.modoEntrega === "retiro"
         ? "Ya puedes pasar a retirarlo."
         : "Pronto sale a envío.",
+    en_camino: "Va hacia tu dirección.",
     entregado: "Gracias por pedir en Tostal.",
+    cancelado: motivo
+      ? `Motivo: ${motivo}`
+      : "Si tienes dudas, escríbenos.",
     confirmado: "Ya lo tenemos en cola.",
     en_produccion: "Nuestro equipo lo está preparando.",
-    cancelado: "Si tienes dudas, escríbenos.",
   };
 
   const text = [
@@ -415,4 +427,81 @@ export async function notifyAnticipoConfirmado(
     evento: "anticipo_confirmado",
     pedidoId: null,
   });
+}
+
+export async function notifyEstadoReserva(
+  reserva: ReservaPublica,
+  email?: string | null,
+  motivo?: string | null
+) {
+  if (!email) return;
+  const titulos: Record<string, string> = {
+    recibido: "recibida",
+    aceptado: "aceptada",
+    preparando: "en preparación",
+    listo: "lista (esperando recolección)",
+    en_camino: "en camino",
+    entregado: "entregada",
+    cancelado: "cancelada",
+  };
+  const label = titulos[reserva.estado];
+  if (!label) return;
+
+  const extras: Record<string, string> = {
+    recibido: "Registramos tu reserva.",
+    aceptado: "Confirmamos tu reserva.",
+    preparando: "Nuestro equipo la está preparando.",
+    listo:
+      reserva.modoEntrega === "retiro"
+        ? "Ya puedes pasar a retirarla."
+        : "Pronto sale a envío.",
+    en_camino: "Va hacia tu dirección.",
+    entregado: "Gracias por reservar en Tostal.",
+    cancelado: motivo
+      ? `Motivo: ${motivo}`
+      : "Si tienes dudas, escríbenos.",
+  };
+
+  const text = [
+    `Hola ${reserva.clienteNombre},`,
+    ``,
+    `Tu reserva ${reserva.codigo} está ${label}.`,
+    extras[reserva.estado] || "",
+    `Fecha: ${reserva.fechaEntrega}`,
+    ``,
+    `Seguimiento: https://tostal.cafe/reserva/${reserva.codigo}`,
+    ``,
+    `— Tostal`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const html = wrapHtml(
+    `Reserva ${escapeHtml(reserva.codigo)} ${escapeHtml(label)}`,
+    `<p>Hola <strong>${escapeHtml(reserva.clienteNombre)}</strong>,</p>
+     <p>Tu reserva <strong>${escapeHtml(reserva.codigo)}</strong> está <strong>${escapeHtml(label)}</strong>.</p>
+     <p>${escapeHtml(extras[reserva.estado] || "")}</p>
+     <p>Fecha: <strong>${escapeHtml(reserva.fechaEntrega)}</strong></p>
+     <p><a href="https://tostal.cafe/reserva/${encodeURIComponent(reserva.codigo)}" style="color:#9A2E25;">Ver seguimiento</a></p>`
+  );
+
+  await sendMail({
+    to: email,
+    subject: `Reserva ${reserva.codigo} ${label} — Tostal`,
+    text,
+    html,
+    evento: `reserva_estado_${reserva.estado}`,
+    pedidoId: null,
+  });
+  try {
+    await sqlRun(
+      `UPDATE email_log SET reserva_id = ? WHERE evento = ? AND destinatario = ? AND creado_en >= ?`,
+      reserva.id,
+      `reserva_estado_${reserva.estado}`,
+      email,
+      new Date(Date.now() - 60_000).toISOString()
+    );
+  } catch {
+    /* ignore */
+  }
 }

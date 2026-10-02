@@ -20,6 +20,25 @@ import type {
   ReservaPublica,
 } from "./domain-types";
 import { productoFotoAliases } from "./media-storage";
+import {
+  normalizarEstado,
+  validarTransicionEstado,
+  type EstadoUnificado,
+} from "./estados";
+import { appendEstadoHistorial, listEstadoHistorial } from "./estado-historial";
+import { publishReservaEvent } from "./pedido-events";
+
+export type ReservaConHistorial = ReservaPublica & {
+  estado: EstadoUnificado;
+  estado_historial?: Array<{
+    id: string;
+    estado_anterior: string | null;
+    estado_nuevo: string;
+    motivo: string | null;
+    usuario_id: string | null;
+    creado_en: string;
+  }>;
+};
 
 async function boot() {
   await ensureSeed();
@@ -68,17 +87,23 @@ export async function listProductosReserva(): Promise<ProductoReservaPublico[]> 
     });
 }
 
-async function mapReserva(row: Record<string, unknown>): Promise<ReservaPublica> {
+async function mapReserva(
+  row: Record<string, unknown>,
+  opts?: { conHistorial?: boolean }
+): Promise<ReservaConHistorial> {
   const lineas = await sqlAll<ReservaPublica["lineas"][number]>(
     `SELECT id, producto_id as productoId, producto_nombre as productoNombre,
             cantidad, precio_unitario as precioUnitario, subtotal, notas
      FROM reserva_lineas WHERE reserva_id = ?`,
     row.id as string
   );
-  return {
+  const estado =
+    normalizarEstado(row.estado as string) ||
+    ((row.estado as string) as EstadoUnificado);
+  const base: ReservaConHistorial = {
     id: row.id as string,
     codigo: row.codigo as string,
-    estado: row.estado as EstadoReserva,
+    estado: estado as ReservaConHistorial["estado"],
     estadoAnticipo: row.estado_anticipo as EstadoAnticipo,
     metodoPago: row.metodo_pago as MetodoPago,
     modoEntrega: row.modo_entrega as ModoEntrega,
@@ -93,11 +118,24 @@ async function mapReserva(row: Record<string, unknown>): Promise<ReservaPublica>
     creadoEn: row.creado_en as string,
     lineas,
   };
+  if (opts?.conHistorial) {
+    const hist = await listEstadoHistorial("reserva", base.id);
+    base.estado_historial = hist.map((h) => ({
+      id: h.id,
+      estado_anterior: h.estadoAnterior,
+      estado_nuevo: h.estadoNuevo,
+      motivo: h.motivo,
+      usuario_id: h.usuarioId,
+      creado_en: h.creadoEn,
+    }));
+  }
+  return base;
 }
 
 export async function getReserva(
-  reservaIdOrCodigo: string
-): Promise<ReservaPublica | null> {
+  reservaIdOrCodigo: string,
+  opts?: { conHistorial?: boolean }
+): Promise<ReservaConHistorial | null> {
   await boot();
   const row = await sqlGet<Record<string, unknown>>(
     `SELECT * FROM reservas WHERE id = ? OR codigo = ?`,
@@ -105,7 +143,7 @@ export async function getReserva(
     reservaIdOrCodigo
   );
   if (!row) return null;
-  return mapReserva(row);
+  return mapReserva(row, opts);
 }
 
 export async function listReservas(opts?: {
@@ -397,7 +435,7 @@ export async function crearReserva(input: {
   const total = subtotal + costoEnvio;
   // Transferencia/Stripe: anticipo pendiente hasta confirmar pago.
   const estadoAnticipo: EstadoAnticipo = "pendiente";
-  const estado: EstadoReserva = "pendiente_anticipo";
+  const estado: EstadoUnificado = "recibido";
 
   await sqlTransaction(async () => {
     let clienteId: string | null = null;
@@ -478,9 +516,19 @@ export async function crearReserva(input: {
         cantidad: l.cantidad,
       }))
     );
+
+    await appendEstadoHistorial({
+      entidadTipo: "reserva",
+      entidadId: reservaId,
+      estadoAnterior: null,
+      estadoNuevo: estado,
+      motivo: "Reserva creada",
+      usuarioId: null,
+    });
   });
 
   const reserva = (await getReserva(reservaId))!;
+  publishReservaEvent("reserva_creada", reserva);
   const { notifyReservaCreada } = await import("./mail");
   await notifyReservaCreada(reserva, emailNorm);
 
@@ -489,39 +537,101 @@ export async function crearReserva(input: {
 
 export async function actualizarEstadoReserva(
   reservaId: string,
-  estado: EstadoReserva
-): Promise<ReservaPublica | null> {
+  estadoRaw: string,
+  opts?: { usuarioId?: string | null; motivo?: string | null }
+): Promise<
+  { ok: true; reserva: ReservaConHistorial } | { ok: false; error: string }
+> {
   await boot();
-  const now = new Date().toISOString();
-  await sqlRun(
-    `UPDATE reservas SET estado = ?, actualizado_en = ? WHERE id = ? OR codigo = ?`,
-    estado,
-    now,
+  const row = await sqlGet<Record<string, unknown>>(
+    `SELECT * FROM reservas WHERE id = ? OR codigo = ?`,
     reservaId,
     reservaId
   );
-  return getReserva(reservaId);
+  if (!row) return { ok: false, error: "Reserva no encontrada." };
+
+  const desde =
+    normalizarEstado(row.estado as string) || String(row.estado);
+  const check = validarTransicionEstado({
+    desde,
+    hacia: estadoRaw,
+    modoEntrega: row.modo_entrega as string,
+  });
+  if (!check.ok) return { ok: false, error: check.error };
+  const estado = check.estado;
+  const now = new Date().toISOString();
+  const estadoAnterior = normalizarEstado(row.estado as string);
+
+  await sqlTransaction(async () => {
+    await sqlRun(
+      `UPDATE reservas SET estado = ?, actualizado_en = ? WHERE id = ?`,
+      estado,
+      now,
+      row.id as string
+    );
+    await appendEstadoHistorial({
+      entidadTipo: "reserva",
+      entidadId: row.id as string,
+      estadoAnterior,
+      estadoNuevo: estado,
+      motivo: opts?.motivo || null,
+      usuarioId: opts?.usuarioId || null,
+    });
+  });
+
+  const reserva = (await getReserva(row.id as string, {
+    conHistorial: true,
+  }))!;
+  publishReservaEvent("estado_cambiado", reserva);
+  const { notifyEstadoReserva } = await import("./mail");
+  const email =
+    (row.cliente_email as string | null) ||
+    (
+      await sqlGet<{ email: string | null }>(
+        `SELECT email FROM clientes WHERE id = ?`,
+        row.cliente_id as string
+      )
+    )?.email ||
+    null;
+  void notifyEstadoReserva(reserva, email, opts?.motivo);
+  return { ok: true, reserva };
 }
 
 export async function confirmarAnticipoReserva(
   reservaId: string
-): Promise<ReservaPublica | null> {
+): Promise<ReservaConHistorial | null> {
   await boot();
   const existing = await getReserva(reservaId);
   if (!existing) return null;
   const now = new Date().toISOString();
-  const nuevoEstado: EstadoReserva =
-    existing.estado === "pendiente_anticipo" ? "confirmada" : existing.estado;
-  await sqlRun(
-    `UPDATE reservas SET estado_anticipo = 'pagado', estado = ?, actualizado_en = ?
-     WHERE id = ? OR codigo = ?`,
-    nuevoEstado,
-    now,
-    reservaId,
-    reservaId
-  );
-  const reserva = await getReserva(reservaId);
+  const estadoActual = normalizarEstado(existing.estado) || existing.estado;
+  // Tras anticipo: si sigue en recibido → aceptado (flujo unificado).
+  const nuevoEstado: EstadoUnificado =
+    estadoActual === "recibido" ? "aceptado" : (estadoActual as EstadoUnificado);
+  await sqlTransaction(async () => {
+    await sqlRun(
+      `UPDATE reservas SET estado_anticipo = 'pagado', estado = ?, actualizado_en = ?
+       WHERE id = ?`,
+      nuevoEstado,
+      now,
+      existing.id
+    );
+    if (nuevoEstado !== estadoActual) {
+      await appendEstadoHistorial({
+        entidadTipo: "reserva",
+        entidadId: existing.id,
+        estadoAnterior: estadoActual,
+        estadoNuevo: nuevoEstado,
+        motivo: "Anticipo confirmado",
+        usuarioId: null,
+      });
+    }
+  });
+  const reserva = await getReserva(existing.id, { conHistorial: true });
   if (reserva) {
+    if (nuevoEstado !== estadoActual) {
+      publishReservaEvent("estado_cambiado", reserva);
+    }
     const { notifyAnticipoConfirmado } = await import("./mail");
     const emailRow = await sqlGet<{ cliente_email: string | null }>(
       `SELECT cliente_email FROM reservas WHERE id = ?`,
@@ -555,7 +665,7 @@ export async function sugerirComprasDesdeReservas(fecha?: string): Promise<{
     FROM reserva_necesidades n
     JOIN reservas r ON r.id = n.reserva_id
     WHERE n.requiere_compra = 1
-      AND r.estado NOT IN ('cancelada', 'entregada')
+      AND r.estado NOT IN ('cancelado', 'entregado', 'cancelada', 'entregada')
   `;
   const params: string[] = [];
   if (fecha) {

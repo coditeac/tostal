@@ -4,13 +4,31 @@ import { getConfigPublica } from "./config";
 import { getDia, getDisponibilidad, getProducto, getReceta, listZonas, cantidadInsumoParaPiezas } from "./catalogo";
 import { publishPedidoEvent } from "./pedido-events";
 import { id } from "./id";
+import {
+  normalizarEstado,
+  validarTransicionEstado,
+  type EstadoUnificado,
+} from "./estados";
+import { appendEstadoHistorial, listEstadoHistorial } from "./estado-historial";
 import type {
-  EstadoPedido,
   LineaPedidoInput,
   MetodoPago,
   ModoEntrega,
   PedidoPublico,
 } from "../../../../shared/types";
+
+/** Pedido con estado canónico + historial opcional. */
+export type PedidoConHistorial = PedidoPublico & {
+  estado: EstadoUnificado;
+  estado_historial?: Array<{
+    id: string;
+    estado_anterior: string | null;
+    estado_nuevo: string;
+    motivo: string | null;
+    usuario_id: string | null;
+    creado_en: string;
+  }>;
+};
 
 async function boot() {
   await ensureSeed();
@@ -25,8 +43,9 @@ function codigoPedido(): string {
 }
 
 export async function mapPedido(
-  row: Record<string, unknown>
-): Promise<PedidoPublico> {
+  row: Record<string, unknown>,
+  opts?: { conHistorial?: boolean }
+): Promise<PedidoConHistorial> {
   const lineas = await sqlAll<PedidoPublico["lineas"][number]>(
     `SELECT id, producto_id as productoId, producto_nombre as productoNombre,
             cantidad, precio_unitario as precioUnitario, subtotal, notas
@@ -34,11 +53,15 @@ export async function mapPedido(
     row.id as string
   );
 
-  return {
+  const estado =
+    normalizarEstado(row.estado as string) ||
+    ((row.estado as string) as EstadoUnificado);
+
+  const base: PedidoConHistorial = {
     id: row.id as string,
     codigo: row.codigo as string,
     canal: row.canal as PedidoPublico["canal"],
-    estado: row.estado as PedidoPublico["estado"],
+    estado: estado as PedidoConHistorial["estado"],
     estadoPago: row.estado_pago as PedidoPublico["estadoPago"],
     metodoPago: row.metodo_pago as PedidoPublico["metodoPago"],
     modoEntrega: row.modo_entrega as PedidoPublico["modoEntrega"],
@@ -52,11 +75,26 @@ export async function mapPedido(
     creadoEn: row.creado_en as string,
     lineas,
   };
+
+  if (opts?.conHistorial) {
+    const hist = await listEstadoHistorial("pedido", base.id);
+    base.estado_historial = hist.map((h) => ({
+      id: h.id,
+      estado_anterior: h.estadoAnterior,
+      estado_nuevo: h.estadoNuevo,
+      motivo: h.motivo,
+      usuario_id: h.usuarioId,
+      creado_en: h.creadoEn,
+    }));
+  }
+
+  return base;
 }
 
 export async function getPedido(
-  pedidoId: string
-): Promise<PedidoPublico | null> {
+  pedidoId: string,
+  opts?: { conHistorial?: boolean }
+): Promise<PedidoConHistorial | null> {
   await boot();
   const row = await sqlGet<Record<string, unknown>>(
     `SELECT * FROM pedidos WHERE id = ? OR codigo = ?`,
@@ -64,7 +102,7 @@ export async function getPedido(
     pedidoId
   );
   if (!row) return null;
-  return mapPedido(row);
+  return mapPedido(row, opts);
 }
 
 export async function listPedidos(opts?: {
@@ -322,6 +360,15 @@ export async function crearPedidoRemoto(input: {
       texto,
       now
     );
+
+    await appendEstadoHistorial({
+      entidadTipo: "pedido",
+      entidadId: pedidoId,
+      estadoAnterior: null,
+      estadoNuevo: "recibido",
+      motivo: "Pedido creado",
+      usuarioId: null,
+    });
   });
 
   const pedido = (await getPedido(pedidoId))!;
@@ -332,24 +379,39 @@ export async function crearPedidoRemoto(input: {
 
 export async function actualizarEstadoPedido(
   pedidoId: string,
-  estado: EstadoPedido,
-  usuarioId?: string
-): Promise<{ ok: true; pedido: PedidoPublico } | { ok: false; error: string }> {
+  estadoRaw: string,
+  usuarioId?: string,
+  motivo?: string | null
+): Promise<
+  { ok: true; pedido: PedidoConHistorial } | { ok: false; error: string }
+> {
   await boot();
   const row = await sqlGet<Record<string, unknown>>(
-    `SELECT * FROM pedidos WHERE id = ?`,
+    `SELECT * FROM pedidos WHERE id = ? OR codigo = ?`,
+    pedidoId,
     pedidoId
   );
   if (!row) return { ok: false, error: "Pedido no encontrado." };
 
+  const desde =
+    normalizarEstado(row.estado as string) || String(row.estado);
+  const check = validarTransicionEstado({
+    desde,
+    hacia: estadoRaw,
+    modoEntrega: row.modo_entrega as string,
+  });
+  if (!check.ok) return { ok: false, error: check.error };
+  const estado = check.estado;
+
   const now = new Date().toISOString();
+  const estadoAnterior = normalizarEstado(row.estado as string);
 
   await sqlTransaction(async () => {
-    // Descuento de insumos al iniciar producción
-    if (estado === "en_produccion" && !row.insumos_descontados) {
+    // Descuento de insumos al pasar a preparando (alias legacy en_produccion)
+    if (estado === "preparando" && !row.insumos_descontados) {
       const lineas = await sqlAll<{ productoId: string; cantidad: number }>(
         `SELECT producto_id as productoId, cantidad FROM pedido_lineas WHERE pedido_id = ?`,
-        pedidoId
+        row.id as string
       );
 
       for (const linea of lineas) {
@@ -371,11 +433,11 @@ export async function actualizarEstadoPedido(
           await sqlRun(
             `INSERT INTO movimientos_inventario
              (id, insumo_id, tipo, cantidad, costo_unitario, motivo, pedido_id, usuario_id, creado_en)
-             VALUES (?, ?, 'produccion', ?, NULL, 'Inicio de producción', ?, ?, ?)`,
+             VALUES (?, ?, 'produccion', ?, NULL, 'Inicio de preparación', ?, ?, ?)`,
             id(),
             r.insumoId,
             qty,
-            pedidoId,
+            row.id as string,
             usuarioId || null,
             now
           );
@@ -383,7 +445,7 @@ export async function actualizarEstadoPedido(
       }
       await sqlRun(
         `UPDATE pedidos SET insumos_descontados = 1 WHERE id = ?`,
-        pedidoId
+        row.id as string
       );
     }
 
@@ -391,17 +453,27 @@ export async function actualizarEstadoPedido(
       `UPDATE pedidos SET estado = ?, actualizado_en = ? WHERE id = ?`,
       estado,
       now,
-      pedidoId
+      row.id as string
     );
 
-    const textos: Record<string, string> = {
-      confirmado: `Tu pedido ${row.codigo} en Tostal fue confirmado. ¡Ya lo preparamos!`,
-      en_produccion: `Estamos preparando tu pedido ${row.codigo} en Tostal.`,
+    await appendEstadoHistorial({
+      entidadTipo: "pedido",
+      entidadId: row.id as string,
+      estadoAnterior,
+      estadoNuevo: estado,
+      motivo: motivo || null,
+      usuarioId: usuarioId || null,
+    });
+
+    const textos: Partial<Record<EstadoUnificado, string>> = {
+      aceptado: `Tu pedido ${row.codigo} en Tostal fue aceptado.`,
+      preparando: `Estamos preparando tu pedido ${row.codigo} en Tostal.`,
       listo: `¡Tu pedido ${row.codigo} está listo! ${
         row.modo_entrega === "retiro"
           ? "Puedes pasar a retirarlo."
           : "Pronto sale a envío."
       }`,
+      en_camino: `Tu pedido ${row.codigo} va en camino.`,
       entregado: `Gracias por pedir en Tostal. Tu pedido ${row.codigo} fue entregado.`,
       cancelado: `Tu pedido ${row.codigo} en Tostal fue cancelado. Escríbenos si tienes dudas.`,
     };
@@ -410,7 +482,7 @@ export async function actualizarEstadoPedido(
         `INSERT INTO avisos_whatsapp (id, pedido_id, destinatario, telefono, evento, texto, estado, creado_en)
          VALUES (?, ?, ?, ?, ?, ?, 'pendiente', ?)`,
         id(),
-        pedidoId,
+        row.id as string,
         row.cliente_nombre,
         row.cliente_telefono,
         estado,
@@ -420,12 +492,12 @@ export async function actualizarEstadoPedido(
     }
   });
 
-  const pedido = (await getPedido(pedidoId))!;
+  const pedido = (await getPedido(row.id as string, { conHistorial: true }))!;
   publishPedidoEvent("estado_cambiado", pedido);
   const { getClienteEmailForPedido } = await import("./cliente-auth");
   const { notifyEstadoPedido } = await import("./mail");
-  const email = await getClienteEmailForPedido(pedidoId);
-  void notifyEstadoPedido(pedido, email);
+  const email = await getClienteEmailForPedido(row.id as string);
+  void notifyEstadoPedido(pedido, email, motivo);
   return { ok: true, pedido };
 }
 

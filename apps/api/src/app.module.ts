@@ -30,6 +30,8 @@ import { ClienteAuthController } from "./modules/cliente/cliente-auth.controller
 import { UsuariosController } from "./modules/usuarios/usuarios.controller";
 import { ReservasController } from "./modules/reservas/reservas.controller";
 import { MediaController } from "./modules/media/media.controller";
+import { ReservasSseController } from "./modules/reservas/reservas-sse.controller";
+import { PublicReservasSseController } from "./modules/public/public-reservas-sse.controller";
 import { MenuDiaController } from "./modules/menu-dia/menu-dia.controller";
 
 @Module({
@@ -40,6 +42,7 @@ import { MenuDiaController } from "./modules/menu-dia/menu-dia.controller";
     AuthController,
     PublicController,
     PublicSseController,
+    PublicReservasSseController,
     PedidosController,
     PedidosSseController,
     PagosController,
@@ -62,6 +65,7 @@ import { MenuDiaController } from "./modules/menu-dia/menu-dia.controller";
     ClienteAuthController,
     UsuariosController,
     ReservasController,
+    ReservasSseController,
     MediaController,
   ],
   providers: [],

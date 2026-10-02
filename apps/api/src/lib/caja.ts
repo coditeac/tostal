@@ -215,7 +215,7 @@ export async function crearPedidoMostrador(input: {
       ) VALUES (?, ?, 'mostrador', ?, 'pagado', ?, 'retiro', ?, NULL, NULL, ?, ?, NULL, ?, 0, ?, ?, 0, ?, ?, ?, ?)`,
       pedidoId,
       codigo,
-      necesitaPrep ? "confirmado" : "listo",
+      necesitaPrep ? "aceptado" : "listo",
       metodo,
       hoyISO(),
       nombre,
@@ -295,14 +295,6 @@ export async function entregarPorFicha(
   if (row.estado === "entregado") {
     return { ok: false, error: "Esa ficha ya fue entregada." };
   }
-  if (
-    row.estado !== "listo" &&
-    row.estado !== "confirmado" &&
-    row.estado !== "en_produccion"
-  ) {
-    // permitir entregar desde listo preferentemente
-  }
-  // Si aún no está listo, marcarlo listo primero no — exigir listo
   if (row.estado !== "listo") {
     return {
       ok: false,
