@@ -23,17 +23,21 @@ export class CostosController {
         p.precio > 0
           ? Math.round(((p.precio - costo) / p.precio) * 1000) / 10
           : 0;
-      const receta = (await getReceta(p.id)).map((r) => ({
-        ...r,
-        costoLinea: Math.round(
-          r.cantidad * (byId[r.insumoId]?.costoUnitario || 0)
-        ),
-      }));
+      const receta = (await getReceta(p.id)).map((r) => {
+        const costoUnit = byId[r.insumoId]?.costoUnitario || 0;
+        return {
+          ...r,
+          costoLinea: Math.round(r.por_pieza * costoUnit),
+          costoLineaLote: Math.round(r.cantidad * costoUnit),
+        };
+      });
       productos.push({
         id: p.id,
         nombre: p.nombre,
         precio: p.precio,
         costoTeorico: costo,
+        costo_calculado: costo,
+        receta_rendimiento: p.recetaRendimiento,
         margenPct,
         bajoMargen: margenPct < 40,
         receta,

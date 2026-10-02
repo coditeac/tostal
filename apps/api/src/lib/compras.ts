@@ -1,6 +1,6 @@
 import { sqlAll, sqlGet, sqlRun, sqlTransaction } from "./db";
 import { ensureSeed } from "./seed";
-import { listInsumos, getReceta, upsertInsumo } from "./catalogo";
+import { listInsumos, getProducto, getReceta, upsertInsumo, cantidadInsumoPorPieza } from "./catalogo";
 import { id } from "./id";
 import { hoyISO, sumarDias } from "./utils";
 
@@ -239,8 +239,12 @@ export async function calcularSugerencia(
 
   for (const l of lineas) {
     const receta = await getReceta(l.productoId);
+    const producto = await getProducto(l.productoId);
+    const rendimiento = producto?.recetaRendimiento ?? 1;
     for (const r of receta) {
-      demanda[r.insumoId] = (demanda[r.insumoId] || 0) + r.cantidad * l.cantidad;
+      // Demanda cruda; ceil de `u` al sugerir compra abajo.
+      const add = l.cantidad * cantidadInsumoPorPieza(r.cantidad, rendimiento);
+      demanda[r.insumoId] = (demanda[r.insumoId] || 0) + add;
     }
   }
 

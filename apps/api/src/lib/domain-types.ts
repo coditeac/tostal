@@ -21,12 +21,32 @@ export type ProductoApi = {
   reservaDiasMinimos: number;
   /** Cantidad mínima por línea de reserva. Default 1. */
   reservaCantidadMinima: number;
+  /**
+   * Piezas que rinde el lote de la receta (ej. 9 roles).
+   * Las cantidades de insumos son del lote completo; default 1 = por pieza.
+   */
+  recetaRendimiento: number;
   duraciones?: Array<{
     id: string;
     etiqueta: string;
     minutos?: number | null;
   }> | null;
   categoriaNombre?: string | null;
+};
+
+/** Línea de receta con cantidad de lote + por_pieza calculado. */
+export type LineaRecetaApi = {
+  id: string;
+  productoId: string;
+  insumoId: string;
+  /** Cantidad de insumo para el lote completo (`receta_rendimiento` piezas). */
+  cantidad: number;
+  /** Alias explícito de `cantidad` (lote). */
+  cantidad_lote: number;
+  /** cantidad_lote / receta_rendimiento */
+  por_pieza: number;
+  insumoNombre?: string;
+  unidad?: "g" | "ml" | "u";
 };
 
 export type EstadoReserva =
