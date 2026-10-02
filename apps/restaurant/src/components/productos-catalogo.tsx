@@ -5,6 +5,17 @@ import { useEffect, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
 import { Switch } from "@/components/ui/switch";
 
+type LineaRecetaUi = {
+  id: string;
+  insumoId: string;
+  /** Cantidad del lote completo (no por pieza). */
+  cantidad: number;
+  /** API: cantidad_lote / receta_rendimiento. */
+  porPieza?: number;
+  insumoNombre?: string;
+  unidad?: string;
+};
+
 type Producto = {
   id: string;
   nombre: string;
@@ -14,9 +25,11 @@ type Producto = {
   alergenos: string | null;
   categoriaId: string | null;
   categoriaNombre: string | null;
-  /** Costo auto desde receta (API: costo_calculado). */
+  /** Costo auto por pieza desde receta (API: costo_calculado). */
   costoCalculado: number;
   margenPct: number;
+  /** Piezas que produce el lote de la receta (default 1). */
+  recetaRendimiento: number;
   reservaHabilitada?: boolean;
   anticipoTipo?: "porcentaje" | "monto" | null;
   anticipoValor?: number | null;
@@ -25,17 +38,22 @@ type Producto = {
   /** Cantidad mínima por línea/pedido de reserva. */
   reservaCantidadMinima?: number;
   duraciones?: Array<{ id: string; etiqueta: string }> | null;
-  receta: Array<{
-    id: string;
-    insumoId: string;
-    cantidad: number;
-    insumoNombre?: string;
-    unidad?: string;
-  }>;
+  receta: LineaRecetaUi[];
 };
 
-type Insumo = { id: string; nombre: string; unidad: string };
+type Insumo = {
+  id: string;
+  nombre: string;
+  unidad: string;
+  costoUnitario?: number;
+};
 type Categoria = { id: string; nombre: string };
+
+function formatCantidad(n: number): string {
+  if (!Number.isFinite(n)) return "—";
+  const rounded = Math.round(n * 1000) / 1000;
+  return String(rounded);
+}
 
 export function ProductosCatalogo() {
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -52,6 +70,8 @@ export function ProductosCatalogo() {
     alergenos: "",
     activoCatalogo: true,
     duracionesTexto: "",
+    /** Cuántas piezas produce el lote de esta receta. */
+    recetaRendimiento: "1",
     reservaHabilitada: false,
     anticipoTipo: "porcentaje" as "porcentaje" | "monto",
     anticipoValor: "",
@@ -62,6 +82,36 @@ export function ProductosCatalogo() {
     Array<{ insumoId: string; cantidad: string }>
   >([]);
   const [saving, setSaving] = useState(false);
+
+  const rendimientoDraft = Math.max(
+    1,
+    Math.floor(Number(form.recetaRendimiento) || 1)
+  );
+
+  const insumosById = Object.fromEntries(insumos.map((i) => [i.id, i]));
+
+  /** Preview en vivo: por pieza = cantidad_lote / rendimiento. */
+  const previewLineas = recetaDraft
+    .filter((r) => r.insumoId && Number(r.cantidad) > 0)
+    .map((r) => {
+      const insumo = insumosById[r.insumoId];
+      const cantidadLote = Number(r.cantidad);
+      const porPieza = cantidadLote / rendimientoDraft;
+      const costoUnit = Number(insumo?.costoUnitario ?? 0);
+      return {
+        insumoId: r.insumoId,
+        nombre: insumo?.nombre || "Insumo",
+        unidad: insumo?.unidad || "",
+        cantidadLote,
+        porPieza,
+        costoPieza: porPieza * costoUnit,
+      };
+    });
+
+  const previewCostoPieza = previewLineas.reduce(
+    (sum, l) => sum + l.costoPieza,
+    0
+  );
 
   async function load() {
     setLoading(true);
@@ -75,36 +125,82 @@ export function ProductosCatalogo() {
       const iData = await iRes.json();
       if (!pRes.ok) throw new Error(pData.error || "Error al cargar");
       const list = (pData.productos || []).map(
-        (p: Producto & Record<string, unknown>) => ({
-          ...p,
-          precio: Number(p.precio ?? p.precio_venta ?? 0),
-          costoCalculado: Number(
-            p.costoCalculado ?? p.costo_calculado ?? p.costoTeorico ?? 0
-          ),
-          reservaHabilitada: Boolean(
-            p.reservaHabilitada ?? p.reserva_habilitada ?? false
-          ),
-          anticipoTipo:
-            (p.anticipoTipo as Producto["anticipoTipo"]) ??
-            (p.anticipo_tipo as Producto["anticipoTipo"]) ??
-            null,
-          anticipoValor:
-            p.anticipoValor != null
-              ? Number(p.anticipoValor)
-              : p.anticipo_valor != null
-                ? Number(p.anticipo_valor)
-                : null,
-          reservaDiasMinimos: Number(
-            p.reservaDiasMinimos ?? p.reserva_dias_minimos ?? 3
-          ),
-          reservaCantidadMinima: Number(
-            p.reservaCantidadMinima ?? p.reserva_cantidad_minima ?? 1
-          ),
-        })
+        (p: Producto & Record<string, unknown>) => {
+          const rendimiento = Math.max(
+            1,
+            Math.floor(
+              Number(
+                p.recetaRendimiento ??
+                  p.receta_rendimiento ??
+                  p.rinde_piezas ??
+                  1
+              ) || 1
+            )
+          );
+          const recetaRaw = Array.isArray(p.receta) ? p.receta : [];
+          const receta = recetaRaw.map(
+            (r: LineaRecetaUi & Record<string, unknown>) => {
+              const cantidad = Number(r.cantidad ?? 0);
+              const porPiezaApi = r.porPieza ?? r.por_pieza;
+              return {
+                id: String(r.id ?? ""),
+                insumoId: String(r.insumoId ?? r.insumo_id ?? ""),
+                cantidad,
+                porPieza:
+                  porPiezaApi != null
+                    ? Number(porPiezaApi)
+                    : rendimiento > 0
+                      ? cantidad / rendimiento
+                      : cantidad,
+                insumoNombre:
+                  (r.insumoNombre as string | undefined) ??
+                  (r.insumo_nombre as string | undefined),
+                unidad: r.unidad as string | undefined,
+              };
+            }
+          );
+          return {
+            ...p,
+            precio: Number(p.precio ?? p.precio_venta ?? 0),
+            costoCalculado: Number(
+              p.costoCalculado ?? p.costo_calculado ?? p.costoTeorico ?? 0
+            ),
+            recetaRendimiento: rendimiento,
+            reservaHabilitada: Boolean(
+              p.reservaHabilitada ?? p.reserva_habilitada ?? false
+            ),
+            anticipoTipo:
+              (p.anticipoTipo as Producto["anticipoTipo"]) ??
+              (p.anticipo_tipo as Producto["anticipoTipo"]) ??
+              null,
+            anticipoValor:
+              p.anticipoValor != null
+                ? Number(p.anticipoValor)
+                : p.anticipo_valor != null
+                  ? Number(p.anticipo_valor)
+                  : null,
+            reservaDiasMinimos: Number(
+              p.reservaDiasMinimos ?? p.reserva_dias_minimos ?? 3
+            ),
+            reservaCantidadMinima: Number(
+              p.reservaCantidadMinima ?? p.reserva_cantidad_minima ?? 1
+            ),
+            receta,
+          };
+        }
       ) as Producto[];
       setProductos(list);
       setCategorias(pData.categorias || []);
-      setInsumos(iData.insumos || []);
+      setInsumos(
+        (iData.insumos || []).map((i: Insumo & Record<string, unknown>) => ({
+          id: String(i.id),
+          nombre: String(i.nombre),
+          unidad: String(i.unidad),
+          costoUnitario: Number(
+            i.costoUnitario ?? i.costo_unitario ?? 0
+          ),
+        }))
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -126,6 +222,7 @@ export function ProductosCatalogo() {
       alergenos: "",
       activoCatalogo: true,
       duracionesTexto: "",
+      recetaRendimiento: "1",
       reservaHabilitada: false,
       anticipoTipo: "porcentaje",
       anticipoValor: "30",
@@ -152,6 +249,11 @@ export function ProductosCatalogo() {
       alergenos: p.alergenos || "",
       activoCatalogo: p.activoCatalogo,
       duracionesTexto: (p.duraciones || []).map((d: { etiqueta: string }) => d.etiqueta).join(", "),
+      recetaRendimiento: String(
+        p.recetaRendimiento != null && p.recetaRendimiento >= 1
+          ? p.recetaRendimiento
+          : 1
+      ),
       reservaHabilitada: Boolean(p.reservaHabilitada),
       anticipoTipo: p.anticipoTipo === "monto" ? "monto" : "porcentaje",
       anticipoValor: anticipoMostrar || (p.reservaHabilitada ? "30" : ""),
@@ -187,6 +289,10 @@ export function ProductosCatalogo() {
           : anticipoValorNum;
       const diasMin = Math.max(0, Math.floor(Number(form.reservaDiasMinimos) || 0));
       const cantMin = Math.max(1, Math.floor(Number(form.reservaCantidadMinima) || 1));
+      const rendimiento = Math.max(
+        1,
+        Math.floor(Number(form.recetaRendimiento) || 1)
+      );
       const payload = {
         id: editId === "nuevo" ? undefined : editId,
         nombre: form.nombre,
@@ -196,6 +302,9 @@ export function ProductosCatalogo() {
         alergenos: form.alergenos || null,
         activoCatalogo: form.activoCatalogo,
         duracionesTexto: form.duracionesTexto,
+        receta_rendimiento: rendimiento,
+        recetaRendimiento: rendimiento,
+        rinde_piezas: rendimiento,
         reserva_habilitada: form.reservaHabilitada,
         reservaHabilitada: form.reservaHabilitada,
         anticipo_tipo: form.reservaHabilitada ? form.anticipoTipo : null,
@@ -252,7 +361,7 @@ export function ProductosCatalogo() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          Receta por pieza, precio de venta y costo automático
+          Receta por lote, costo por pieza y precio de venta
         </p>
         <button type="button" className="btn btn-primary" onClick={startNew}>
           Nuevo
@@ -482,9 +591,14 @@ export function ProductosCatalogo() {
             )}
           </div>
 
-          <div>
+          <div className="space-y-3 border-t border-border pt-3">
             <div className="mb-2 flex items-center justify-between">
-              <p className="label mb-0">Receta (insumos)</p>
+              <div>
+                <p className="label mb-0">Receta</p>
+                <p className="text-xs text-muted-foreground">
+                  Cantidades del lote completo; el costo por pieza se calcula solo
+                </p>
+              </div>
               <button
                 type="button"
                 className="text-sm font-semibold text-miel-dark"
@@ -498,9 +612,27 @@ export function ProductosCatalogo() {
                 + línea
               </button>
             </div>
+            <div>
+              <label className="label">Esta receta rinde N piezas</label>
+              <input
+                className="field"
+                type="number"
+                min="1"
+                step="1"
+                inputMode="numeric"
+                value={form.recetaRendimiento}
+                onChange={(e) =>
+                  setForm({ ...form, recetaRendimiento: e.target.value })
+                }
+                aria-label="Esta receta rinde N piezas"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Ej. 9 roles con 2 huevos en el lote → ≈ {formatCantidad(2 / Math.max(1, rendimientoDraft))} huevos por pieza.
+              </p>
+            </div>
             <div className="space-y-2">
               {recetaDraft.map((r, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_90px] gap-2">
+                <div key={idx} className="grid grid-cols-[1fr_110px] gap-2">
                   <select
                     className="field"
                     value={r.insumoId}
@@ -519,7 +651,10 @@ export function ProductosCatalogo() {
                   <input
                     className="field"
                     type="number"
-                    placeholder="Cant."
+                    min="0"
+                    step="any"
+                    placeholder="Cant. lote"
+                    aria-label="Cantidad del lote"
                     value={r.cantidad}
                     onChange={(e) => {
                       const next = [...recetaDraft];
@@ -530,6 +665,26 @@ export function ProductosCatalogo() {
                 </div>
               ))}
             </div>
+            {previewLineas.length > 0 && (
+              <div className="rounded-xl bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                <p className="font-medium text-foreground">
+                  Por pieza (auto · rinde {rendimientoDraft})
+                </p>
+                <ul className="mt-1 space-y-0.5">
+                  {previewLineas.map((l) => (
+                    <li key={l.insumoId}>
+                      ≈ {formatCantidad(l.porPieza)} {l.unidad} {l.nombre}
+                      {l.costoPieza > 0
+                        ? ` · ${formatoMoneda(l.costoPieza)}`
+                        : ""}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 font-medium text-foreground">
+                  Costo por pieza ≈ {formatoMoneda(previewCostoPieza)}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2">
@@ -587,12 +742,16 @@ export function ProductosCatalogo() {
               </p>
               {p.receta.length > 0 && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Receta:{" "}
+                  Receta (lote → {p.recetaRendimiento} pza
+                  {p.recetaRendimiento === 1 ? "" : "s"}):{" "}
                   {p.receta
-                    .map(
-                      (r) =>
-                        `${r.insumoNombre} ${r.cantidad}${r.unidad || ""}`
-                    )
+                    .map((r) => {
+                      const por =
+                        r.porPieza != null
+                          ? r.porPieza
+                          : r.cantidad / Math.max(1, p.recetaRendimiento);
+                      return `${r.insumoNombre} ${formatCantidad(r.cantidad)}${r.unidad || ""} lote ≈ ${formatCantidad(por)}${r.unidad || ""}/pza`;
+                    })
                     .join(" · ")}
                 </p>
               )}
