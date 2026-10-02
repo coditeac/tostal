@@ -10,6 +10,7 @@ import {
   normalizeReservaProducto,
   type CrearReservaBody,
   type CrearReservaResponse,
+  type GetReservaPublicaResponse,
   type MenuHoy,
   type ReservaProducto,
 } from "@/lib/contract";
@@ -99,6 +100,54 @@ export function fetchPedido(codigo: string) {
   return apiGet<GetPedidoPublicoResponse>(
     `${PUBLIC_API.pedidos}?codigo=${encodeURIComponent(codigo)}`
   );
+}
+
+/** GET /api/public/reservas?codigo= */
+export function fetchReserva(codigo: string) {
+  return apiGet<GetReservaPublicaResponse>(
+    `${CONTRATO_API.reservas}?codigo=${encodeURIComponent(codigo)}`
+  );
+}
+
+/**
+ * Resuelve seguimiento por código: pedido (T-…) o reserva (R-…).
+ * Prueba por prefijo primero; si falla, intenta el otro.
+ */
+export async function resolverSeguimiento(
+  codigo: string
+): Promise<
+  | { tipo: "pedido"; codigo: string }
+  | { tipo: "reserva"; codigo: string }
+  | { tipo: "ninguno"; error: string }
+> {
+  const clean = codigo.trim().toUpperCase();
+  if (!clean) return { tipo: "ninguno", error: "Escribe un código." };
+
+  const tryPedido = async () => {
+    await fetchPedido(clean);
+    return { tipo: "pedido" as const, codigo: clean };
+  };
+  const tryReserva = async () => {
+    await fetchReserva(clean);
+    return { tipo: "reserva" as const, codigo: clean };
+  };
+
+  const first = clean.startsWith("R-") ? tryReserva : tryPedido;
+  const second = clean.startsWith("R-") ? tryPedido : tryReserva;
+
+  try {
+    return await first();
+  } catch {
+    try {
+      return await second();
+    } catch (e) {
+      return {
+        tipo: "ninguno",
+        error:
+          e instanceof Error ? e.message : "No encontramos ese código.",
+      };
+    }
+  }
 }
 
 /** GET /api/public/reservas/productos */

@@ -267,7 +267,13 @@ export default function ReservasPage() {
               Reserva <span className="font-semibold">{exito.codigo}</span> para{" "}
               {labelFecha(exito.fecha)}. Anticipo{" "}
               {formatoMoneda(exito.anticipo)} de {formatoMoneda(exito.total)}.
-              Te confirmamos por WhatsApp o email.
+              Te confirmamos por WhatsApp o email.{" "}
+              <Link
+                href={`/reserva/${encodeURIComponent(exito.codigo)}`}
+                className="font-semibold text-miel underline-offset-2 hover:underline"
+              >
+                Ver seguimiento
+              </Link>
             </AlertDescription>
           </Alert>
         )}

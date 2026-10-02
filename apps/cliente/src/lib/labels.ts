@@ -1,18 +1,24 @@
 import type {
   EstadoPago,
-  EstadoPedido,
   MetodoPago,
   ModoEntrega,
 } from "@tostal/shared/types";
+import {
+  ESTADO_SEGUIMIENTO_LABEL,
+  labelEstado,
+  pasosTimeline,
+  type EstadoSeguimiento,
+} from "@/lib/estados";
 
-export const ESTADO_PEDIDO: Record<EstadoPedido, string> = {
-  recibido: "Recibido",
-  confirmado: "Confirmado",
-  en_produccion: "En producción",
-  listo: "Listo",
-  entregado: "Entregado",
-  cancelado: "Cancelado",
+/** @deprecated Preferir labelEstado / ESTADO_SEGUIMIENTO_LABEL — compat legacy. */
+export const ESTADO_PEDIDO: Record<string, string> = {
+  ...ESTADO_SEGUIMIENTO_LABEL,
+  // aliases legacy visibles si llegan crudos
+  confirmado: "Aceptado",
+  en_produccion: "Preparando",
 };
+
+export { labelEstado, ESTADO_SEGUIMIENTO_LABEL };
 
 export const ESTADO_PAGO: Record<EstadoPago, string> = {
   pendiente: "Pago pendiente",
@@ -34,10 +40,21 @@ export const MODO_ENTREGA: Record<ModoEntrega, string> = {
   envio: "Envío a domicilio",
 };
 
-export const PASOS_PEDIDO: EstadoPedido[] = [
-  "recibido",
-  "confirmado",
-  "en_produccion",
-  "listo",
-  "entregado",
-];
+/** Pasos default (retiro). Para envío usar pasosTimeline("envio"). */
+export const PASOS_PEDIDO: EstadoSeguimiento[] = pasosTimeline("retiro");
+
+export const ESTADO_RESERVA_LABEL: Record<string, string> = {
+  ...ESTADO_SEGUIMIENTO_LABEL,
+  pendiente_anticipo: "Recibido",
+  confirmada: "Aceptado",
+  en_produccion: "Preparando",
+  lista: "Listo",
+  entregada: "Entregado",
+  cancelada: "Cancelado",
+};
+
+export const ESTADO_ANTICIPO: Record<string, string> = {
+  pendiente: "Anticipo pendiente",
+  pagado: "Anticipo pagado",
+  reembolsado: "Anticipo reembolsado",
+};

@@ -99,12 +99,51 @@ export type CrearReservaResponse = {
   };
 };
 
+/** GET /api/public/reservas?codigo= — seguimiento (solo lectura). */
+export type ReservaPublicaSeguimiento = {
+  id: string;
+  codigo: string;
+  estado: string;
+  estadoAnticipo?: string;
+  metodoPago: string;
+  modoEntrega: "retiro" | "envio";
+  fechaEntrega: string;
+  clienteNombre: string;
+  clienteTelefono: string;
+  subtotal: number;
+  anticipoMonto: number;
+  costoEnvio: number;
+  total: number;
+  notas: string | null;
+  creadoEn: string;
+  estado_historial?: Array<{
+    estado: string;
+    at?: string;
+    nota?: string;
+  }>;
+  lineas: Array<{
+    id: string;
+    productoId: string;
+    productoNombre: string;
+    cantidad: number;
+    precioUnitario: number;
+    subtotal: number;
+    notas: string | null;
+  }>;
+};
+
+export type GetReservaPublicaResponse = {
+  reserva: ReservaPublicaSeguimiento;
+};
+
 /** Paths del contrato (además de PUBLIC_API legacy). */
 export const CONTRATO_API = {
   menu: "/api/public/menu",
   reservasProductos: "/api/public/reservas/productos",
   reservas: "/api/public/reservas",
   pedidos: "/api/public/pedidos",
+  /** SSE pedidos — si existe en API. */
+  pedidosEvents: "/api/public/pedidos/events",
 } as const;
 
 type RawMenu = Record<string, unknown> & {

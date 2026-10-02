@@ -7,6 +7,7 @@ import { getApiBase } from "@/lib/api";
 import { CLIENTE_AUTH_API } from "@tostal/shared/api-public";
 import type { PedidoPublico } from "@tostal/shared/types";
 import { formatoMoneda } from "@/lib/api";
+import { labelEstado } from "@/lib/labels";
 
 export default function CuentaPage() {
   const { user, loading, login, register, logout, refresh } =
@@ -88,7 +89,7 @@ export default function CuentaPage() {
                       {p.codigo}
                     </Link>
                     <p className="text-muted-foreground">
-                      {p.fechaEntrega} · {p.estado.replace("_", " ")}
+                      {p.fechaEntrega} · {labelEstado(p.estado)}
                     </p>
                   </div>
                   <p className="font-semibold tabular-nums">

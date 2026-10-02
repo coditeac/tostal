@@ -7,14 +7,12 @@ import { fetchPedido, formatoMoneda, labelFecha } from "@/lib/api";
 import { usePedidoEvents } from "@/lib/use-pedido-events";
 import {
   ESTADO_PAGO,
-  ESTADO_PEDIDO,
   METODO_PAGO,
   MODO_ENTREGA,
-  PASOS_PEDIDO,
 } from "@/lib/labels";
 import type { PedidoPublico } from "@tostal/shared/types";
+import { EstadoTimeline } from "@/components/estado-timeline";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -137,9 +135,6 @@ function PedidoView() {
     );
   }
 
-  const idx = PASOS_PEDIDO.indexOf(pedido.estado);
-  const cancelado = pedido.estado === "cancelado";
-
   return (
     <div className="page-shell px-5 py-8">
       <p className="font-brand text-sm tracking-[0.14em] text-miel">Tostal</p>
@@ -150,11 +145,6 @@ function PedidoView() {
         Hola {pedido.clienteNombre}. Para {labelFecha(pedido.fechaEntrega)} ·{" "}
         {MODO_ENTREGA[pedido.modoEntrega]}
       </p>
-      {live && (
-        <Badge variant="success-light" size="lg" className="mt-2">
-          ● Seguimiento en vivo
-        </Badge>
-      )}
 
       {pedido.metodoPago === "stripe" && pedido.estadoPago === "pendiente" && (
         <div className="mt-6 space-y-3 border-y border-border py-5">
@@ -191,43 +181,17 @@ function PedidoView() {
           </Alert>
         )}
 
-      <section className="mt-8 border-y border-border py-6">
-        {cancelado ? (
-          <p className="font-semibold text-error">Pedido cancelado</p>
-        ) : (
-          <>
-            <p className="text-2xl font-semibold leading-tight tracking-tight">
-              {ESTADO_PEDIDO[pedido.estado]}
-            </p>
-            <div className="status-track mt-6">
-              {PASOS_PEDIDO.map((paso, i) => {
-                const done = idx > i;
-                const current = idx === i;
-                return (
-                  <div key={paso} className="status-step">
-                    <div
-                      className={`status-dot ${
-                        done ? "status-dot-done" : current ? "status-dot-current" : ""
-                      }`}
-                    />
-                    {i < PASOS_PEDIDO.length - 1 && (
-                      <div
-                        className={`status-line ${done ? "status-line-done" : ""}`}
-                      />
-                    )}
-                    <p className="max-w-[4.5rem] text-[10px] font-medium leading-tight text-muted-foreground">
-                      {ESTADO_PEDIDO[paso]}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-        <p className="mt-6 text-sm text-muted-foreground">
-          {METODO_PAGO[pedido.metodoPago]} · {ESTADO_PAGO[pedido.estadoPago]}
-        </p>
-      </section>
+      <EstadoTimeline
+        estado={pedido.estado}
+        modoEntrega={pedido.modoEntrega}
+        entity={pedido as unknown as Record<string, unknown>}
+        live={live}
+        tituloCancelado="Pedido cancelado"
+      />
+
+      <p className="text-sm text-muted-foreground">
+        {METODO_PAGO[pedido.metodoPago]} · {ESTADO_PAGO[pedido.estadoPago]}
+      </p>
 
       <section className="mt-8">
         <h2 className="section-title">Detalle</h2>
