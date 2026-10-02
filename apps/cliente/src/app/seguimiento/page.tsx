@@ -3,19 +3,40 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { resolverSeguimiento } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function SeguimientoPage() {
   const router = useRouter();
   const [codigo, setCodigo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function onSubmit(e: FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const clean = codigo.trim().toUpperCase();
     if (!clean) return;
-    router.push(`/pedido/${encodeURIComponent(clean)}`);
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await resolverSeguimiento(clean);
+      if (r.tipo === "pedido") {
+        router.push(`/pedido/${encodeURIComponent(r.codigo)}`);
+        return;
+      }
+      if (r.tipo === "reserva") {
+        router.push(`/reserva/${encodeURIComponent(r.codigo)}`);
+        return;
+      }
+      setError(r.error);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo buscar");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -39,10 +60,11 @@ export default function SeguimientoPage() {
       </div>
 
       <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
-        Escribe el código que te dimos al confirmar (ej. T-0923-1234).
+        Escribe el código de tu pedido (T-…) o reserva (R-…) para ver el estado
+        y el avance.
       </p>
 
-      <form onSubmit={onSubmit} className="mt-10 space-y-5">
+      <form onSubmit={(e) => void onSubmit(e)} className="mt-10 space-y-5">
         <div className="space-y-2">
           <Label htmlFor="codigo">Código</Label>
           <Input
@@ -50,13 +72,23 @@ export default function SeguimientoPage() {
             className="uppercase tracking-wide"
             value={codigo}
             onChange={(e) => setCodigo(e.target.value)}
-            placeholder="T-0923-1234"
+            placeholder="T-1002-1234 o R-1002-5678"
             autoComplete="off"
             autoCapitalize="characters"
           />
         </div>
-        <Button type="submit" size="lg" className="w-full" disabled={!codigo.trim()}>
-          Ver estado
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full"
+          disabled={!codigo.trim() || busy}
+        >
+          {busy ? "Buscando…" : "Ver estado"}
         </Button>
       </form>
     </div>

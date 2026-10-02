@@ -16,7 +16,9 @@ type Handlers = {
  */
 export function usePedidoEvents(codigo: string | null | undefined, handlers: Handlers) {
   const handlersRef = useRef(handlers);
-  handlersRef.current = handlers;
+  useEffect(() => {
+    handlersRef.current = handlers;
+  });
 
   useEffect(() => {
     if (!codigo || typeof EventSource === "undefined") return;
@@ -44,10 +46,16 @@ export function usePedidoEvents(codigo: string | null | undefined, handlers: Han
       "pago_confirmado",
       "listo",
       "entregado",
+      "en_camino",
+      "aceptado",
+      "preparando",
+      "cancelado",
     ];
     for (const t of types) {
       es.addEventListener(t, apply as EventListener);
     }
+    // Fallback: message genérico si la API emite sin event name
+    es.onmessage = apply;
 
     es.onerror = () => {
       // EventSource reintenta solo; avisar una vez
