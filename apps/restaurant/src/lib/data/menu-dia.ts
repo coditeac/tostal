@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { getConfigNegocio } from "@/lib/data/config";
 import { hoyISO, isoToHoraCdmx, sumarDias } from "@/lib/timezone";
 
 export type MenuDiaProducto = {
@@ -21,13 +22,24 @@ export function horaLimiteInputValue(menu: MenuDia | null): string {
   return menu?.horaLimiteHHmm || "18:00";
 }
 
+async function defaultHoraLimite(): Promise<string> {
+  try {
+    const cfg = await getConfigNegocio();
+    const h = (cfg.horaLimiteDefault || "").slice(0, 5);
+    return /^\d{2}:\d{2}$/.test(h) ? h : "18:00";
+  } catch {
+    return "18:00";
+  }
+}
+
 async function mapMenu(fecha: string): Promise<MenuDia> {
   const supabase = createClient();
-  const [{ data: dia }, { data: links }, { data: productos }] =
+  const [{ data: dia }, { data: links }, { data: productos }, fallbackHora] =
     await Promise.all([
       supabase.from("menu_dia").select("*").eq("fecha", fecha).maybeSingle(),
       supabase.from("menu_dia_productos").select("*").eq("fecha", fecha),
       supabase.from("productos").select("id, nombre").eq("activo", true),
+      defaultHoraLimite(),
     ]);
 
   const activeMap = new Map(
@@ -43,7 +55,7 @@ async function mapMenu(fecha: string): Promise<MenuDia> {
   return {
     fecha,
     horaLimite: hora,
-    horaLimiteHHmm: hora || "18:00",
+    horaLimiteHHmm: hora || fallbackHora,
     abierto: dia ? dia.abierto !== false : false,
     productos: productosUi,
   };

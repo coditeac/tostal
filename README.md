@@ -4,68 +4,51 @@
 
 | App | Carpeta | Puerto local | Rol |
 |---|---|---|---|
-| **API NestJS** | `apps/api` | **4331** | Única fuente de verdad: Postgres, auth, menú, pedidos, SSE, email |
-| **Restaurant UI** | `apps/restaurant` | **4321** | Panel ops (solo consume la API) |
-| **Cliente** | `apps/cliente` | **4322** | Menú, carrito, cuenta, seguimiento |
+| **Restaurant** | `apps/restaurant` | **4321** | Panel ops + Route Handlers (`/api/staff`, …) |
+| **Cliente** | `apps/cliente` | **4322** | Menú, carrito, cuenta, seguimiento, reservas |
 
-Base API: `http://127.0.0.1:4331` · Prod: `https://api.tostal.cafe`
+Backend: **Supabase** (Auth, Postgres, Storage `productos`, Realtime). No hay Nest / `apps/api`.
+
+URLs prod: Cliente https://tostal.cafe · Restaurant https://app.tostal.cafe
 
 ---
 
 ## Arranque local
 
 ```bash
-# 1) API (obligatorio)
-cd apps/api && npm install && npm run start:dev
-# → http://127.0.0.1:4331/health
-
-# 2) Restaurant UI
+# 1) Restaurant
 cd apps/restaurant && npm install
-NEXT_PUBLIC_API_URL=http://127.0.0.1:4331 npm run dev
+# NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY (+ SUPABASE_SERVICE_ROLE_KEY server)
+npm run dev
 # → http://127.0.0.1:4321
 
-# 3) Cliente
+# 2) Cliente
 cd apps/cliente && npm install
-NEXT_PUBLIC_API_URL=http://127.0.0.1:4331 npm run dev
+# mismas vars públicas Supabase
+npm run dev
 # → http://127.0.0.1:4322
 ```
 
-### Superadmin (sin cuenta demo)
+### Auth / roles
 
-Define en el entorno de la API (local o Railway):
+Roles en `profiles.rol`: `superadmin` \| `admin` \| `cocina` \| `caja` \| `cliente`.  
+Staff se gestiona en Restaurant → Ajustes → Personal (`POST /api/staff` con service role).
 
-```bash
-export SUPERADMIN_EMAIL="tu@email.com"
-export SUPERADMIN_PASSWORD="elige-una-segura-8+"
-# opcional: SUPERADMIN_NOMBRE="Coditeac"
-# opcional (rotar): SUPERADMIN_FORCE_RESET=1
-```
+### Config de negocio
 
-Al arrancar, si no existe superadmin, la API lo crea con ese email/password.  
-**No hay** usuario `admin@tostal.mx` ni catálogo demo: el superadmin crea productos, categorías y staff a mano.
+Tabla Supabase `configuracion` (key-value): marca, teléfono WhatsApp, dirección de retiro, hora límite default, mensaje WA, etc. Panel: Ajustes → Config.
 
-Sin `DATABASE_URL` la API usa SQLite en `./data` (o `TOSTAL_DB_PATH`). Con Postgres: exporta `DATABASE_URL`.
+### Fotos de producto
 
-### Email (Resend)
+Upload cableado a Storage bucket `productos` → columna `productos.imagen_url`. Sin foto = placeholder en Cliente (no hay imágenes demo inventadas).
 
-- Con `RESEND_API_KEY` + `RESEND_FROM` (ej. `Tostal <pedidos@tostal.cafe>`) y `MAIL_MOCK=0` → envío real.
-- Sin key o `MAIL_MOCK=1` → mock en consola (`[mail:mock]`) + fila en `email_log`.
+### Pagos
 
-Cliente: registro/login reales en `/cuenta` → `POST /api/cliente/register|login`.
+Transferencia y contra entrega activos. **Stripe deshabilitado** en UI hasta Edge Function / Checkout.
 
----
+### Email
 
-## Contratos públicos
-
-Prefijo `/api`. Errores: `{ "error": string }`.
-
-- `GET /api/public/dias` · `GET /api/public/menu?fecha=`
-- `POST /api/public/pedidos` (cuenta o guest+email)
-- `GET /api/public/pedidos?codigo=` · SSE `/api/public/pedidos/events`
-- Cliente: `/api/cliente/register|login|me|pedidos`
-- Staff: `/api/auth/login`, `/api/usuarios` (admin/superadmin), módulos ops (`/api/pedidos`, `/api/caja`, …)
-
-Tipos: `shared/types.ts` · contratos: `shared/api-public.ts`
+Notificaciones Resend: ver follow-up P0 (post-teardown Nest). Deploy notes: `docs/deploy-railway.md`.
 
 ---
 

@@ -1,7 +1,7 @@
 /**
- * Contratos públicos estables para App Cliente.
- * Base API Nest: http://127.0.0.1:4331 (prod: https://api.tostal.cafe)
- * Precios en centavos (integer).
+ * Contratos compartidos Cliente ↔ Restaurant (shapes históricos).
+ * Runtime: Supabase RPCs / tablas. Sin Nest / sin api.tostal.cafe.
+ * Precios en centavos (integer) en tipos legacy; Supabase usa numeric.
  */
 
 export type {

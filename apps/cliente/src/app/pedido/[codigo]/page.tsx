@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { fetchPedido, formatoMoneda, labelFecha } from "@/lib/api";
 import { usePedidoEvents } from "@/lib/use-pedido-events";
 import {
@@ -19,30 +19,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 function PedidoView() {
   const params = useParams<{ codigo: string }>();
-  const search = useSearchParams();
   const codigo = params.codigo;
   const [pedido, setPedido] = useState<PedidoPublico | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
-  const [paying, setPaying] = useState(false);
-
-  async function pagarConStripe() {
-    if (!pedido) return;
-    setPaying(true);
-    setError(null);
-    try {
-      // Stripe Checkout se cableará con Edge Function / Route Handler.
-      // Cutover Supabase: sin Nest. Mientras, transferencia / contra entrega.
-      throw new Error(
-        "Pago con tarjeta aún no disponible. Usa transferencia o contra entrega."
-      );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error de pago");
-    } finally {
-      setPaying(false);
-    }
-  }
 
   useEffect(() => {
     let alive = true;
@@ -79,9 +60,6 @@ function PedidoView() {
     },
     onError: () => setLive(false),
   });
-
-  // stripe return query (kept for compatibility)
-  void search;
 
   if (loading) {
     return (
@@ -124,20 +102,12 @@ function PedidoView() {
       </p>
 
       {pedido.metodoPago === "stripe" && pedido.estadoPago === "pendiente" && (
-        <div className="mt-6 space-y-3 border-y border-border py-5">
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Paga con tarjeta. El monto sale del pedido Tostal (centavos); no hay
-            catálogo en Stripe.
-          </p>
-          <Button
-            type="button"
-            className="w-full"
-            disabled={paying}
-            onClick={() => void pagarConStripe()}
-          >
-            {paying ? "Abriendo pago…" : "Pagar con Stripe"}
-          </Button>
-        </div>
+        <Alert className="mt-6 border-alerta/40 bg-amber-50">
+          <AlertDescription className="text-alerta">
+            Pago con tarjeta (Stripe) está deshabilitado por ahora. Contacta al
+            restaurante para pagar por transferencia o contra entrega.
+          </AlertDescription>
+        </Alert>
       )}
 
       {pedido.metodoPago === "stripe" && pedido.estadoPago === "pagado" && (
