@@ -140,14 +140,17 @@ export function ProductosCatalogo() {
           const recetaRaw = Array.isArray(p.receta) ? p.receta : [];
           const receta = recetaRaw.map(
             (r: LineaRecetaUi & Record<string, unknown>) => {
-              const cantidad = Number(r.cantidad ?? 0);
-              const porPiezaApi = r.porPieza ?? r.por_pieza;
+              // API #25: cantidad = lote; alias cantidad_lote; por_pieza calculado.
+              const cantidad = Number(
+                r.cantidad ?? r.cantidad_lote ?? 0
+              );
+              const porPiezaApi = r.por_pieza ?? r.porPieza;
               return {
                 id: String(r.id ?? ""),
                 insumoId: String(r.insumoId ?? r.insumo_id ?? ""),
                 cantidad,
                 porPieza:
-                  porPiezaApi != null
+                  porPiezaApi != null && Number.isFinite(Number(porPiezaApi))
                     ? Number(porPiezaApi)
                     : rendimiento > 0
                       ? cantidad / rendimiento
@@ -668,7 +671,7 @@ export function ProductosCatalogo() {
             {previewLineas.length > 0 && (
               <div className="rounded-xl bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                 <p className="font-medium text-foreground">
-                  Por pieza (auto · rinde {rendimientoDraft})
+                  Por pieza (API · rinde {rendimientoDraft})
                 </p>
                 <ul className="mt-1 space-y-0.5">
                   {previewLineas.map((l) => (
@@ -681,7 +684,13 @@ export function ProductosCatalogo() {
                   ))}
                 </ul>
                 <p className="mt-2 font-medium text-foreground">
-                  Costo por pieza ≈ {formatoMoneda(previewCostoPieza)}
+                  Costo calculado / pieza ≈ {formatoMoneda(previewCostoPieza)}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Preview local = lote ÷ rendimiento (igual que{" "}
+                  <code className="text-[10px]">por_pieza</code> /{" "}
+                  <code className="text-[10px]">costo_calculado</code> al
+                  guardar).
                 </p>
               </div>
             )}
@@ -732,6 +741,9 @@ export function ProductosCatalogo() {
               <p className="mt-2 text-xs text-muted-foreground">
                 Costo calculado {formatoMoneda(p.costoCalculado)} · margen{" "}
                 {p.margenPct}%
+                {p.recetaRendimiento > 1
+                  ? ` · rinde ${p.recetaRendimiento}`
+                  : ""}
                 {p.reservaHabilitada
                   ? ` · anticipo ${
                       p.anticipoTipo === "monto"
@@ -750,7 +762,7 @@ export function ProductosCatalogo() {
                         r.porPieza != null
                           ? r.porPieza
                           : r.cantidad / Math.max(1, p.recetaRendimiento);
-                      return `${r.insumoNombre} ${formatCantidad(r.cantidad)}${r.unidad || ""} lote ≈ ${formatCantidad(por)}${r.unidad || ""}/pza`;
+                      return `${r.insumoNombre} ${formatCantidad(r.cantidad)}${r.unidad || ""} lote · ${formatCantidad(por)}${r.unidad || ""}/pza`;
                     })
                     .join(" · ")}
                 </p>
