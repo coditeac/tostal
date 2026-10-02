@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { fetchReserva, formatoMoneda, labelFecha } from "@/lib/api";
+import { useReservaEvents } from "@/lib/use-reserva-events";
 import {
   ESTADO_ANTICIPO,
   METODO_PAGO,
@@ -31,6 +32,7 @@ export default function ReservaSeguimientoPage() {
   const [reserva, setReserva] = useState<ReservaPublicaSeguimiento | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [live, setLive] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -49,13 +51,24 @@ export default function ReservaSeguimientoPage() {
       }
     }
     load();
-    // Sin SSE de reservas aún → polling
-    const t = window.setInterval(load, 15000);
+    const t = window.setInterval(() => {
+      if (!live) load();
+    }, 15000);
     return () => {
       alive = false;
       window.clearInterval(t);
     };
-  }, [codigo]);
+  }, [codigo, live]);
+
+  useReservaEvents(codigo, {
+    onReserva: (r) => {
+      setReserva(r);
+      setError(null);
+      setLoading(false);
+      setLive(true);
+    },
+    onError: () => setLive(false),
+  });
 
   if (loading) {
     return (
@@ -114,6 +127,7 @@ export default function ReservaSeguimientoPage() {
         estado={reserva.estado}
         modoEntrega={reserva.modoEntrega}
         entity={reserva as unknown as Record<string, unknown>}
+        live={live}
         tituloCancelado="Reserva cancelada"
       />
 

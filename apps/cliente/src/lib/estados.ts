@@ -152,12 +152,23 @@ export function leerHistorial(entity: Record<string, unknown> | null | undefined
     .map((item) => {
       if (!item || typeof item !== "object") return null;
       const o = item as Record<string, unknown>;
-      const estado = String(o.estado ?? o.status ?? "");
+      const estado = String(
+        o.estado_nuevo ?? o.estadoNuevo ?? o.estado ?? o.status ?? ""
+      );
       if (!estado) return null;
       return {
         estado,
-        at: (o.at as string) || (o.en as string) || (o.creado_en as string) || null,
-        nota: (o.nota as string) || (o.motivo as string) || null,
+        at:
+          (o.at as string) ||
+          (o.en as string) ||
+          (o.creado_en as string) ||
+          (o.creadoEn as string) ||
+          null,
+        nota:
+          (o.nota as string) ||
+          (o.motivo as string) ||
+          (o.motivo_cancelacion as string) ||
+          null,
       };
     })
     .filter(Boolean) as HistorialItem[];
