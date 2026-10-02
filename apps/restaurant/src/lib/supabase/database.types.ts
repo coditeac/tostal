@@ -165,6 +165,57 @@ export type Database = {
           },
         ]
       }
+      email_log: {
+        Row: {
+          id: string
+          pedido_id: string | null
+          reserva_id: string | null
+          destinatario: string
+          evento: string
+          asunto: string
+          estado: string
+          error: string | null
+          creado_en: string
+        }
+        Insert: {
+          id?: string
+          pedido_id?: string | null
+          reserva_id?: string | null
+          destinatario: string
+          evento: string
+          asunto: string
+          estado: string
+          error?: string | null
+          creado_en?: string
+        }
+        Update: {
+          id?: string
+          pedido_id?: string | null
+          reserva_id?: string | null
+          destinatario?: string
+          evento?: string
+          asunto?: string
+          estado?: string
+          error?: string | null
+          creado_en?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_log_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_log_reserva_id_fkey"
+            columns: ["reserva_id"]
+            isOneToOne: false
+            referencedRelation: "reservas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gastos: {
         Row: {
           categoria: string | null

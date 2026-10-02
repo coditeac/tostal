@@ -7,9 +7,9 @@ import {
   subscribePedidosFecha,
   type PedidoUi,
 } from "@/lib/data/pedidos";
+import { patchEstadoPedido } from "@/app/actions/estados";
 import {
   normalizarEstado,
-  patchEstadoPedido,
   type EstadoFlujo,
 } from "@/lib/estados";
 import { EstadoAcciones } from "@/components/estado-acciones";

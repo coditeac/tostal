@@ -5,9 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EstadoAcciones } from "@/components/estado-acciones";
 import { formatoMoneda, labelFecha } from "@/lib/format";
+import { patchEstadoReserva } from "@/app/actions/estados";
 import {
   normalizarEstado,
-  patchEstadoReserva,
   type EstadoFlujo,
 } from "@/lib/estados";
 import { listReservas, type ReservaCola } from "@/lib/reservas";

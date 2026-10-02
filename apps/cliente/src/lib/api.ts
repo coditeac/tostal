@@ -20,6 +20,10 @@ import {
 import { createClienteBrowserClient } from "@/lib/supabase/client";
 import { publicProductImageUrl } from "@/lib/supabase/env";
 import type { Json } from "@/lib/supabase/database.types";
+import {
+  notificarPedidoCreadoAction,
+  notificarReservaCreadaAction,
+} from "@/app/actions/mail";
 
 function sb() {
   return createClienteBrowserClient();
@@ -74,7 +78,26 @@ export async function crearPedido(
     p_body: body as unknown as Json,
   });
   if (error) throw rpcError(error);
-  return data as unknown as CrearPedidoRemotoResponse;
+  const result = data as unknown as CrearPedidoRemotoResponse;
+  const email = body.clienteEmail || body.email || null;
+  try {
+    await notificarPedidoCreadoAction({
+      pedido: {
+        id: result.pedido.id,
+        codigo: result.pedido.codigo,
+        clienteNombre: result.pedido.clienteNombre,
+        fechaEntrega: result.pedido.fechaEntrega,
+        total: result.pedido.total,
+        estado: result.pedido.estado || "recibido",
+        modoEntrega: result.pedido.modoEntrega,
+        canal: result.pedido.canal,
+      },
+      email,
+    });
+  } catch (e) {
+    console.error("[mail:pedido_creado]", e);
+  }
+  return result;
 }
 
 export async function fetchPedido(
@@ -154,7 +177,26 @@ export async function crearReserva(
     p_body: body as unknown as Json,
   });
   if (error) throw rpcError(error);
-  return data as unknown as CrearReservaResponse;
+  const result = data as unknown as CrearReservaResponse;
+  try {
+    await notificarReservaCreadaAction({
+      reserva: {
+        id: result.reserva.id,
+        codigo: result.reserva.codigo,
+        clienteNombre: body.clienteNombre || "Cliente",
+        fechaEntrega: result.reserva.fechaEntrega,
+        total: result.reserva.total,
+        anticipoMonto: result.reserva.anticipoMonto,
+        estado: result.reserva.estado || "recibido",
+        estadoAnticipo: result.reserva.estadoAnticipo || "pendiente",
+        modoEntrega: body.modoEntrega || "retiro",
+      },
+      email: body.clienteEmail || null,
+    });
+  } catch (e) {
+    console.error("[mail:reserva_creada]", e);
+  }
+  return result;
 }
 
 /** Pedidos del usuario autenticado (cuenta). */

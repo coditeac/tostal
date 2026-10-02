@@ -1,9 +1,7 @@
 /**
  * Estados unificados pedidos + reservaciones (contrato Project Tostal).
- * Persistencia vía Supabase (`lib/data/pedidos` / `lib/data/reservas`).
+ * Mutaciones con email: `app/actions/estados` (Server Actions).
  */
-import { updatePedidoEstado } from "@/lib/data/pedidos";
-import { updateReservaEstado } from "@/lib/data/reservas";
 
 export type EstadoFlujo =
   | "recibido"
@@ -165,34 +163,4 @@ export function varianteBadgeEstado(
   if (e === "listo" || e === "en_camino") return "warning-light";
   if (e === "preparando" || e === "aceptado") return "default";
   return "secondary";
-}
-
-export async function patchEstadoPedido(
-  id: string,
-  estado: EstadoFlujo
-): Promise<{ ok: true; pedido: Record<string, unknown> } | { ok: false; error: string }> {
-  try {
-    const pedido = await updatePedidoEstado(id, estado);
-    return { ok: true, pedido: pedido as unknown as Record<string, unknown> };
-  } catch (e) {
-    return {
-      ok: false,
-      error: e instanceof Error ? e.message : "No se pudo actualizar el estado",
-    };
-  }
-}
-
-export async function patchEstadoReserva(
-  id: string,
-  estado: EstadoFlujo
-): Promise<{ ok: true; reserva: Record<string, unknown> } | { ok: false; error: string }> {
-  try {
-    const reserva = await updateReservaEstado(id, estado);
-    return { ok: true, reserva: reserva as unknown as Record<string, unknown> };
-  } catch (e) {
-    return {
-      ok: false,
-      error: e instanceof Error ? e.message : "No se pudo actualizar el estado",
-    };
-  }
 }
