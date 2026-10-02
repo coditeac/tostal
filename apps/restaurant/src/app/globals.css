@@ -60,8 +60,8 @@
   --accent: var(--tostal-marca-soft);
   --accent-foreground: var(--tostal-ink);
   --destructive: var(--tostal-error);
-  --border: #e4e4e7;
-  --input: #e4e4e7;
+  --border: #d4d4d8;
+  --input: #a1a1aa;
   --ring: var(--tostal-marca);
   --radius: 0.75rem;
   --tap: 2.75rem;
