@@ -244,12 +244,12 @@ export async function patchEstadoReserva(
   const legacy = CONTRATO_TO_RESERVA_LEGACY[estado] ?? estado;
 
   const tryPaths: Array<{ path: string; body: Record<string, string> }> = [
-    { path: `/api/reservaciones/${id}/estado`, body: { estado } },
     { path: `/api/reservas/${id}/estado`, body: { estado } },
-    { path: `/api/reservaciones/estado`, body: { id, estado } },
+    { path: `/api/reservaciones/${id}/estado`, body: { estado } },
     { path: `/api/reservas/estado`, body: { id, estado } },
-    { path: `/api/reservaciones/estado`, body: { id, estado: legacy } },
+    { path: `/api/reservaciones/estado`, body: { id, estado } },
     { path: `/api/reservas/estado`, body: { id, estado: legacy } },
+    { path: `/api/reservaciones/estado`, body: { id, estado: legacy } },
   ];
 
   let lastError = "No se pudo actualizar el estado";
