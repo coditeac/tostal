@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EstadoAcciones } from "@/components/estado-acciones";
 import { formatoMoneda, labelFecha } from "@/lib/format";
+import {
+  normalizarEstado,
+  patchEstadoReserva,
+  type EstadoFlujo,
+} from "@/lib/estados";
 import { listReservas, type ReservaCola } from "@/lib/reservas";
 
 export default function ReservasPage() {
@@ -12,6 +18,7 @@ export default function ReservasPage() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -28,8 +35,48 @@ export default function ReservasPage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial
     void load();
   }, []);
+
+  function mergeReserva(raw: Record<string, unknown>) {
+    setReservas((prev) => {
+      const id = String(raw.id ?? "");
+      if (!id) return prev;
+      const idx = prev.findIndex((r) => r.id === id);
+      if (idx === -1) {
+        void load();
+        return prev;
+      }
+      const next = [...prev];
+      const cur = next[idx];
+      next[idx] = {
+        ...cur,
+        estado: String(raw.estado ?? cur.estado),
+        estadoAnticipo: raw.estadoAnticipo
+          ? String(raw.estadoAnticipo)
+          : raw.estado_anticipo
+            ? String(raw.estado_anticipo)
+            : cur.estadoAnticipo,
+      };
+      return next;
+    });
+  }
+
+  async function cambiarEstado(id: string, estado: EstadoFlujo) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const result = await patchEstadoReserva(id, estado);
+      if (!result.ok) throw new Error(result.error);
+      if (result.reserva?.id) mergeReserva(result.reserva);
+      else await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   const conCompra = reservas.filter((r) => r.requiereCompra).length;
 
@@ -37,9 +84,11 @@ export default function ReservasPage() {
     <div className="space-y-6 rise-in">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Reservaciones</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Reservaciones
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Pedidos para fecha específica, anticipo e insumos.
+            Anticipo, insumos y avance de estado.
           </p>
         </div>
         <Button
@@ -93,8 +142,9 @@ export default function ReservasPage() {
         <ul className="divide-y divide-border border-y border-border">
           {reservas.map((r) => {
             const open = openId === r.id;
+            const estadoUi = normalizarEstado(r.estado);
             return (
-              <li key={r.id} className="py-4">
+              <li key={r.id} className="space-y-3 py-4">
                 <button
                   type="button"
                   className="flex w-full items-start justify-between gap-3 text-left"
@@ -105,8 +155,7 @@ export default function ReservasPage() {
                       {r.codigo || r.id.slice(0, 8)} · {r.clienteNombre}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {r.fecha ? labelFecha(r.fecha) : "Sin fecha"} ·{" "}
-                      {r.estado.replace(/_/g, " ")}
+                      {r.fecha ? labelFecha(r.fecha) : "Sin fecha"}
                       {r.productos.length > 0
                         ? ` · ${r.productos
                             .map((p) => `${p.nombre}×${p.cantidad}`)
@@ -130,8 +179,15 @@ export default function ReservasPage() {
                   </div>
                 </button>
 
+                <EstadoAcciones
+                  estado={estadoUi}
+                  modoEntrega={r.modoEntrega}
+                  busy={busyId === r.id}
+                  onCambiar={(estado) => void cambiarEstado(r.id, estado)}
+                />
+
                 {open && (
-                  <div className="mt-3 space-y-3 rounded-xl bg-secondary/60 px-3 py-3">
+                  <div className="space-y-3 rounded-xl bg-secondary/60 px-3 py-3">
                     {r.clienteTelefono && (
                       <p className="text-xs text-muted-foreground">
                         Tel. {r.clienteTelefono}

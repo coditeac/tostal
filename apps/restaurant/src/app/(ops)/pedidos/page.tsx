@@ -1,10 +1,15 @@
 "use client";
 
 import { apiFetch } from "@/lib/api";
-
 import { useCallback, useEffect, useState } from "react";
 import { formatoMoneda, hoyISO } from "@/lib/format";
 import { useRestaurantPedidoEvents } from "@/lib/use-pedido-events";
+import {
+  normalizarEstado,
+  patchEstadoPedido,
+  type EstadoFlujo,
+} from "@/lib/estados";
+import { EstadoAcciones } from "@/components/estado-acciones";
 import type { PedidoPublico } from "../../../../../../shared/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -12,24 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 type Pedido = PedidoPublico;
-
-const ESTADOS = [
-  "recibido",
-  "confirmado",
-  "en_produccion",
-  "listo",
-  "entregado",
-  "cancelado",
-] as const;
 
 export default function PedidosPage() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -71,7 +60,8 @@ export default function PedidosPage() {
   }
 
   useEffect(() => {
-    load();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga por fecha
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fecha]);
 
@@ -88,14 +78,31 @@ export default function PedidosPage() {
     onError: () => setLive(false),
   });
 
-  async function patch(id: string, body: Record<string, string>) {
+  async function cambiarEstado(id: string, estado: EstadoFlujo) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const result = await patchEstadoPedido(id, estado);
+      if (!result.ok) throw new Error(result.error);
+      if (result.pedido?.id) {
+        mergePedido(result.pedido as unknown as Pedido);
+      } else {
+        await load();
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function marcarPagado(id: string) {
     setBusyId(id);
     setError(null);
     try {
       const res = await apiFetch("/api/pedidos", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, ...body }),
+        body: JSON.stringify({ id, estadoPago: "pagado" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
@@ -113,7 +120,7 @@ export default function PedidosPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Pedidos</h1>
         <p className="text-sm text-muted-foreground">
-          Cola del día · producción y pagos
+          Cola del día · avanza el estado y confirma pagos
           {live ? (
             <Badge variant="success-light" size="sm" className="ml-2">
               ● En vivo
@@ -144,60 +151,54 @@ export default function PedidosPage() {
           <Skeleton className="h-28 w-full rounded-xl" />
         </div>
       ) : pedidos.length === 0 ? (
-        <p className="empty-state">
-          No hay pedidos para esta fecha.
-        </p>
+        <p className="empty-state">No hay pedidos para esta fecha.</p>
       ) : (
-        <ul className="space-y-3">
-          {pedidos.map((p) => (
-            <li key={p.id} className="space-y-3 border-b border-border py-4 first:border-t">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold">{p.codigo}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {p.clienteNombre} · {p.clienteTelefono}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {p.canal} · {p.modoEntrega} · {p.metodoPago}
-                  </p>
+        <ul className="divide-y divide-border border-y border-border">
+          {pedidos.map((p) => {
+            const estadoUi = normalizarEstado(p.estado);
+            return (
+              <li key={p.id} className="space-y-3 py-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold">{p.codigo}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {p.clienteNombre} · {p.clienteTelefono}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {p.canal} · {p.modoEntrega} · {p.metodoPago}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="font-semibold tabular-nums">
+                      {formatoMoneda(p.total)}
+                    </p>
+                    <Badge
+                      variant={
+                        p.estadoPago === "pagado"
+                          ? "success-light"
+                          : "warning-light"
+                      }
+                      size="sm"
+                      className="mt-1"
+                    >
+                      {p.estadoPago}
+                    </Badge>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold">{formatoMoneda(p.total)}</p>
-                  <Badge
-                    variant={
-                      p.estadoPago === "pagado" ? "success-light" : "warning-light"
-                    }
-                    size="sm"
-                    className="mt-1"
-                  >
-                    {p.estadoPago}
-                  </Badge>
-                </div>
-              </div>
-              <p className="text-sm">
-                {p.lineas
-                  .map((l) => `${l.cantidad}× ${l.productoNombre}`)
-                  .join(" · ")}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Select
-                  value={p.estado}
-                  disabled={busyId === p.id}
-                  onValueChange={(estado) => {
-                    if (estado) patch(p.id, { estado });
-                  }}
-                >
-                  <SelectTrigger className="h-11 min-h-[var(--tap)] w-[11rem]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ESTADOS.map((e) => (
-                      <SelectItem key={e} value={e}>
-                        {e.replace("_", " ")}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+                <p className="text-sm">
+                  {p.lineas
+                    .map((l) => `${l.cantidad}× ${l.productoNombre}`)
+                    .join(" · ")}
+                </p>
+
+                <EstadoAcciones
+                  estado={estadoUi}
+                  modoEntrega={p.modoEntrega}
+                  busy={busyId === p.id}
+                  onCambiar={(estado) => void cambiarEstado(p.id, estado)}
+                />
+
                 {p.estadoPago === "pendiente" &&
                   p.metodoPago === "transferencia" && (
                     <Button
@@ -205,17 +206,22 @@ export default function PedidosPage() {
                       variant="outline"
                       size="sm"
                       disabled={busyId === p.id}
-                      onClick={() => patch(p.id, { estadoPago: "pagado" })}
+                      className="min-h-[var(--tap)]"
+                      onClick={() => void marcarPagado(p.id)}
                     >
                       Marcar pagado
                     </Button>
                   )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Al pasar a «en producción» se descuentan insumos de la receta.
-              </p>
-            </li>
-          ))}
+
+                {estadoUi === "preparando" || estadoUi === "aceptado" ? (
+                  <p className="text-xs text-muted-foreground">
+                    Al pasar a «Preparando» se descuentan insumos de la
+                    receta (si aplica).
+                  </p>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
