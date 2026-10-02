@@ -1,9 +1,22 @@
-import { apiFetch } from "./api";
+import { apiFetch, getApiBase } from "./api";
 
 const ACCEPT = "image/jpeg,image/png,image/webp";
 const MAX_BYTES = 5 * 1024 * 1024;
 
 export const FOTO_ACCEPT = ACCEPT;
+
+/** Absolutiza `/api/media/...` contra la API Nest. */
+export function resolveFotoUrl(
+  raw: string | null | undefined
+): string | null {
+  if (raw == null || raw === "") return null;
+  const s = String(raw);
+  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("blob:")) {
+    return s;
+  }
+  if (s.startsWith("/")) return `${getApiBase()}${s}`;
+  return s;
+}
 
 export function fotoUrlFromProducto(
   p: Record<string, unknown> | null | undefined
@@ -11,8 +24,7 @@ export function fotoUrlFromProducto(
   if (!p) return null;
   const raw =
     p.fotoUrl ?? p.foto_url ?? p.imagenUrl ?? p.imagen_url ?? p.imageUrl;
-  if (raw == null || raw === "") return null;
-  return String(raw);
+  return resolveFotoUrl(raw == null || raw === "" ? null : String(raw));
 }
 
 export function fotoUrlFromResponse(data: Record<string, unknown>): string | null {
@@ -40,10 +52,8 @@ export function validateFotoFile(file: File): string | null {
 
 function formWithFile(file: File): FormData {
   const fd = new FormData();
-  // API puede leer cualquiera de estos nombres de campo.
-  fd.append("file", file);
+  // Contrato API #31: campo `foto` (también acepta `file` | `imagen`).
   fd.append("foto", file);
-  fd.append("imagen", file);
   return fd;
 }
 
