@@ -64,7 +64,7 @@ export default function SeguimientoPage() {
         y el avance.
       </p>
 
-      <form onSubmit={(e) => void onSubmit(e)} className="mt-10 space-y-5">
+      <form onSubmit={(e) => void onSubmit(e)} className="mt-10 space-y-5" noValidate>
         <div className="space-y-2">
           <Label htmlFor="codigo">Código</Label>
           <Input
@@ -75,10 +75,12 @@ export default function SeguimientoPage() {
             placeholder="T-1002-1234 o R-1002-5678"
             autoComplete="off"
             autoCapitalize="characters"
+            aria-invalid={!!error}
+            aria-describedby={error ? "seguimiento-error" : undefined}
           />
         </div>
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" id="seguimiento-error" role="alert">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -87,6 +89,7 @@ export default function SeguimientoPage() {
           size="lg"
           className="w-full"
           disabled={!codigo.trim() || busy}
+          aria-busy={busy}
         >
           {busy ? "Buscando…" : "Ver estado"}
         </Button>

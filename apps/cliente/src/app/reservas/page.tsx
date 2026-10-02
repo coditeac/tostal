@@ -306,9 +306,12 @@ export default function ReservasPage() {
             .
           </p>
         ) : productos.length === 0 ? (
-          <p className="empty-state">
-            No hay productos con reserva habilitada por ahora.
-          </p>
+          <div className="empty-state space-y-3" role="status">
+            <p>No hay productos con reserva habilitada por ahora.</p>
+            <Button asChild>
+              <Link href="/">Ver menú de hoy</Link>
+            </Button>
+          </div>
         ) : (
           <>
             <section className="section-block space-y-3">

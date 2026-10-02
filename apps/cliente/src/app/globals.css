@@ -62,7 +62,8 @@
   --secondary: var(--tostal-papel-2);
   --secondary-foreground: var(--tostal-ink);
   --muted: var(--tostal-papel-2);
-  --muted-foreground: #71717a;
+  /* #52525b ≈ 7:1 sobre papel — AA cómodo (antes #71717a ~4.6) */
+  --muted-foreground: #52525b;
   --accent: var(--tostal-marca-soft);
   --accent-foreground: var(--tostal-ink);
   --destructive: var(--tostal-error);
@@ -314,8 +315,10 @@ a {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.field:focus {
-  outline: none;
+.field:focus,
+.field:focus-visible {
+  outline: 2px solid var(--tostal-marca);
+  outline-offset: 2px;
   border-color: var(--tostal-marca);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--tostal-marca) 18%, transparent);
 }
@@ -577,6 +580,9 @@ a {
   align-items: flex-start;
   gap: 0;
   width: 100%;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .status-step {
