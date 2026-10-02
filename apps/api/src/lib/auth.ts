@@ -61,14 +61,27 @@ export async function signSessionToken(user: SessionUser): Promise<string> {
     .sign(SECRET);
 }
 
+/** Express `maxAge` is milliseconds (not seconds). */
+const STAFF_COOKIE_MS = 60 * 60 * 24 * 7 * 1000;
+
+function cookieSecure(): boolean {
+  // Railway often omits NODE_ENV at runtime; Domain=.tostal.cafe ⇒ HTTPS only.
+  if (process.env.TOSTAL_COOKIE_SECURE === "0") return false;
+  if (process.env.TOSTAL_COOKIE_SECURE === "1") return true;
+  return (
+    process.env.NODE_ENV === "production" ||
+    Boolean(process.env.TOSTAL_COOKIE_DOMAIN)
+  );
+}
+
 export function cookieOptions() {
   const domain = process.env.TOSTAL_COOKIE_DOMAIN || undefined;
   return {
     httpOnly: true,
     sameSite: "lax" as const,
     path: "/",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 7,
+    secure: cookieSecure(),
+    maxAge: STAFF_COOKIE_MS,
     ...(domain ? { domain } : {}),
   };
 }
@@ -78,10 +91,12 @@ export function setSessionCookie(res: Response, token: string) {
 }
 
 export function clearSessionCookie(res: Response) {
-  const domain = process.env.TOSTAL_COOKIE_DOMAIN || undefined;
+  const opts = cookieOptions();
   res.clearCookie(SESSION_COOKIE, {
-    path: "/",
-    ...(domain ? { domain } : {}),
+    path: opts.path,
+    sameSite: opts.sameSite,
+    secure: opts.secure,
+    ...(opts.domain ? { domain: opts.domain } : {}),
   });
 }
 

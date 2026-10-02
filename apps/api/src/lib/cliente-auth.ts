@@ -125,14 +125,26 @@ export async function signClienteToken(user: ClienteSession): Promise<string> {
     .sign(SECRET);
 }
 
+/** Express `maxAge` is milliseconds (not seconds). */
+const CLIENTE_COOKIE_MS = 60 * 60 * 24 * 30 * 1000;
+
+function cookieSecure(): boolean {
+  if (process.env.TOSTAL_COOKIE_SECURE === "0") return false;
+  if (process.env.TOSTAL_COOKIE_SECURE === "1") return true;
+  return (
+    process.env.NODE_ENV === "production" ||
+    Boolean(process.env.TOSTAL_COOKIE_DOMAIN)
+  );
+}
+
 export function clienteCookieOptions() {
   const domain = process.env.TOSTAL_COOKIE_DOMAIN || undefined;
   return {
     httpOnly: true,
     sameSite: "lax" as const,
     path: "/",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 30,
+    secure: cookieSecure(),
+    maxAge: CLIENTE_COOKIE_MS,
     ...(domain ? { domain } : {}),
   };
 }
@@ -142,10 +154,12 @@ export function setClienteCookie(res: Response, token: string) {
 }
 
 export function clearClienteCookie(res: Response) {
-  const domain = process.env.TOSTAL_COOKIE_DOMAIN || undefined;
+  const opts = clienteCookieOptions();
   res.clearCookie(CLIENTE_COOKIE, {
-    path: "/",
-    ...(domain ? { domain } : {}),
+    path: opts.path,
+    sameSite: opts.sameSite,
+    secure: opts.secure,
+    ...(opts.domain ? { domain: opts.domain } : {}),
   });
 }
 
