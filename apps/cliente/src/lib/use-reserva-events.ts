@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { getApiBase } from "@/lib/api";
-import { CONTRATO_API } from "@/lib/contract";
+import { fetchReserva } from "@/lib/api";
+import { createClienteBrowserClient } from "@/lib/supabase/client";
 import type { ReservaPublicaSeguimiento } from "@/lib/contract";
 
 type Handlers = {
@@ -11,8 +11,8 @@ type Handlers = {
 };
 
 /**
- * SSE público de reserva: GET /api/public/reservas/events?codigo=
- * Fallback: polling en la página si onError / sin EventSource.
+ * Seguimiento reserva vía Supabase Realtime + RPC snapshot.
+ * Misma UX que el SSE Nest (#36); fuente de datos = Supabase.
  */
 export function useReservaEvents(
   codigo: string | null | undefined,
@@ -24,47 +24,50 @@ export function useReservaEvents(
   });
 
   useEffect(() => {
-    if (!codigo || typeof EventSource === "undefined") return;
+    if (!codigo) return;
+    const clean = codigo.trim().toUpperCase();
+    let cancelled = false;
+    const sb = createClienteBrowserClient();
 
-    const url = `${getApiBase()}${CONTRATO_API.reservasEvents}?codigo=${encodeURIComponent(codigo)}`;
-    const es = new EventSource(url);
+    void fetchReserva(clean)
+      .then((data) => {
+        if (!cancelled && data.reserva) {
+          handlersRef.current.onReserva(data.reserva);
+        }
+      })
+      .catch(() => {
+        handlersRef.current.onError?.("No se pudo cargar la reserva");
+      });
 
-    const apply = (raw: MessageEvent) => {
-      try {
-        const data = JSON.parse(String(raw.data)) as {
-          type?: string;
-          reserva?: ReservaPublicaSeguimiento;
-        };
-        if (data.reserva) handlersRef.current.onReserva(data.reserva);
-      } catch {
-        /* ignore malformed */
-      }
-    };
-
-    const types = [
-      "snapshot",
-      "reserva_creada",
-      "estado_cambiado",
-      "anticipo_confirmado",
-      "listo",
-      "entregado",
-      "en_camino",
-      "aceptado",
-      "preparando",
-      "cancelado",
-      "ping",
-    ];
-    for (const t of types) {
-      es.addEventListener(t, apply as EventListener);
-    }
-    es.onmessage = apply;
-
-    es.onerror = () => {
-      handlersRef.current.onError?.("Reconectando seguimiento…");
-    };
+    const channel = sb
+      .channel(`reserva-${clean}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "reservas",
+          filter: `codigo=eq.${clean}`,
+        },
+        () => {
+          void fetchReserva(clean)
+            .then((data) => {
+              if (data.reserva) handlersRef.current.onReserva(data.reserva);
+            })
+            .catch(() => {
+              handlersRef.current.onError?.("Reconectando seguimiento…");
+            });
+        }
+      )
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          handlersRef.current.onError?.("Reconectando seguimiento…");
+        }
+      });
 
     return () => {
-      es.close();
+      cancelled = true;
+      void sb.removeChannel(channel);
     };
   }, [codigo]);
 }

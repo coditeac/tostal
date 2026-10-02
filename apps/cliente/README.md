@@ -1,47 +1,44 @@
 # Tostal — App Cliente
 
-Superficie pública de **Tostal** (*Sabores que unen culturas*): menú por día, carrito, checkout y seguimiento de pedido.
+Superficie pública de **Tostal** (*Sabores que unen culturas*): menú del día, carrito, reservas, seguimiento.
 
-Mobile first · UI en español · consume la **API NestJS** (`apps/api`).
+Mobile first · UI en español · **Supabase** (auth, Postgres, Storage, Realtime). Sin Nest / sin `NEXT_PUBLIC_API_URL`.
 
 ## Arranque
 
-Necesitas la API NestJS en `http://127.0.0.1:4331` (u otra URL vía env).
-
 ```bash
-# Terminal 1 — API
-cd apps/api && npm install && npm run start:dev
-
-# Terminal 2 — Cliente
 cd apps/cliente
 npm install
 # .env.local:
-# NEXT_PUBLIC_API_URL=http://127.0.0.1:4331
+# NEXT_PUBLIC_SUPABASE_URL=https://yoxsldirdgdpsabsivac.supabase.co
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon>
 npm run dev
 # → http://127.0.0.1:4322
 ```
 
-Variables admitidas (en orden): `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_TOSTAL_API_URL`.
+Railway `tostal-cliente` ya lleva esas vars.
+
+## Roles
+
+- Compradores: `profiles.rol = cliente` (default al signup).
+- Staff/superadmin (`cocina@tostal.cafe`, etc.): **app.tostal.cafe** — esta app no deja entrar cuentas staff.
 
 ## Flujo
 
-1. Elige **día** de entrega/retiro (solo días abiertos con deadline vigente).
-2. Ve el **menú del día** (productos activos ese día).
-3. Arma el **carrito** → retiro o envío (zona + costo) → datos → pago.
-4. **Pago:**
-   - transferencia (confirmación manual en ops),
-   - contra entrega,
-   - Stripe (Checkout `price_data` / PaymentIntent; **mock** si la API no tiene `STRIPE_SECRET_KEY`).
-5. **Seguimiento** en `/pedido/[codigo]` o busca el código en `/seguimiento`.
-
-Si pasó el deadline: no se puede pedir (“Ya cerramos pedidos para este día”).
+1. **Menú de hoy** (CDMX) desde `menu_dia` + `productos.imagen_url` (Storage `productos`).
+2. Carrito → pedido (`crear_pedido_publico`) con hora límite.
+3. **Reservas** (`list_reservas_productos` / `crear_reserva_publica`).
+4. Seguimiento `/pedido/[codigo]` y `/reserva/[codigo]` vía RPC + Realtime (polling fallback).
+5. Cuenta opcional: Auth email/password Supabase.
 
 ## Rutas
 
 | Ruta | Qué hace |
 |---|---|
-| `/` | Hero + selector de día + menú |
-| `/carrito` | Carrito + checkout |
-| `/pedido/[codigo]` | Seguimiento (SSE) + pagar Stripe si pendiente |
-| `/seguimiento` | Buscar pedido por código |
-| `/cuenta` | Registro / login cliente (opcional) |
+| `/` | Menú de hoy (UI Rappi) |
+| `/carrito` | Checkout pedido del día |
+| `/reservas` | Reservas bajo pedido |
+| `/pedido/[codigo]` | Seguimiento pedido |
+| `/reserva/[codigo]` | Seguimiento reserva |
+| `/seguimiento` | Buscar por código |
+| `/cuenta` | Login / registro cliente |

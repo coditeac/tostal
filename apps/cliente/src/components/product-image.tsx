@@ -1,24 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { getApiBase } from "@/lib/api";
 import {
   resolveProductoFotoUrl,
   type ProductoFotoFields,
 } from "@/lib/contract";
+import { publicProductImageUrl } from "@/lib/supabase/env";
 import { cn } from "@/lib/utils";
 
-/** Convierte path relativo `/api/media/...` en URL absoluta al API. */
-export function absolutizeMediaUrl(url: string | null | undefined): string | null {
-  if (!url || typeof url !== "string") return null;
-  const trimmed = url.trim();
-  if (!trimmed) return null;
-  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("data:")) {
-    return trimmed;
-  }
-  const base = getApiBase();
-  if (trimmed.startsWith("/")) return `${base}${trimmed}`;
-  return `${base}/${trimmed}`;
+/** URL absoluta: Storage público `productos` o https ya absoluta. */
+export function absolutizeMediaUrl(
+  url: string | null | undefined
+): string | null {
+  return publicProductImageUrl(url);
 }
 
 /** Extrae URL de foto desde campos API (imagen_url / foto_url / fotoUrl / …). */

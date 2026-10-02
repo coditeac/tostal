@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { getApiBase } from "@/lib/api";
-import { PUBLIC_API } from "@tostal/shared/api-public";
+import { fetchPedido } from "@/lib/api";
+import { createClienteBrowserClient } from "@/lib/supabase/client";
 import type { PedidoPublico } from "@tostal/shared/types";
 
 type Handlers = {
@@ -11,61 +11,63 @@ type Handlers = {
 };
 
 /**
- * Suscribe al SSE público de un pedido. Reconecta solo (EventSource nativo).
- * Fallback: el caller puede seguir con polling si onError / sin soporte.
+ * Seguimiento en vivo vía Supabase Realtime (+ snapshot RPC).
+ * Guest: Realtime puede no ver fila por RLS → polling RPC sigue en la página.
  */
-export function usePedidoEvents(codigo: string | null | undefined, handlers: Handlers) {
+export function usePedidoEvents(
+  codigo: string | null | undefined,
+  handlers: Handlers
+) {
   const handlersRef = useRef(handlers);
   useEffect(() => {
     handlersRef.current = handlers;
   });
 
   useEffect(() => {
-    if (!codigo || typeof EventSource === "undefined") return;
+    if (!codigo) return;
+    const clean = codigo.trim().toUpperCase();
+    let cancelled = false;
+    const sb = createClienteBrowserClient();
 
-    const url = `${getApiBase()}${PUBLIC_API.pedidosEvents}?codigo=${encodeURIComponent(codigo)}`;
-    const es = new EventSource(url);
-    let closed = false;
+    void fetchPedido(clean)
+      .then((data) => {
+        if (!cancelled && data.pedido) {
+          handlersRef.current.onPedido(data.pedido);
+        }
+      })
+      .catch(() => {
+        handlersRef.current.onError?.("No se pudo cargar el pedido");
+      });
 
-    const apply = (raw: MessageEvent) => {
-      try {
-        const data = JSON.parse(String(raw.data)) as {
-          type?: string;
-          pedido?: PedidoPublico;
-        };
-        if (data.pedido) handlersRef.current.onPedido(data.pedido);
-      } catch {
-        /* ignore malformed */
-      }
-    };
-
-    const types = [
-      "snapshot",
-      "pedido_creado",
-      "estado_cambiado",
-      "pago_confirmado",
-      "listo",
-      "entregado",
-      "en_camino",
-      "aceptado",
-      "preparando",
-      "cancelado",
-    ];
-    for (const t of types) {
-      es.addEventListener(t, apply as EventListener);
-    }
-    // Fallback: message genérico si la API emite sin event name
-    es.onmessage = apply;
-
-    es.onerror = () => {
-      // EventSource reintenta solo; avisar una vez
-      handlersRef.current.onError?.("Reconectando seguimiento…");
-    };
+    const channel = sb
+      .channel(`pedido-${clean}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "pedidos",
+          filter: `codigo=eq.${clean}`,
+        },
+        () => {
+          void fetchPedido(clean)
+            .then((data) => {
+              if (data.pedido) handlersRef.current.onPedido(data.pedido);
+            })
+            .catch(() => {
+              handlersRef.current.onError?.("Reconectando seguimiento…");
+            });
+        }
+      )
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          handlersRef.current.onError?.("Reconectando seguimiento…");
+        }
+      });
 
     return () => {
-      closed = true;
-      void closed;
-      es.close();
+      cancelled = true;
+      void sb.removeChannel(channel);
     };
   }, [codigo]);
 }

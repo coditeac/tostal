@@ -1,63 +1,91 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CLIENTE_AUTH_API } from "@tostal/shared/api-public";
-import { getApiBase } from "./api";
+import { createClienteBrowserClient } from "@/lib/supabase/client";
 
 export type ClienteUser = {
   id: string;
   email: string;
   nombre: string;
   telefono: string | null;
+  /** Siempre `cliente` en esta app. Staff/superadmin usan Restaurant. */
+  rol: "cliente";
 };
 
-async function clienteFetch<T>(
-  path: string,
-  init?: RequestInit
-): Promise<T> {
-  const res = await fetch(`${getApiBase()}${path}`, {
-    ...init,
-    credentials: "include",
-    headers: {
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
-      ...init?.headers,
-    },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error((data as { error?: string }).error || "Error de cuenta");
-  }
-  return data as T;
-}
-
+/**
+ * Auth Supabase. Signup fuerza metadata sin escalar rol:
+ * `profiles.rol` queda `cliente` (default trigger).
+ * Superadmin del Project: cocina@tostal.cafe (solo Restaurant).
+ */
 export function useClienteSession() {
   const [user, setUser] = useState<ClienteUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const mapUser = useCallback(async (): Promise<ClienteUser | null> => {
+    const sb = createClienteBrowserClient();
+    const {
+      data: { user: authUser },
+    } = await sb.auth.getUser();
+    if (!authUser) return null;
+
+    const { data: profile } = await sb
+      .from("profiles")
+      .select("id, email, nombre, rol")
+      .eq("id", authUser.id)
+      .maybeSingle();
+
+    // Solo compradores en esta app. Staff debe ir a app.tostal.cafe.
+    if (profile && profile.rol !== "cliente") {
+      return null;
+    }
+
+    return {
+      id: authUser.id,
+      email: profile?.email || authUser.email || "",
+      nombre:
+        profile?.nombre ||
+        (authUser.user_metadata?.nombre as string) ||
+        (authUser.email || "").split("@")[0],
+      telefono: (authUser.user_metadata?.telefono as string) || null,
+      rol: "cliente",
+    };
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
-      const data = await clienteFetch<{ user: ClienteUser | null }>(
-        CLIENTE_AUTH_API.me
-      );
-      setUser(data.user);
+      setUser(await mapUser());
     } catch {
       setUser(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [mapUser]);
 
   useEffect(() => {
     void refresh();
+    const sb = createClienteBrowserClient();
+    const {
+      data: { subscription },
+    } = sb.auth.onAuthStateChange(() => {
+      void refresh();
+    });
+    return () => subscription.unsubscribe();
   }, [refresh]);
 
   async function login(email: string, password: string) {
-    const data = await clienteFetch<{ user: ClienteUser }>(
-      CLIENTE_AUTH_API.login,
-      { method: "POST", body: JSON.stringify({ email, password }) }
-    );
-    setUser(data.user);
-    return data.user;
+    const sb = createClienteBrowserClient();
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message || "No se pudo iniciar sesión");
+
+    const mapped = await mapUser();
+    if (!mapped) {
+      await sb.auth.signOut();
+      throw new Error(
+        "Esta cuenta es de personal. Entra en app.tostal.cafe."
+      );
+    }
+    setUser(mapped);
+    return mapped;
   }
 
   async function register(input: {
@@ -66,16 +94,49 @@ export function useClienteSession() {
     nombre: string;
     telefono?: string;
   }) {
-    const data = await clienteFetch<{ user: ClienteUser }>(
-      CLIENTE_AUTH_API.register,
-      { method: "POST", body: JSON.stringify(input) }
-    );
-    setUser(data.user);
-    return data.user;
+    const sb = createClienteBrowserClient();
+    // Nunca enviar rol en metadata: el trigger default es `cliente`.
+    // Superadmin (cocina@tostal.cafe) se asigna solo en Dashboard/Restaurant.
+    const { data, error } = await sb.auth.signUp({
+      email: input.email,
+      password: input.password,
+      options: {
+        data: {
+          nombre: input.nombre,
+          telefono: input.telefono || null,
+        },
+      },
+    });
+    if (error) throw new Error(error.message || "No se pudo crear la cuenta");
+    if (!data.user) throw new Error("Revisa tu correo para confirmar la cuenta");
+
+    // Trigger handle_new_user ya pone profiles.rol = cliente (default).
+    // No enviamos `rol` en metadata ni lo actualizamos aquí (RLS bloquea auto-escalada).
+    if (data.session) {
+      await sb
+        .from("profiles")
+        .update({ nombre: input.nombre })
+        .eq("id", data.user.id);
+    }
+
+    const mapped = await mapUser();
+    if (!mapped) {
+      setUser(null);
+      return {
+        id: data.user.id,
+        email: input.email,
+        nombre: input.nombre,
+        telefono: input.telefono || null,
+        rol: "cliente" as const,
+      };
+    }
+    setUser(mapped);
+    return mapped;
   }
 
   async function logout() {
-    await clienteFetch(CLIENTE_AUTH_API.logout, { method: "POST" });
+    const sb = createClienteBrowserClient();
+    await sb.auth.signOut();
     setUser(null);
   }
 

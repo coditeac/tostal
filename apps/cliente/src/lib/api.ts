@@ -1,11 +1,14 @@
+/**
+ * Data layer Cliente → Supabase (sin Nest / sin NEXT_PUBLIC_API_URL).
+ * Conserva las firmas que consume la UI Rappi (#32).
+ */
+
 import type {
   CrearPedidoRemotoBody,
   CrearPedidoRemotoResponse,
   GetPedidoPublicoResponse,
 } from "@tostal/shared/api-public";
-import { PUBLIC_API, API_DEV_ORIGIN } from "@tostal/shared/api-public";
 import {
-  CONTRATO_API,
   normalizeMenuHoy,
   normalizeReservaProducto,
   type CrearReservaBody,
@@ -14,105 +17,86 @@ import {
   type MenuHoy,
   type ReservaProducto,
 } from "@/lib/contract";
+import { createClienteBrowserClient } from "@/lib/supabase/client";
+import { publicProductImageUrl } from "@/lib/supabase/env";
+import type { Json } from "@/lib/supabase/database.types";
 
-/** Preferencia: NEXT_PUBLIC_API_URL → NestJS (api.tostal.cafe). */
+function sb() {
+  return createClienteBrowserClient();
+}
+
+function rpcError(err: { message?: string; code?: string } | null): Error & {
+  status?: number;
+} {
+  const msg = err?.message || "No se pudo completar la acción";
+  const e = new Error(msg) as Error & { status?: number };
+  if (err?.code === "P0002" || /no encontrad/i.test(msg)) e.status = 404;
+  else if (err?.code === "P0001") e.status = 400;
+  else e.status = 500;
+  return e;
+}
+
+/** @deprecated Ya no hay API Nest; se mantiene por compat media relativa. */
 export function getApiBase() {
   return (
-    process.env.NEXT_PUBLIC_API_URL ||
-    process.env.NEXT_PUBLIC_TOSTAL_API_URL ||
-    API_DEV_ORIGIN
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    "https://yoxsldirdgdpsabsivac.supabase.co"
   ).replace(/\/$/, "");
 }
 
-export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${getApiBase()}${path}`, {
-    cache: "no-store",
-    credentials: "include",
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const body = data as { error?: string; message?: string | string[] };
-    const msg =
-      body.error ||
-      (Array.isArray(body.message) ? body.message.join(", ") : body.message) ||
-      `Error ${res.status}`;
-    const err = new Error(msg) as Error & { status?: number };
-    err.status = res.status;
-    throw err;
-  }
-  return data as T;
-}
-
-export async function apiPost<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${getApiBase()}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    credentials: "include",
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const bodyErr = data as { error?: string; message?: string | string[] };
-    const msg =
-      bodyErr.error ||
-      (Array.isArray(bodyErr.message)
-        ? bodyErr.message.join(", ")
-        : bodyErr.message) ||
-      "No se pudo completar la acción";
-    const err = new Error(msg) as Error & { status?: number };
-    err.status = res.status;
-    throw err;
-  }
-  return data as T;
-}
-
-/**
- * Menú de hoy (contrato: GET /api/public/menu).
- * Fallback legacy: ?fecha=YYYY-MM-DD mientras la API migra.
- */
 export async function fetchMenuHoy(): Promise<MenuHoy> {
   const hoy = hoyISO();
-  try {
-    const raw = await apiGet<Record<string, unknown>>(CONTRATO_API.menu);
-    return normalizeMenuHoy(raw, hoy);
-  } catch {
-    const raw = await apiGet<Record<string, unknown>>(
-      `${CONTRATO_API.menu}?fecha=${encodeURIComponent(hoy)}`
-    );
-    return normalizeMenuHoy(raw, hoy);
-  }
+  const { data, error } = await sb().rpc("get_menu_hoy");
+  if (error) throw rpcError(error);
+  const raw = (data ?? {}) as Record<string, unknown>;
+  const menu = normalizeMenuHoy(raw, hoy);
+  menu.productos = menu.productos.map((p) => ({
+    ...p,
+    fotoUrl: publicProductImageUrl(p.fotoUrl) ?? p.fotoUrl,
+    imagen_url: publicProductImageUrl(
+      (p as { imagen_url?: string | null }).imagen_url ?? p.fotoUrl
+    ),
+  }));
+  return menu;
 }
 
 /** @deprecated Preferir fetchMenuHoy — se mantiene por compat carrito. */
 export async function fetchMenu(fecha?: string): Promise<MenuHoy> {
   if (!fecha || fecha === hoyISO()) return fetchMenuHoy();
-  const raw = await apiGet<Record<string, unknown>>(
-    `${CONTRATO_API.menu}?fecha=${encodeURIComponent(fecha)}`
-  );
-  return normalizeMenuHoy(raw, fecha);
+  // Solo menú de hoy en el modelo CDMX; ignora otras fechas.
+  return fetchMenuHoy();
 }
 
-export function crearPedido(body: CrearPedidoRemotoBody) {
-  return apiPost<CrearPedidoRemotoResponse>(PUBLIC_API.pedidos, body);
+export async function crearPedido(
+  body: CrearPedidoRemotoBody
+): Promise<CrearPedidoRemotoResponse> {
+  const { data, error } = await sb().rpc("crear_pedido_publico", {
+    p_body: body as unknown as Json,
+  });
+  if (error) throw rpcError(error);
+  return data as unknown as CrearPedidoRemotoResponse;
 }
 
-export function fetchPedido(codigo: string) {
-  return apiGet<GetPedidoPublicoResponse>(
-    `${PUBLIC_API.pedidos}?codigo=${encodeURIComponent(codigo)}`
-  );
+export async function fetchPedido(
+  codigo: string
+): Promise<GetPedidoPublicoResponse> {
+  const { data, error } = await sb().rpc("get_pedido_publico", {
+    p_codigo: codigo,
+  });
+  if (error) throw rpcError(error);
+  return data as unknown as GetPedidoPublicoResponse;
 }
 
-/** GET /api/public/reservas?codigo= */
-export function fetchReserva(codigo: string) {
-  return apiGet<GetReservaPublicaResponse>(
-    `${CONTRATO_API.reservas}?codigo=${encodeURIComponent(codigo)}`
-  );
+export async function fetchReserva(
+  codigo: string
+): Promise<GetReservaPublicaResponse> {
+  const { data, error } = await sb().rpc("get_reserva_publica", {
+    p_codigo: codigo,
+  });
+  if (error) throw rpcError(error);
+  return data as unknown as GetReservaPublicaResponse;
 }
 
-/**
- * Resuelve seguimiento por código: pedido (T-…) o reserva (R-…).
- * Prueba por prefijo primero; si falla, intenta el otro.
- */
 export async function resolverSeguimiento(
   codigo: string
 ): Promise<
@@ -150,18 +134,59 @@ export async function resolverSeguimiento(
   }
 }
 
-/** GET /api/public/reservas/productos */
 export async function fetchReservasProductos(): Promise<ReservaProducto[]> {
-  const data = await apiGet<{
-    productos?: Record<string, unknown>[];
-  }>(CONTRATO_API.reservasProductos);
-  const list = Array.isArray(data.productos) ? data.productos : [];
-  return list.map(normalizeReservaProducto);
+  const { data, error } = await sb().rpc("list_reservas_productos");
+  if (error) throw rpcError(error);
+  const list = Array.isArray(data) ? data : [];
+  return list.map((raw) => {
+    const p = normalizeReservaProducto(raw as Record<string, unknown>);
+    return {
+      ...p,
+      fotoUrl: publicProductImageUrl(p.fotoUrl),
+    };
+  });
 }
 
-/** POST /api/public/reservas */
-export function crearReserva(body: CrearReservaBody) {
-  return apiPost<CrearReservaResponse>(CONTRATO_API.reservas, body);
+export async function crearReserva(
+  body: CrearReservaBody
+): Promise<CrearReservaResponse> {
+  const { data, error } = await sb().rpc("crear_reserva_publica", {
+    p_body: body as unknown as Json,
+  });
+  if (error) throw rpcError(error);
+  return data as unknown as CrearReservaResponse;
+}
+
+/** Pedidos del usuario autenticado (cuenta). */
+export async function fetchMisPedidos(): Promise<
+  Array<{
+    id: string;
+    codigo: string;
+    fechaEntrega: string;
+    estado: string;
+    total: number;
+  }>
+> {
+  const client = sb();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await client
+    .from("pedidos")
+    .select("id, codigo, fecha_entrega, estado, total")
+    .eq("cliente_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) throw rpcError(error);
+  return (data || []).map((p) => ({
+    id: p.id,
+    codigo: p.codigo,
+    fechaEntrega: p.fecha_entrega,
+    estado: p.estado,
+    total: Math.round(Number(p.total) || 0),
+  }));
 }
 
 export function formatoMoneda(centavos: number, moneda = "MXN"): string {
@@ -171,10 +196,8 @@ export function formatoMoneda(centavos: number, moneda = "MXN"): string {
   }).format(centavos / 100);
 }
 
-/** Zona operativa Tostal — menú “hoy” y hora límite siempre en CDMX. */
 export const TZ_CDMX = "America/Mexico_City";
 
-/** YYYY-MM-DD del calendario en America/Mexico_City (no TZ del browser). */
 export function hoyISO(now: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: TZ_CDMX,
@@ -184,7 +207,6 @@ export function hoyISO(now: Date = new Date()): string {
   }).format(now);
 }
 
-/** Suma días a una fecha calendario YYYY-MM-DD (sin depender del browser TZ). */
 export function sumarDiasISO(fecha: string, dias: number): string {
   const [y, m, d] = fecha.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + dias));
@@ -194,25 +216,21 @@ export function sumarDiasISO(fecha: string, dias: number): string {
   return `${yy}-${mm}-${dd}`;
 }
 
-/** Fecha mínima de reserva: mañana CDMX (no mismo día del menú). */
 export function mananaISO(now: Date = new Date()): string {
   return sumarDiasISO(hoyISO(now), 1);
 }
 
-/**
- * Fecha mínima de reserva según anticipación del producto:
- * hoy CDMX + `diasMinimos` (0 = hoy permitido).
- */
 export function fechaMinimaReservaISO(
   diasMinimos: number,
   now: Date = new Date()
 ): string {
-  const n = Number.isFinite(diasMinimos) ? Math.max(0, Math.trunc(diasMinimos)) : 0;
+  const n = Number.isFinite(diasMinimos)
+    ? Math.max(0, Math.trunc(diasMinimos))
+    : 0;
   return sumarDiasISO(hoyISO(now), n);
 }
 
 export function labelFecha(fecha: string): string {
-  // Mediodía CDMX (UTC−6 fijo post-DST) para etiquetar el día calendario.
   const d = new Date(`${fecha}T12:00:00-06:00`);
   return d.toLocaleDateString("es-MX", {
     timeZone: TZ_CDMX,
