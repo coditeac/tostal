@@ -9,7 +9,6 @@ import {
   horaLimiteInputValue,
   programarMenuDia,
   saveMenuDia,
-  type MenuDia,
   type MenuDiaProducto,
 } from "@/lib/menu-dia";
 
@@ -18,9 +17,10 @@ export function MenuDiaPanel() {
   const hoy = hoyISO();
   const manana = sumarDias(hoy, 1);
   const [fecha, setFecha] = useState(manana);
-  const [menu, setMenu] = useState<MenuDia | null>(null);
   const [productos, setProductos] = useState<MenuDiaProducto[]>([]);
   const [horaLimite, setHoraLimite] = useState("18:00");
+  /** Pedidos abiertos para esa fecha (default ON al programar). */
+  const [abierto, setAbierto] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,13 +38,13 @@ export function MenuDiaPanel() {
     setOkMsg(null);
     try {
       const data = await getMenuDia(f);
-      setMenu(data);
       setProductos(data.productos);
       setHoraLimite(horaLimiteInputValue(data));
+      setAbierto(data.abierto !== false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al cargar");
-      setMenu(null);
       setProductos([]);
+      setAbierto(true);
     } finally {
       setLoading(false);
     }
@@ -63,13 +63,15 @@ export function MenuDiaPanel() {
         fecha,
         horaLimiteHHmm: horaLimite,
         productos,
-        abierto: menu?.abierto,
+        abierto,
       });
-      setMenu(saved);
       setProductos(saved.productos);
       setHoraLimite(horaLimiteInputValue(saved));
+      setAbierto(saved.abierto !== false);
       setOkMsg(
-        `Menú del ${labelFecha(fecha)} guardado · ${activos} productos · límite ${horaLimite} CDMX`
+        `Menú del ${labelFecha(fecha)} guardado · ${activos} productos · ${
+          saved.abierto ? "pedidos abiertos" : "pedidos cerrados"
+        } · límite ${horaLimite} CDMX`
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al guardar");
@@ -88,9 +90,9 @@ export function MenuDiaPanel() {
         desde: hoy,
         horaLimiteHHmm: horaLimite || "18:00",
       });
-      setMenu(data);
       setProductos(data.productos);
       setHoraLimite(horaLimiteInputValue(data));
+      setAbierto(data.abierto !== false);
       setOkMsg(`Menú de mañana (${labelFecha(manana)}) listo para revisar`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al programar");
@@ -108,7 +110,8 @@ export function MenuDiaPanel() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="text-sm text-muted-foreground">
           Activa por día de venta y define hora límite (CDMX). Suele programarse
-          D+1.
+          D+1. Sin «Pedidos abiertos», el Cliente no puede ordenar aunque haya
+          productos.
         </p>
         <Button
           type="button"
@@ -174,6 +177,21 @@ export function MenuDiaPanel() {
               <p className="text-sm text-muted-foreground tabular-nums">
                 {activos}/{productos.length} activos
               </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-secondary/60 px-3 py-3">
+              <div>
+                <p className="text-sm font-semibold">Pedidos abiertos</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Si está apagado, tostal.cafe muestra el menú pero no acepta
+                  pedidos de este día.
+                </p>
+              </div>
+              <Switch
+                checked={abierto}
+                onCheckedChange={setAbierto}
+                aria-label="Pedidos abiertos para este día"
+              />
             </div>
 
             <div>

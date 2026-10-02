@@ -598,7 +598,8 @@ export async function getMenuDiaStaff(fecha: string) {
   const deadline = dia?.deadlinePedido || null;
   return {
     fecha,
-    abierto: dia?.abierto ?? false,
+    // Sin fila aún → default abierto (programar/activar implica vender).
+    abierto: dia?.abierto ?? true,
     hora_limite: deadline,
     horaLimite: deadline,
     deadlinePedido: deadline,
@@ -647,9 +648,24 @@ export async function programarMenuDia(input: {
   }
 
   const existing = await getDia(input.fecha);
+  const productosPayload = Array.isArray(input.productos)
+    ? input.productos
+    : null;
+  const hasActivos =
+    productosPayload != null &&
+    productosPayload.some((p) => p.activo ?? p.disponible);
+
+  // Activar productos del día implica abrir pedidos, salvo cierre explícito.
+  const abierto =
+    input.abierto !== undefined
+      ? !!input.abierto
+      : hasActivos
+        ? true
+        : (existing?.abierto ?? true);
+
   await upsertDia({
     fecha: input.fecha,
-    abierto: input.abierto ?? existing?.abierto ?? true,
+    abierto,
     deadlinePedido,
     cupoMaximo:
       input.cupoMaximo !== undefined
@@ -659,10 +675,10 @@ export async function programarMenuDia(input: {
       input.notas !== undefined ? input.notas : (existing?.notas ?? null),
   });
 
-  if (Array.isArray(input.productos)) {
+  if (productosPayload) {
     await setDisponibilidad(
       input.fecha,
-      input.productos.map((p) => ({
+      productosPayload.map((p) => ({
         productoId: p.productoId,
         disponible: p.activo ?? p.disponible ?? false,
       }))

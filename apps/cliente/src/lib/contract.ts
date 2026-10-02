@@ -23,7 +23,10 @@ export type MenuHoy = {
   fecha: string;
   horaLimite: string | null;
   aceptaPedidos: boolean;
+  /** Día operativo abierto (staff). Puede ser true aunque ya no acepte por hora límite. */
   abierto: boolean;
+  /** true si aún no pasó la hora límite CDMX. */
+  deadlineVigente: boolean;
   cupoMaximo: number | null;
   productos: MenuProducto[];
   categorias: Categoria[];
@@ -125,7 +128,6 @@ export function normalizeMenuHoy(raw: RawMenu, fallbackFecha: string): MenuHoy {
         ? raw.aceptaPedidos
         : null;
 
-  const abierto = raw.abierto !== false;
   const deadlineVigente =
     typeof raw.deadlineVigente === "boolean"
       ? raw.deadlineVigente
@@ -133,14 +135,17 @@ export function normalizeMenuHoy(raw: RawMenu, fallbackFecha: string): MenuHoy {
         ? new Date() < new Date(horaLimite)
         : true;
 
+  // API pública manda `abierto` = acepta (combinado). Preferimos acepta_* /
+  // deadline para el flag de compra; `abierto` aquí = "¿se puede pedir ahora?".
   const aceptaPedidos =
-    aceptaExplicit !== null ? aceptaExplicit : abierto && deadlineVigente;
+    aceptaExplicit !== null ? aceptaExplicit : raw.abierto !== false && deadlineVigente;
 
   return {
     fecha: typeof raw.fecha === "string" ? raw.fecha : fallbackFecha,
     horaLimite,
     aceptaPedidos,
-    abierto,
+    abierto: aceptaPedidos || (raw.abierto !== false && deadlineVigente),
+    deadlineVigente,
     cupoMaximo: raw.cupoMaximo ?? null,
     productos: Array.isArray(raw.productos) ? raw.productos : [],
     categorias: Array.isArray(raw.categorias) ? raw.categorias : [],
