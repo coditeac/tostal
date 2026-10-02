@@ -107,6 +107,10 @@ export type ProductoReservaPublico = {
   categoriaNombre: string | null;
   alergenos: string | null;
   fotoUrl: string | null;
+  /** Alias contrato fronts / Rappi. */
+  foto_url?: string | null;
+  imagenUrl?: string | null;
+  imagen_url?: string | null;
   anticipoTipo: AnticipoTipo;
   anticipoValor: number;
   anticipoUnitario: number;

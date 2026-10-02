@@ -19,6 +19,7 @@ import type {
   ReservaNecesidad,
   ReservaPublica,
 } from "./domain-types";
+import { productoFotoAliases } from "./media-storage";
 
 async function boot() {
   await ensureSeed();
@@ -50,7 +51,7 @@ export async function listProductosReserva(): Promise<ProductoReservaPublico[]> 
         categoriaId: p.categoriaId,
         categoriaNombre: p.categoriaNombre,
         alergenos: p.alergenos,
-        fotoUrl: p.fotoUrl,
+        ...productoFotoAliases(p.fotoUrl),
         anticipoTipo: p.anticipoTipo,
         anticipoValor: p.anticipoValor,
         anticipoUnitario: calcularAnticipoUnitario(

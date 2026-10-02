@@ -1,16 +1,21 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
   Put,
   Req,
+  UploadedFiles,
+  UseInterceptors,
   BadRequestException,
   HttpCode,
   NotFoundException,
 } from "@nestjs/common";
+import { FileFieldsInterceptor } from "@nestjs/platform-express";
+import { memoryStorage } from "multer";
 import type { Request } from "express";
 import {
   listProductos,
@@ -19,11 +24,42 @@ import {
   getProducto,
   getReceta,
   setReceta,
+  setProductoFotoUrl,
   costoTeoricoProducto,
 } from "../../lib/catalogo";
 import { requireUser } from "../../common/session.decorator";
 import { aCentavos } from "../../lib/utils";
+import {
+  deleteStoredMedia,
+  productoFotoAliases,
+  storeProductImage,
+} from "../../lib/media-storage";
 import type { ProductoApi } from "../../lib/domain-types";
+
+const FOTO_UPLOAD = FileFieldsInterceptor(
+  [
+    { name: "foto", maxCount: 1 },
+    { name: "file", maxCount: 1 },
+    { name: "imagen", maxCount: 1 },
+  ],
+  {
+    storage: memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 },
+  }
+);
+
+type FotoFields = {
+  foto?: Express.Multer.File[];
+  file?: Express.Multer.File[];
+  imagen?: Express.Multer.File[];
+};
+
+function pickUploadedFile(
+  files?: FotoFields
+): Express.Multer.File | undefined {
+  if (!files) return undefined;
+  return files.foto?.[0] || files.file?.[0] || files.imagen?.[0];
+}
 
 function parseDuracionesBody(
   body: Record<string, unknown>
@@ -128,6 +164,7 @@ function parseReservaFields(body: Record<string, unknown>) {
 
 function productoReservaAliases(p: ProductoApi) {
   return {
+    ...productoFotoAliases(p.fotoUrl),
     reserva_habilitada: p.reservaHabilitada,
     anticipo_tipo: p.anticipoTipo,
     anticipo_valor: p.anticipoValor,
@@ -139,6 +176,26 @@ function productoReservaAliases(p: ProductoApi) {
     recetaRendimiento: p.recetaRendimiento,
     rinde_piezas: p.recetaRendimiento,
   };
+}
+
+/** undefined = no tocar; null/"" = borrar; string = URL externa o pública. */
+function parseImagenUrlBody(
+  body: Record<string, unknown>
+): string | null | undefined {
+  const raw =
+    body.imagen_url !== undefined
+      ? body.imagen_url
+      : body.imagenUrl !== undefined
+        ? body.imagenUrl
+        : body.foto_url !== undefined
+          ? body.foto_url
+          : body.fotoUrl !== undefined
+            ? body.fotoUrl
+            : undefined;
+  if (raw === undefined) return undefined;
+  if (raw === null || raw === "") return null;
+  const s = String(raw).trim();
+  return s || null;
 }
 
 @Controller("productos")
@@ -233,7 +290,7 @@ export class ProductosController {
     return this.applyUpdate(String(body.id), body);
   }
 
-  /** Contrato: PATCH /api/productos/:id (reserva_habilitada, anticipo, etc.). */
+  /** Contrato: PATCH /api/productos/:id (reserva_habilitada, anticipo, imagen_url, etc.). */
   @Patch(":id")
   async patchOne(
     @Req() req: Request,
@@ -269,6 +326,97 @@ export class ProductosController {
             ? undefined
             : existing.precio,
     });
+  }
+
+  /**
+   * Subir / reemplazar foto (multipart).
+   * Campos aceptados: `foto` | `file` | `imagen` — jpg/png/webp ≤ 5 MB.
+   */
+  @Post(":id/foto")
+  @HttpCode(200)
+  @UseInterceptors(FOTO_UPLOAD)
+  async uploadFoto(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @UploadedFiles() files?: FotoFields
+  ) {
+    await requireUser(req, ["admin"]);
+    return this.saveUploadedFoto(id, pickUploadedFile(files));
+  }
+
+  /** Alias de POST :id/foto. */
+  @Post(":id/imagen")
+  @HttpCode(200)
+  @UseInterceptors(FOTO_UPLOAD)
+  async uploadImagen(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @UploadedFiles() files?: FotoFields
+  ) {
+    await requireUser(req, ["admin"]);
+    return this.saveUploadedFoto(id, pickUploadedFile(files));
+  }
+
+  /** Borrar foto del producto (archivo local/S3 + columna). */
+  @Delete(":id/foto")
+  async deleteFoto(@Req() req: Request, @Param("id") id: string) {
+    await requireUser(req, ["admin"]);
+    const existing = await getProducto(id);
+    if (!existing) throw new NotFoundException("Producto no encontrado.");
+    await deleteStoredMedia(existing.fotoUrl);
+    const producto = await setProductoFotoUrl(id, null);
+    return {
+      ok: true,
+      producto: {
+        ...producto,
+        ...productoReservaAliases(producto),
+        precio_venta: producto.precio,
+      },
+    };
+  }
+
+  @Delete(":id/imagen")
+  async deleteImagen(@Req() req: Request, @Param("id") id: string) {
+    return this.deleteFoto(req, id);
+  }
+
+  private async saveUploadedFoto(
+    id: string,
+    file: Express.Multer.File | undefined
+  ) {
+    const existing = await getProducto(id);
+    if (!existing) throw new NotFoundException("Producto no encontrado.");
+
+    if (!file?.buffer?.length) {
+      throw new BadRequestException(
+        "Falta archivo multipart (campo foto, file o imagen)."
+      );
+    }
+
+    let stored;
+    try {
+      stored = await storeProductImage(id, {
+        buffer: file.buffer,
+        mimetype: file.mimetype,
+        size: file.size,
+      });
+    } catch (e) {
+      throw new BadRequestException(
+        e instanceof Error ? e.message : "No se pudo guardar la imagen."
+      );
+    }
+
+    await deleteStoredMedia(existing.fotoUrl);
+    const producto = await setProductoFotoUrl(id, stored.publicUrl);
+    return {
+      ok: true,
+      storage: stored.storage,
+      producto: {
+        ...producto,
+        ...productoReservaAliases(producto),
+        precio_venta: producto.precio,
+      },
+    };
   }
 
   private async applyUpdate(id: string, body: Record<string, unknown>) {
@@ -332,14 +480,26 @@ export class ProductosController {
       );
     }
 
-    const costo = await costoTeoricoProducto(producto.id);
+    const imagenUrl = parseImagenUrlBody(body);
+    let productoFinal = producto;
+    if (imagenUrl !== undefined) {
+      const next = imagenUrl ? String(imagenUrl).trim() || null : null;
+      if (next !== (producto.fotoUrl ?? null)) {
+        if (!next) {
+          await deleteStoredMedia(producto.fotoUrl);
+        }
+        productoFinal = await setProductoFotoUrl(id, next);
+      }
+    }
+
+    const costo = await costoTeoricoProducto(productoFinal.id);
     return {
       producto: {
-        ...producto,
-        ...productoReservaAliases(producto),
-        precio_venta: producto.precio,
+        ...productoFinal,
+        ...productoReservaAliases(productoFinal),
+        precio_venta: productoFinal.precio,
       },
-      receta: await getReceta(producto.id),
+      receta: await getReceta(productoFinal.id),
       costoTeorico: costo,
       costo_calculado: costo,
       costoCalculado: costo,
