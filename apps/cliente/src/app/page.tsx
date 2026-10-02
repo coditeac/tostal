@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/components/cart-provider";
+import { ProductDetailSheet } from "@/components/product-detail-sheet";
+import { ProductImage, resolveFotoUrl } from "@/components/product-image";
 import { SiteHeader } from "@/components/site-header";
 import {
   fetchMenuHoy,
@@ -25,6 +27,7 @@ export default function ClienteHome() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [detalle, setDetalle] = useState<MenuProducto | null>(null);
 
   const hoy = hoyISO();
 
@@ -64,14 +67,18 @@ export default function ClienteHome() {
     return menu.productos.filter((p) => p.categoriaId === categoria);
   }, [menu, categoria]);
 
-  function add(p: MenuProducto) {
+  function add(p: MenuProducto, qty = 1) {
     if (!menu?.aceptaPedidos) return;
-    cart.addItem({
-      productoId: p.id,
-      nombre: p.nombre,
-      precio: p.precio,
-    });
-    setToast(`${p.nombre} agregado`);
+    cart.addItem(
+      {
+        productoId: p.id,
+        nombre: p.nombre,
+        precio: p.precio,
+        fotoUrl: resolveFotoUrl(p),
+      },
+      qty
+    );
+    setToast(qty > 1 ? `${p.nombre} ×${qty}` : `${p.nombre} agregado`);
     window.setTimeout(() => setToast(null), 1600);
   }
 
@@ -221,10 +228,14 @@ export default function ClienteHome() {
               {productosFiltrados.map((p, idx) => (
                 <li
                   key={p.id}
-                  className="rise-in flex items-center gap-3.5 py-4"
+                  className="rise-in flex items-center gap-3 py-4"
                   style={{ animationDelay: `${60 + idx * 30}ms` }}
                 >
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => setDetalle(p)}
+                  >
                     <p className="font-semibold leading-snug tracking-tight">
                       {p.nombre}
                     </p>
@@ -241,14 +252,27 @@ export default function ClienteHome() {
                     <p className="mt-2.5 text-[0.95rem] font-semibold tabular-nums">
                       {formatoMoneda(p.precio, menu.config.moneda)}
                     </p>
-                  </div>
-                  <div className="menu-thumb" aria-hidden>
-                    <span>{p.nombre.split(" ")[0]}</span>
-                  </div>
+                  </button>
+                  <button
+                    type="button"
+                    className="shrink-0"
+                    onClick={() => setDetalle(p)}
+                    aria-label={`Ver ${p.nombre}`}
+                  >
+                    <ProductImage
+                      src={resolveFotoUrl(p)}
+                      alt={p.nombre}
+                      size="md"
+                      fallbackLabel={p.nombre}
+                    />
+                  </button>
                   <button
                     type="button"
                     className="menu-add"
-                    onClick={() => add(p)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      add(p, 1);
+                    }}
                     disabled={cerrado}
                     aria-label={
                       cerrado
@@ -277,7 +301,7 @@ export default function ClienteHome() {
           <Button
             asChild
             size="lg"
-            className="mx-auto flex w-full max-w-lg justify-between"
+            className="mx-auto flex w-full max-w-lg justify-between shadow-[0_10px_28px_rgba(154,46,37,0.22)]"
           >
             <Link href="/carrito">
               <span className="inline-flex items-center gap-2">
@@ -289,6 +313,17 @@ export default function ClienteHome() {
           </Button>
         </div>
       )}
+
+      <ProductDetailSheet
+        product={detalle}
+        open={Boolean(detalle)}
+        onOpenChange={(open) => {
+          if (!open) setDetalle(null);
+        }}
+        moneda={menu?.config.moneda}
+        disabled={cerrado}
+        onAdd={add}
+      />
     </div>
   );
 }

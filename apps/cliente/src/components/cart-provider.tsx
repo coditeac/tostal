@@ -14,6 +14,8 @@ export type CartItem = {
   nombre: string;
   precio: number;
   cantidad: number;
+  /** URL foto (fotoUrl / imagen_url) para thumbs en carrito. */
+  fotoUrl?: string | null;
   notas?: string;
 };
 
@@ -71,7 +73,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
           if (existing) {
             return list.map((x) =>
               x.productoId === item.productoId
-                ? { ...x, cantidad: x.cantidad + qty }
+                ? {
+                    ...x,
+                    cantidad: x.cantidad + qty,
+                    fotoUrl: x.fotoUrl || item.fotoUrl || null,
+                  }
                 : x
             );
           }
