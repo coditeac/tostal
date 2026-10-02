@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCart } from "@/components/cart-provider";
+import { ProductImage } from "@/components/product-image";
 import {
   crearPedido,
   fetchMenuHoy,
@@ -157,11 +158,19 @@ export default function CarritoPage() {
             key={item.productoId}
             className="flex items-center justify-between gap-3 py-4"
           >
-            <div className="min-w-0">
-              <p className="font-semibold tracking-tight">{item.nombre}</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {formatoMoneda(item.precio)} c/u
-              </p>
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <ProductImage
+                src={item.fotoUrl}
+                alt={item.nombre}
+                size="sm"
+                fallbackLabel={item.nombre}
+              />
+              <div className="min-w-0">
+                <p className="font-semibold tracking-tight">{item.nombre}</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {formatoMoneda(item.precio)} c/u
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-1.5">
               <Button

@@ -13,10 +13,19 @@ import type {
 
 export type AnticipoTipo = "porcentaje" | "monto" | "percent" | "fixed";
 
-export type MenuProducto = Producto & {
-  categoriaNombre: string | null;
-  disponible?: boolean;
+/** Campos foto del menú público (PR #31: aliases). */
+export type ProductoFotoFields = {
+  fotoUrl?: string | null;
+  foto_url?: string | null;
+  imagenUrl?: string | null;
+  imagen_url?: string | null;
 };
+
+export type MenuProducto = Producto &
+  ProductoFotoFields & {
+    categoriaNombre: string | null;
+    disponible?: boolean;
+  };
 
 /** Respuesta normalizada de GET /api/public/menu (hoy). */
 export type MenuHoy = {
@@ -140,6 +149,8 @@ export function normalizeMenuHoy(raw: RawMenu, fallbackFecha: string): MenuHoy {
   const aceptaPedidos =
     aceptaExplicit !== null ? aceptaExplicit : raw.abierto !== false && deadlineVigente;
 
+  const productosRaw = Array.isArray(raw.productos) ? raw.productos : [];
+
   return {
     fecha: typeof raw.fecha === "string" ? raw.fecha : fallbackFecha,
     horaLimite,
@@ -147,7 +158,7 @@ export function normalizeMenuHoy(raw: RawMenu, fallbackFecha: string): MenuHoy {
     abierto: aceptaPedidos || (raw.abierto !== false && deadlineVigente),
     deadlineVigente,
     cupoMaximo: raw.cupoMaximo ?? null,
-    productos: Array.isArray(raw.productos) ? raw.productos : [],
+    productos: productosRaw.map(normalizeMenuProducto),
     categorias: Array.isArray(raw.categorias) ? raw.categorias : [],
     zonas: Array.isArray(raw.zonas) ? raw.zonas : [],
     config: raw.config || {
@@ -157,6 +168,52 @@ export function normalizeMenuHoy(raw: RawMenu, fallbackFecha: string): MenuHoy {
       canalRemotoActivo: true,
       canalMostradorActivo: false,
     },
+  };
+}
+
+/** Normaliza foto: imagen_url | foto_url | fotoUrl | imagenUrl (PR #31). */
+export function resolveProductoFotoUrl(
+  raw: Record<string, unknown> | ProductoFotoFields | MenuProducto
+): string | null {
+  const r = raw as Record<string, unknown>;
+  // Preferir nombres de contrato snake_case del menú público.
+  const candidates = [
+    r.imagen_url,
+    r.foto_url,
+    r.imagenUrl,
+    r.fotoUrl,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) return c.trim();
+  }
+  return null;
+}
+
+function normalizeMenuProducto(raw: MenuProducto | Record<string, unknown>): MenuProducto {
+  const r = raw as Record<string, unknown>;
+  const base = raw as MenuProducto;
+  return {
+    ...base,
+    id: String(r.id ?? base.id),
+    nombre: String(r.nombre ?? base.nombre ?? "Producto"),
+    descripcion: (r.descripcion as string | null) ?? base.descripcion ?? null,
+    precio: Number(r.precio ?? base.precio ?? 0),
+    fotoUrl: resolveProductoFotoUrl(r),
+    alergenos: (r.alergenos as string | null) ?? base.alergenos ?? null,
+    categoriaId:
+      (r.categoriaId as string | null) ??
+      (r.categoria_id as string | null) ??
+      base.categoriaId ??
+      null,
+    categoriaNombre:
+      (r.categoriaNombre as string | null) ??
+      (r.categoria_nombre as string | null) ??
+      base.categoriaNombre ??
+      null,
+    activoCatalogo: base.activoCatalogo !== false,
+    orden: Number(r.orden ?? base.orden ?? 0),
+    disponible:
+      typeof r.disponible === "boolean" ? r.disponible : base.disponible,
   };
 }
 
@@ -188,7 +245,7 @@ export function normalizeReservaProducto(raw: RawReservaProducto): ReservaProduc
     nombre: String(raw.nombre || "Producto"),
     descripcion: (raw.descripcion as string | null) ?? null,
     precio: Number(raw.precio || 0),
-    fotoUrl: (raw.foto_url as string | null) ?? (raw.fotoUrl as string | null) ?? null,
+    fotoUrl: resolveProductoFotoUrl(raw),
     alergenos: (raw.alergenos as string | null) ?? null,
     categoriaNombre:
       (raw.categoria_nombre as string | null) ??

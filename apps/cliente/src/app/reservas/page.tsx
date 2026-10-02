@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { SiteHeader } from "@/components/site-header";
+import { ProductImage } from "@/components/product-image";
 import {
   crearReserva,
   fechaMinimaReservaISO,
@@ -372,6 +373,12 @@ export default function ReservasPage() {
                           </p>
                         )}
                       </div>
+                      <ProductImage
+                        src={p.fotoUrl}
+                        alt={p.nombre}
+                        size="md"
+                        fallbackLabel={p.nombre}
+                      />
                       <div className="flex items-center gap-1.5">
                         {qty > 0 ? (
                           <>
