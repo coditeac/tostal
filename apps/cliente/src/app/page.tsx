@@ -76,6 +76,25 @@ export default function ClienteHome() {
   }
 
   const cerrado = menu != null && !menu.aceptaPedidos;
+  const sinProductos = menu != null && menu.productos.length === 0;
+  /** Cerrado por staff (día no abierto) vs por hora límite. */
+  const cerradoPorHorario =
+    cerrado && menu != null && menu.deadlineVigente === false;
+
+  function mensajeCerrado(): string {
+    if (!menu) return "";
+    if (sinProductos) {
+      return "Hoy aún no hay menú del día. Cocina activa los productos en Restaurant → Menú del día. Mientras, puedes reservar.";
+    }
+    if (cerradoPorHorario && menu.horaLimite) {
+      return `Cerramos pedidos a las ${labelDeadline(menu.horaLimite)} (hora CDMX). Puedes reservar para otra fecha.`;
+    }
+    if (cerradoPorHorario) {
+      return "Ya cerramos pedidos de hoy. Puedes reservar para otra fecha.";
+    }
+    // día con productos pero acepta_pedidos=false y deadline aún vigente
+    return "Hoy el menú aún no está abierto a pedidos. Vuelve en un momento o reserva.";
+  }
 
   return (
     <div className="page-shell">
@@ -105,20 +124,15 @@ export default function ClienteHome() {
           <p className="section-lead">
             {labelFecha(menu?.fecha || hoy)} · productos activos para pedir ahora.
           </p>
-          {menu?.horaLimite && (
-            <p
-              className={`mt-4 text-xs leading-relaxed ${
-                cerrado ? "text-[var(--tostal-alerta,#A85B12)]" : "text-muted-foreground"
-              }`}
-            >
-              {menu.aceptaPedidos
-                ? `Pedidos abiertos hasta las ${labelDeadline(menu.horaLimite)} (hora CDMX)`
-                : `Cerramos pedidos a las ${labelDeadline(menu.horaLimite)} (hora CDMX). Vuelve mañana o haz una reserva.`}
+          {menu?.horaLimite && menu.aceptaPedidos && (
+            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+              Pedidos abiertos hasta las {labelDeadline(menu.horaLimite)} (hora
+              CDMX)
             </p>
           )}
-          {cerrado && !menu?.horaLimite && (
+          {cerrado && (
             <p className="mt-4 text-xs leading-relaxed text-[var(--tostal-alerta,#A85B12)]">
-              Ya cerramos pedidos de hoy. Puedes reservar para otra fecha.
+              {mensajeCerrado()}
             </p>
           )}
           <div className="mt-5">
@@ -160,24 +174,25 @@ export default function ClienteHome() {
           <p className="empty-state">
             Por ahora no estamos tomando pedidos en línea.
           </p>
-        ) : cerrado ? (
+        ) : sinProductos ? (
           <div className="space-y-4">
-            <p className="empty-state">
-              El menú de hoy ya no acepta pedidos.
-              {menu.productos.length === 0
-                ? " Cocina aún no activó productos para hoy."
-                : ""}
-            </p>
+            <p className="empty-state">{mensajeCerrado()}</p>
             <Button asChild variant="outline" className="w-full sm:w-auto">
               <Link href="/reservas">Ir a reservas</Link>
             </Button>
           </div>
-        ) : menu.productos.length === 0 ? (
-          <p className="empty-state">
-            Aún no hay productos activos para hoy. Vuelve más tarde o reserva.
-          </p>
         ) : (
           <section className="section-block">
+            {cerrado && (
+              <Alert className="mb-4 border-alerta/40 bg-amber-50 text-alerta">
+                <AlertDescription>
+                  {mensajeCerrado()}{" "}
+                  <Link href="/reservas" className="font-semibold underline">
+                    Ir a reservas
+                  </Link>
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="-mx-1 flex gap-0 overflow-x-auto border-b border-border px-1">
               <button
                 type="button"
@@ -234,7 +249,12 @@ export default function ClienteHome() {
                     type="button"
                     className="menu-add"
                     onClick={() => add(p)}
-                    aria-label={`Agregar ${p.nombre}`}
+                    disabled={cerrado}
+                    aria-label={
+                      cerrado
+                        ? `${p.nombre} (pedidos cerrados)`
+                        : `Agregar ${p.nombre}`
+                    }
                   >
                     <Plus size={18} strokeWidth={2.25} />
                   </button>

@@ -11,6 +11,8 @@ import { id } from "./id";
 const BOOTSTRAP_FLAG = "bootstrap_version";
 const BOOTSTRAP_VERSION = "2";
 const DEMO_PURGE_FLAG = "demo_purged_v1";
+/** One-shot: días guardados con abierto=0 por default viejo del panel menú. */
+const MENU_ABIERTO_HEAL_FLAG = "menu_abierto_healed_v1";
 
 const DEMO_PRODUCT_NAMES = [
   "Tres leches clásica",
@@ -51,6 +53,7 @@ export async function ensureBootstrap() {
   await ensureMinimalConfig();
   await ensureSuperadminFromEnv();
   await purgeDemoDataOnce();
+  await healMenuAbiertoOnce();
 
   const row = await sqlGet<{ valor: string }>(
     "SELECT valor FROM configuracion WHERE clave = ?",
@@ -63,6 +66,30 @@ export async function ensureBootstrap() {
      ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor`,
     BOOTSTRAP_FLAG,
     BOOTSTRAP_VERSION
+  );
+}
+
+/**
+ * Repara días operativos que quedaron con abierto=0 tras guardar el menú
+ * del día sin switch de "Pedidos abiertos" (default staff era false).
+ * One-shot; después el panel controla el flag explícitamente.
+ */
+async function healMenuAbiertoOnce() {
+  const flag = await sqlGet<{ valor: string }>(
+    "SELECT valor FROM configuracion WHERE clave = ?",
+    MENU_ABIERTO_HEAL_FLAG
+  );
+  if (flag?.valor === "1") return;
+
+  await sqlRun(`UPDATE dias_operativos SET abierto = 1 WHERE abierto = 0`);
+  await sqlRun(
+    `INSERT INTO configuracion (clave, valor) VALUES (?, ?)
+     ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor`,
+    MENU_ABIERTO_HEAL_FLAG,
+    "1"
+  );
+  console.info(
+    "[bootstrap] Heal menú: días operativos con abierto=0 → 1 (menu_abierto_healed_v1)"
   );
 }
 
