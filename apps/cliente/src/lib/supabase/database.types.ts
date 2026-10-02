@@ -397,6 +397,7 @@ export type Database = {
           subtotal: number
           total: number
           updated_at: string
+          zona_id: string | null
         }
         Insert: {
           canal?: string
@@ -418,6 +419,7 @@ export type Database = {
           subtotal?: number
           total?: number
           updated_at?: string
+          zona_id?: string | null
         }
         Update: {
           canal?: string
@@ -439,6 +441,7 @@ export type Database = {
           subtotal?: number
           total?: number
           updated_at?: string
+          zona_id?: string | null
         }
         Relationships: [
           {
@@ -446,6 +449,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_envio"
             referencedColumns: ["id"]
           },
         ]
@@ -677,11 +687,45 @@ export type Database = {
           },
         ]
       }
+      zonas_envio: {
+        Row: {
+          activa: boolean
+          cobertura: string | null
+          costo_envio: number
+          created_at: string
+          id: string
+          nombre: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          cobertura?: string | null
+          costo_envio?: number
+          created_at?: string
+          id?: string
+          nombre: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          cobertura?: string | null
+          costo_envio?: number
+          created_at?: string
+          id?: string
+          nombre?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      calcular_costo_envio: { Args: { p_zona_id: string }; Returns: Json }
       current_rol: {
         Args: never
         Returns: Database["public"]["Enums"]["user_rol"]
@@ -694,6 +738,7 @@ export type Database = {
       crear_pedido_publico: { Args: { p_body: Json }; Returns: Json }
       crear_reserva_publica: { Args: { p_body: Json }; Returns: Json }
       list_reservas_productos: { Args: never; Returns: Json }
+      list_zonas_activas: { Args: never; Returns: Json }
       hoy_cdmx: { Args: never; Returns: string }
       gen_pedido_codigo: { Args: never; Returns: string }
       gen_reserva_codigo: { Args: never; Returns: string }

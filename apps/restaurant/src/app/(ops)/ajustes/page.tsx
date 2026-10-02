@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import PersonalPanel from "@/components/personal-panel";
 import ConfigPanel from "@/components/config-panel";
+import ZonasPanel from "@/components/zonas-panel";
 
-type Tab = "personal" | "config";
+type Tab = "personal" | "config" | "zonas";
 
 export default function AjustesPage() {
   const [tab, setTab] = useState<Tab>("personal");
@@ -15,7 +16,8 @@ export default function AjustesPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Ajustes</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Personal y configuración — fuera de los 6 módulos de operación
+          Personal, zonas de envío y configuración — fuera de los 6 módulos de
+          operación
         </p>
       </div>
 
@@ -23,6 +25,7 @@ export default function AjustesPage() {
         {(
           [
             { id: "personal", label: "Personal" },
+            { id: "zonas", label: "Zonas de envío" },
             { id: "config", label: "Config" },
           ] as const
         ).map((t) => (
@@ -41,7 +44,13 @@ export default function AjustesPage() {
         ))}
       </div>
 
-      {tab === "personal" ? <PersonalPanel /> : <ConfigPanel />}
+      {tab === "personal" ? (
+        <PersonalPanel />
+      ) : tab === "zonas" ? (
+        <ZonasPanel />
+      ) : (
+        <ConfigPanel />
+      )}
 
       <p className="text-xs text-muted-foreground">
         <Link href="/productos" className="font-medium text-miel">

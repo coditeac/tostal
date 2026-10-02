@@ -205,7 +205,7 @@ export function normalizeMenuHoy(raw: RawMenu, fallbackFecha: string): MenuHoy {
     cupoMaximo: raw.cupoMaximo ?? null,
     productos: productosRaw.map(normalizeMenuProducto),
     categorias: Array.isArray(raw.categorias) ? raw.categorias : [],
-    zonas: Array.isArray(raw.zonas) ? raw.zonas : [],
+    zonas: (Array.isArray(raw.zonas) ? raw.zonas : []).map(normalizeZonaEnvio),
     config: raw.config || {
       marca: "Tostal",
       eslogan: "Sabores que unen culturas",
@@ -213,6 +213,32 @@ export function normalizeMenuHoy(raw: RawMenu, fallbackFecha: string): MenuHoy {
       canalRemotoActivo: true,
       canalMostradorActivo: false,
     },
+  };
+}
+
+/** Normaliza zona de envío (camelCase RPC o snake_case tabla). */
+export function normalizeZonaEnvio(raw: unknown): ZonaEnvio {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<
+    string,
+    unknown
+  >;
+  const costo =
+    typeof r.costoEnvio === "number"
+      ? r.costoEnvio
+      : typeof r.costo_envio === "number"
+        ? r.costo_envio
+        : Number(r.costoEnvio ?? r.costo_envio ?? 0) || 0;
+  return {
+    id: String(r.id ?? ""),
+    nombre: String(r.nombre ?? ""),
+    cobertura:
+      typeof r.cobertura === "string"
+        ? r.cobertura
+        : r.cobertura == null
+          ? null
+          : String(r.cobertura),
+    costoEnvio: Math.round(costo),
+    activa: r.activa !== false,
   };
 }
 
