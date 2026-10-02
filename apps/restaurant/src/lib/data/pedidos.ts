@@ -25,6 +25,23 @@ export type PedidoUi = {
   }>;
 };
 
+function mapModoEntrega(p: Record<string, unknown>): string {
+  const raw = String(
+    p.modo_entrega ?? p.tipo_entrega ?? p.modoEntrega ?? ""
+  )
+    .trim()
+    .toLowerCase();
+  return raw === "envio" ? "envio" : "retiro";
+}
+
+function mapEstadoPago(p: Record<string, unknown>): string {
+  const raw = String(p.estado_pago ?? p.estadoPago ?? "pendiente")
+    .trim()
+    .toLowerCase();
+  if (raw === "pagado" || raw === "contra_entrega") return raw;
+  return "pendiente";
+}
+
 function mapPedido(
   p: Record<string, unknown>,
   items: Array<Record<string, unknown>>
@@ -33,14 +50,14 @@ function mapPedido(
     id: String(p.id),
     codigo: String(p.codigo || ""),
     clienteNombre: String(p.cliente_nombre || "Cliente"),
-    clienteTelefono: null,
+    clienteTelefono: (p.cliente_telefono as string) || null,
     clienteEmail: (p.cliente_email as string) || null,
     fechaEntrega: String(p.fecha_entrega || ""),
     canal: String(p.canal || "remoto"),
-    modoEntrega: "retiro",
+    modoEntrega: mapModoEntrega(p),
     metodoPago: (p.metodo_pago as string) || null,
     estado: String(p.estado || "recibido"),
-    estadoPago: "pendiente",
+    estadoPago: mapEstadoPago(p),
     total: Number(p.total) || 0,
     notas: (p.notas as string) || null,
     lineas: items.map((it) => ({
