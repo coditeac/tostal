@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { mensajeAuthError } from "@/lib/auth-errors";
 import { createClienteBrowserClient } from "@/lib/supabase/client";
 
 export type ClienteUser = {
@@ -75,7 +76,11 @@ export function useClienteSession() {
   async function login(email: string, password: string) {
     const sb = createClienteBrowserClient();
     const { error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) throw new Error(error.message || "No se pudo iniciar sesión");
+    if (error) {
+      throw new Error(
+        mensajeAuthError(error.message, "No se pudo iniciar sesión")
+      );
+    }
 
     const mapped = await mapUser();
     if (!mapped) {
@@ -107,9 +112,16 @@ export function useClienteSession() {
         },
       },
     });
-    if (error) throw new Error(error.message || "No se pudo crear la cuenta");
-    if (!data.user) throw new Error("Revisa tu correo para confirmar la cuenta");
-
+    if (error) {
+      throw new Error(
+        mensajeAuthError(error.message, "No se pudo crear la cuenta")
+      );
+    }
+    if (!data.user) {
+      throw new Error(
+        "Revisa tu correo para confirmar la cuenta antes de continuar."
+      );
+    }
     // Trigger handle_new_user ya pone profiles.rol = cliente (default).
     // No enviamos `rol` en metadata ni lo actualizamos aquí (RLS bloquea auto-escalada).
     if (data.session) {

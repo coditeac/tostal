@@ -53,17 +53,28 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
         </Link>
         <Link
           href="/carrito"
-          className="relative inline-flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
-          aria-label="Carrito"
+          className="relative inline-flex h-10 min-h-[var(--tap)] items-center gap-2 rounded-lg px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+          aria-label={
+            cart.totalItems > 0
+              ? `Carrito, ${cart.totalItems} ${cart.totalItems === 1 ? "producto" : "productos"}, ${formatoMoneda(cart.subtotal)}`
+              : "Carrito vacío"
+          }
         >
-          <ShoppingBag size={18} strokeWidth={1.75} />
+          <ShoppingBag size={18} strokeWidth={1.75} aria-hidden />
           {cart.totalItems > 0 ? (
-            <span className="tabular-nums">{formatoMoneda(cart.subtotal)}</span>
+            <span className="tabular-nums" aria-hidden>
+              {formatoMoneda(cart.subtotal)}
+            </span>
           ) : (
-            <span className="text-muted-foreground">0</span>
+            <span className="text-muted-foreground" aria-hidden>
+              0
+            </span>
           )}
           {cart.totalItems > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-miel px-1 text-[10px] font-semibold text-[#d6d2c4]">
+            <span
+              className="absolute -right-0.5 -top-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-miel px-1 text-[10px] font-semibold text-[#d6d2c4]"
+              aria-hidden
+            >
               {cart.totalItems}
             </span>
           )}

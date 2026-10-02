@@ -120,7 +120,9 @@ export default function CarritoPage() {
     return (
       <div className="page-shell px-6 py-12">
         <h1 className="text-3xl font-semibold tracking-tight">Tu carrito</h1>
-        <p className="empty-state">Está vacío. Agrega algo del menú.</p>
+        <p className="empty-state" role="status">
+          Está vacío. Agrega algo del menú de hoy.
+        </p>
         <Button asChild>
           <Link href="/">Ver menú</Link>
         </Button>

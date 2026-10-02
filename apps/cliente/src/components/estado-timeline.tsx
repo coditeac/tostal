@@ -61,8 +61,12 @@ export function EstadoTimeline({
               {labelEstado(estado)}
             </p>
             {live && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[color-mix(in_oklab,var(--tostal-ok)_14%,white)] px-2.5 py-1 text-[11px] font-semibold text-ok">
-                <span className="relative flex h-1.5 w-1.5">
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full bg-[color-mix(in_oklab,var(--tostal-ok)_14%,white)] px-2.5 py-1 text-[11px] font-semibold text-ok"
+                role="status"
+                aria-live="polite"
+              >
+                <span className="relative flex h-1.5 w-1.5" aria-hidden>
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ok opacity-60" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-ok" />
                 </span>
@@ -74,17 +78,28 @@ export function EstadoTimeline({
             {hintEstado(estado)}
           </p>
 
-          <div className="status-track mt-6" role="list" aria-label="Progreso del pedido">
+          <ol
+            className="status-track mt-6"
+            aria-label="Progreso del pedido"
+          >
             {pasos.map((paso, i) => {
               const st = statusPaso(i, idx, cancelado);
               const last = i === pasos.length - 1;
+              const label = ESTADO_SEGUIMIENTO_LABEL[paso];
+              const estadoPaso =
+                st === "current"
+                  ? `Actual: ${label}`
+                  : st === "done"
+                    ? `Completado: ${label}`
+                    : `Pendiente: ${label}`;
               return (
-                <div key={paso} className="status-step" role="listitem">
+                <li key={paso} className="status-step">
                   {!last && (
                     <span
                       className={`status-line ${
                         st === "done" || st === "current" ? "status-line-done" : ""
                       }`}
+                      aria-hidden
                     />
                   )}
                   <span
@@ -95,7 +110,7 @@ export function EstadoTimeline({
                           ? "status-dot-current"
                           : ""
                     }`}
-                    aria-current={st === "current" ? "step" : undefined}
+                    aria-hidden
                   />
                   <span
                     className={`max-w-[4.75rem] text-[10px] leading-tight ${
@@ -103,13 +118,15 @@ export function EstadoTimeline({
                         ? "font-semibold text-cacao"
                         : "text-muted-foreground"
                     }`}
+                    aria-current={st === "current" ? "step" : undefined}
                   >
-                    {ESTADO_SEGUIMIENTO_LABEL[paso]}
+                    <span className="sr-only">{estadoPaso}</span>
+                    <span aria-hidden>{label}</span>
                   </span>
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ol>
         </>
       )}
 
