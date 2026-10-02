@@ -46,9 +46,19 @@ Upload cableado a Storage bucket `productos` → columna `productos.imagen_url`.
 
 Transferencia y contra entrega activos. **Stripe deshabilitado** en UI hasta Edge Function / Checkout.
 
-### Email
+### Email (Resend) — post Supabase
 
-Notificaciones Resend: ver follow-up P0 (post-teardown Nest). Deploy notes: `docs/deploy-railway.md`.
+Vars en Railway **tostal-restaurant** y **tostal-cliente** (no en Nest):
+
+```bash
+RESEND_API_KEY=           # key del dashboard Resend
+RESEND_FROM=Tostal <pedidos@tostal.cafe>
+MAIL_MOCK=1               # 1 o sin key → mock + email_log; 0 + key → envío real
+STAFF_NOTIFY_EMAIL=       # opcional CSV para aviso de pedidos/reservas nuevos
+SUPABASE_SERVICE_ROLE_KEY=# ya usada en restaurant; también en cliente para email_log
+```
+
+Eventos: pedido/reserva creados (confirmación cliente) y cambio de estado desde Restaurant.
 
 ---
 
