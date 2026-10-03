@@ -124,6 +124,7 @@ export type Database = {
           gasto_id: string | null
           id: string
           tienda: string
+          tienda_proveedor_id: string | null
         }
         Insert: {
           closed_at?: string | null
@@ -133,6 +134,7 @@ export type Database = {
           gasto_id?: string | null
           id?: string
           tienda: string
+          tienda_proveedor_id?: string | null
         }
         Update: {
           closed_at?: string | null
@@ -142,6 +144,7 @@ export type Database = {
           gasto_id?: string | null
           id?: string
           tienda?: string
+          tienda_proveedor_id?: string | null
         }
         Relationships: [
           {

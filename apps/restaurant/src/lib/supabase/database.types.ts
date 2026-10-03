@@ -1,5 +1,5 @@
 // Generated via Supabase MCP generate_typescript_types
-// project: yoxsldirdgdpsabsivac · 2026-10-03 (checkout_pendiente)
+// project: yoxsldirdgdpsabsivac · 2026-10-03 (tiendas_proveedor + checkout_pendiente)
 export type Json =
   | string
   | number
@@ -124,6 +124,7 @@ export type Database = {
           gasto_id: string | null
           id: string
           tienda: string
+          tienda_proveedor_id: string | null
         }
         Insert: {
           closed_at?: string | null
@@ -133,6 +134,7 @@ export type Database = {
           gasto_id?: string | null
           id?: string
           tienda: string
+          tienda_proveedor_id?: string | null
         }
         Update: {
           closed_at?: string | null
@@ -142,6 +144,7 @@ export type Database = {
           gasto_id?: string | null
           id?: string
           tienda?: string
+          tienda_proveedor_id?: string | null
         }
         Relationships: [
           {
@@ -156,6 +159,13 @@ export type Database = {
             columns: ["gasto_id"]
             isOneToOne: false
             referencedRelation: "gastos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_tienda_proveedor_id_fkey"
+            columns: ["tienda_proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "tiendas_proveedor"
             referencedColumns: ["id"]
           },
         ]
@@ -279,6 +289,7 @@ export type Database = {
           id: string
           monto: number
           tienda: string | null
+          tienda_proveedor_id: string | null
         }
         Insert: {
           categoria?: string | null
@@ -288,6 +299,7 @@ export type Database = {
           id?: string
           monto: number
           tienda?: string | null
+          tienda_proveedor_id?: string | null
         }
         Update: {
           categoria?: string | null
@@ -297,6 +309,7 @@ export type Database = {
           id?: string
           monto?: number
           tienda?: string | null
+          tienda_proveedor_id?: string | null
         }
         Relationships: [
           {
@@ -304,6 +317,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_tienda_proveedor_id_fkey"
+            columns: ["tienda_proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "tiendas_proveedor"
             referencedColumns: ["id"]
           },
         ]
@@ -370,6 +390,8 @@ export type Database = {
           created_at: string
           id: string
           nombre: string
+          proveedor_preferido: string | null
+          proveedor_preferido_id: string | null
           stock: number
           umbral_pocos: number
           unidad: string
@@ -381,6 +403,8 @@ export type Database = {
           created_at?: string
           id?: string
           nombre: string
+          proveedor_preferido?: string | null
+          proveedor_preferido_id?: string | null
           stock?: number
           umbral_pocos?: number
           unidad?: string
@@ -392,12 +416,22 @@ export type Database = {
           created_at?: string
           id?: string
           nombre?: string
+          proveedor_preferido?: string | null
+          proveedor_preferido_id?: string | null
           stock?: number
           umbral_pocos?: number
           unidad?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "insumos_proveedor_preferido_id_fkey"
+            columns: ["proveedor_preferido_id"]
+            isOneToOne: false
+            referencedRelation: "tiendas_proveedor"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       menu_dia: {
         Row: {
@@ -847,6 +881,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tiendas_proveedor: {
+        Row: {
+          activo: boolean
+          contacto: string | null
+          created_at: string
+          id: string
+          nombre: string
+          notas: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          contacto?: string | null
+          created_at?: string
+          id?: string
+          nombre: string
+          notas?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          contacto?: string | null
+          created_at?: string
+          id?: string
+          nombre?: string
+          notas?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       zonas_envio: {
         Row: {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   createInsumo,
   deleteInsumo,
@@ -7,6 +8,10 @@ import {
   mapInsumoUi,
   updateInsumo,
 } from "@/lib/data/insumos";
+import {
+  listTiendasProveedor,
+  type TiendaProveedorRow,
+} from "@/lib/data/tiendas-proveedor";
 
 import { useEffect, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
@@ -21,11 +26,13 @@ type Insumo = {
   costoUnitario: number;
   ubicacion: string | null;
   proveedorPreferido: string | null;
+  proveedorPreferidoId: string | null;
   bajoMinimo?: boolean;
 };
 
 export function InsumosCatalogo() {
   const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [tiendas, setTiendas] = useState<TiendaProveedorRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
@@ -36,7 +43,7 @@ export function InsumosCatalogo() {
     stockMinimo: "",
     costoPesos: "",
     ubicacion: "despensa",
-    proveedorPreferido: "",
+    proveedorPreferidoId: "",
   });
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Insumo | null>(null);
@@ -46,8 +53,12 @@ export function InsumosCatalogo() {
     setLoading(true);
     setError(null);
     try {
-      const rows = await listInsumos();
+      const [rows, shops] = await Promise.all([
+        listInsumos(),
+        listTiendasProveedor({ soloActivas: true }),
+      ]);
       setInsumos(rows.map(mapInsumoUi) as unknown as Insumo[]);
+      setTiendas(shops);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -56,7 +67,7 @@ export function InsumosCatalogo() {
   }
 
   useEffect(() => {
-    load();
+    void load();
   }, []);
 
   function startNew() {
@@ -68,7 +79,7 @@ export function InsumosCatalogo() {
       stockMinimo: "0",
       costoPesos: "",
       ubicacion: "despensa",
-      proveedorPreferido: "",
+      proveedorPreferidoId: "",
     });
   }
 
@@ -81,7 +92,7 @@ export function InsumosCatalogo() {
       stockMinimo: String(i.stockMinimo),
       costoPesos: String(i.costoUnitario / 100),
       ubicacion: i.ubicacion || "despensa",
-      proveedorPreferido: i.proveedorPreferido || "",
+      proveedorPreferidoId: i.proveedorPreferidoId || "",
     });
   }
 
@@ -89,12 +100,17 @@ export function InsumosCatalogo() {
     setSaving(true);
     setError(null);
     try {
+      const proveedorId = form.proveedorPreferidoId || null;
+      const proveedorNombre =
+        tiendas.find((t) => t.id === proveedorId)?.nombre ?? null;
       const body = {
         nombre: form.nombre,
         unidad: form.unidad,
         stock: Number(form.stockActual),
         umbral_pocos: Number(form.stockMinimo),
         costo_unitario: Math.round(Number(form.costoPesos) * 100),
+        proveedor_preferido_id: proveedorId,
+        proveedor_preferido: proveedorNombre,
       };
       if (editId === "nuevo") await createInsumo(body);
       else if (editId) await updateInsumo(editId, body);
@@ -107,7 +123,11 @@ export function InsumosCatalogo() {
     }
   }
 
-  if (loading) return <p className="loading-pulse text-muted-foreground">Cargando insumos…</p>;
+  if (loading) {
+    return (
+      <p className="loading-pulse text-muted-foreground">Cargando insumos…</p>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -208,21 +228,41 @@ export function InsumosCatalogo() {
             </div>
           </div>
           <div>
-            <label className="label">Proveedor preferido</label>
-            <input
-              className="field"
-              value={form.proveedorPreferido}
-              onChange={(e) =>
-                setForm({ ...form, proveedorPreferido: e.target.value })
-              }
-            />
+            <label className="label" htmlFor="insumo-proveedor">
+              Proveedor / tienda preferida
+            </label>
+            {tiendas.length === 0 ? (
+              <p className="text-sm text-muted-foreground" role="status">
+                Agrega tiendas en{" "}
+                <Link href="/ajustes" className="font-semibold text-miel">
+                  Configuración
+                </Link>
+                .
+              </p>
+            ) : (
+              <select
+                id="insumo-proveedor"
+                className="field"
+                value={form.proveedorPreferidoId}
+                onChange={(e) =>
+                  setForm({ ...form, proveedorPreferidoId: e.target.value })
+                }
+              >
+                <option value="">Sin preferencia</option>
+                {tiendas.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="flex gap-2">
             <button
               type="button"
               className="btn btn-primary flex-1"
               disabled={saving}
-              onClick={save}
+              onClick={() => void save()}
             >
               {saving ? "Guardando…" : "Guardar"}
             </button>
@@ -242,7 +282,10 @@ export function InsumosCatalogo() {
       ) : (
         <ul className="space-y-2">
           {insumos.map((i) => (
-            <li key={i.id} className="flex items-center justify-between gap-3 border-b border-border py-4 first:border-t">
+            <li
+              key={i.id}
+              className="flex items-center justify-between gap-3 border-b border-border py-4 first:border-t"
+            >
               <div>
                 <p className="font-semibold">
                   {i.nombre}
@@ -258,6 +301,9 @@ export function InsumosCatalogo() {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Costo {formatoMoneda(i.costoUnitario)} / {i.unidad}
+                  {i.proveedorPreferido
+                    ? ` · ${i.proveedorPreferido}`
+                    : ""}
                 </p>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-2">
