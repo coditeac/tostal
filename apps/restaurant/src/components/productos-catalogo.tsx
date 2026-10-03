@@ -99,6 +99,7 @@ export function ProductosCatalogo() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Producto | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmQuitarFoto, setConfirmQuitarFoto] = useState(false);
   /** Preview local (object URL) o URL remota al editar. */
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [fotoRemota, setFotoRemota] = useState<string | null>(null);
@@ -462,9 +463,14 @@ export function ProductosCatalogo() {
                       type="button"
                       className="btn btn-secondary"
                       disabled={saving || fotoBusy}
-                      onClick={async () => {
+                      aria-label="Quitar foto del producto"
+                      onClick={() => {
                         setError(null);
-                        if (editId === "nuevo" || (!fotoRemota && fotoPendiente)) {
+                        // Solo limpia preview local (sin borrar remota): sin modal.
+                        if (
+                          editId === "nuevo" ||
+                          (!fotoRemota && fotoPendiente)
+                        ) {
                           clearFotoLocalPreview();
                           setFotoPreview(null);
                           return;
@@ -474,15 +480,8 @@ export function ProductosCatalogo() {
                           setFotoPreview(fotoRemota);
                           return;
                         }
-                        try {
-                          await applyFotoRemove(editId!);
-                        } catch (e) {
-                          setError(
-                            e instanceof Error
-                              ? e.message
-                              : "No se pudo quitar la foto"
-                          );
-                        }
+                        // Borrar foto ya guardada: confirmar.
+                        setConfirmQuitarFoto(true);
                       }}
                     >
                       {fotoBusy ? "…" : "Quitar"}
@@ -929,6 +928,30 @@ export function ProductosCatalogo() {
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={confirmQuitarFoto}
+        onOpenChange={setConfirmQuitarFoto}
+        title="¿Quitar foto?"
+        description="Se borrará la imagen del producto en el catálogo. Esta acción no se puede deshacer."
+        confirmLabel="Quitar foto"
+        busy={fotoBusy}
+        onConfirm={async () => {
+          if (!editId || editId === "nuevo") {
+            setConfirmQuitarFoto(false);
+            return;
+          }
+          setError(null);
+          try {
+            await applyFotoRemove(editId);
+            setConfirmQuitarFoto(false);
+          } catch (e) {
+            setError(
+              e instanceof Error ? e.message : "No se pudo quitar la foto"
+            );
+          }
+        }}
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}

@@ -29,7 +29,9 @@ export default function PersonalPanel() {
   });
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -100,13 +102,21 @@ export default function PersonalPanel() {
     }
   }
 
-  async function toggleActivo(u: User) {
+  async function onArchiveConfirmed() {
+    if (!archiveTarget) return;
+    setArchiving(true);
     setError(null);
     try {
-      await updateStaffProfile({ id: u.id, activo: !u.activo });
+      await updateStaffProfile({
+        id: archiveTarget.id,
+        activo: !archiveTarget.activo,
+      });
+      setArchiveTarget(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setArchiving(false);
     }
   }
 
@@ -185,7 +195,7 @@ export default function PersonalPanel() {
                           ? `Desactivar ${u.nombre}`
                           : `Activar ${u.nombre}`
                       }
-                      onClick={() => void toggleActivo(u)}
+                      onClick={() => setArchiveTarget(u)}
                     >
                       {u.activo ? "Desactivar" : "Activar"}
                     </Button>
@@ -208,6 +218,29 @@ export default function PersonalPanel() {
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={!!archiveTarget}
+        onOpenChange={(open) => {
+          if (!open) setArchiveTarget(null);
+        }}
+        title={
+          archiveTarget?.activo
+            ? "¿Desactivar cuenta staff?"
+            : "¿Activar cuenta staff?"
+        }
+        description={
+          archiveTarget
+            ? archiveTarget.activo
+              ? `«${archiveTarget.nombre}» no podrá iniciar sesión hasta reactivarla. El historial se conserva.`
+              : `«${archiveTarget.nombre}» volverá a poder iniciar sesión con su rol actual.`
+            : ""
+        }
+        confirmLabel={archiveTarget?.activo ? "Desactivar" : "Activar"}
+        destructive={!!archiveTarget?.activo}
+        busy={archiving}
+        onConfirm={() => void onArchiveConfirmed()}
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}
