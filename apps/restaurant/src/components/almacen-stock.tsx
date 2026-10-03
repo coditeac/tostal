@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
 import {
@@ -8,6 +9,10 @@ import {
   moverStock,
   updateInsumo,
 } from "@/lib/data/insumos";
+import {
+  listTiendasProveedor,
+  type TiendaProveedorRow,
+} from "@/lib/data/tiendas-proveedor";
 
 type Insumo = {
   id: string;
@@ -16,6 +21,7 @@ type Insumo = {
   stockActual: number;
   stockMinimo: number;
   costoUnitario: number;
+  proveedorPreferidoId?: string | null;
   bajoMinimo?: boolean;
 };
 
@@ -23,6 +29,7 @@ type Alerta = Insumo & { faltante: number; critico: boolean };
 
 export function AlmacenStock() {
   const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [tiendas, setTiendas] = useState<TiendaProveedorRow[]>([]);
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +39,7 @@ export function AlmacenStock() {
     cantidad: "",
     motivo: "",
     costoPesos: "",
+    proveedorId: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -39,9 +47,13 @@ export function AlmacenStock() {
     setLoading(true);
     setError(null);
     try {
-      const rows = await listInsumos();
+      const [rows, shops] = await Promise.all([
+        listInsumos(),
+        listTiendasProveedor({ soloActivas: true }),
+      ]);
       const list = rows.map(mapInsumoUi) as Insumo[];
       setInsumos(list);
+      setTiendas(shops);
       setAlertas(
         list
           .filter((i) => i.bajoMinimo)
@@ -52,7 +64,11 @@ export function AlmacenStock() {
           }))
       );
       if (!form.insumoId && list[0]) {
-        setForm((f) => ({ ...f, insumoId: list[0].id }));
+        setForm((f) => ({
+          ...f,
+          insumoId: list[0].id,
+          proveedorId: list[0].proveedorPreferidoId || f.proveedorId,
+        }));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -70,11 +86,19 @@ export function AlmacenStock() {
     setSaving(true);
     setError(null);
     try {
+      const proveedorNombre =
+        tiendas.find((t) => t.id === form.proveedorId)?.nombre ?? null;
       await moverStock({
         insumoId: form.insumoId,
         tipo: form.tipo,
         cantidad: Number(form.cantidad),
         costoPesos: form.costoPesos ? Number(form.costoPesos) : null,
+        proveedorId:
+          form.tipo === "entrada" && form.proveedorId
+            ? form.proveedorId
+            : null,
+        proveedorNombre:
+          form.tipo === "entrada" ? proveedorNombre : null,
       });
       setForm((f) => ({ ...f, cantidad: "", motivo: "", costoPesos: "" }));
       await load();
@@ -132,7 +156,16 @@ export function AlmacenStock() {
             id="mov-insumo"
             className="field"
             value={form.insumoId}
-            onChange={(e) => setForm({ ...form, insumoId: e.target.value })}
+            onChange={(e) => {
+              const id = e.target.value;
+              const insumo = insumos.find((i) => i.id === id);
+              setForm({
+                ...form,
+                insumoId: id,
+                proveedorId:
+                  insumo?.proveedorPreferidoId || form.proveedorId || "",
+              });
+            }}
           >
             {insumos.map((i) => (
               <option key={i.id} value={i.id}>
@@ -172,19 +205,53 @@ export function AlmacenStock() {
           </div>
         </div>
         {form.tipo === "entrada" && (
-          <div>
-            <label className="label" htmlFor="mov-costo">
-              Costo unitario (MXN, opcional)
-            </label>
-            <input
-              id="mov-costo"
-              className="field"
-              type="number"
-              step="0.001"
-              value={form.costoPesos}
-              onChange={(e) => setForm({ ...form, costoPesos: e.target.value })}
-            />
-          </div>
+          <>
+            <div>
+              <label className="label" htmlFor="mov-proveedor">
+                Tienda / proveedor
+              </label>
+              {tiendas.length === 0 ? (
+                <p className="text-sm text-muted-foreground" role="status">
+                  Agrega tiendas en{" "}
+                  <Link href="/ajustes" className="font-semibold text-miel">
+                    Configuración
+                  </Link>
+                  .
+                </p>
+              ) : (
+                <select
+                  id="mov-proveedor"
+                  className="field"
+                  value={form.proveedorId}
+                  onChange={(e) =>
+                    setForm({ ...form, proveedorId: e.target.value })
+                  }
+                >
+                  <option value="">Sin tienda</option>
+                  {tiendas.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nombre}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div>
+              <label className="label" htmlFor="mov-costo">
+                Costo unitario (MXN, opcional)
+              </label>
+              <input
+                id="mov-costo"
+                className="field"
+                type="number"
+                step="0.001"
+                value={form.costoPesos}
+                onChange={(e) =>
+                  setForm({ ...form, costoPesos: e.target.value })
+                }
+              />
+            </div>
+          </>
         )}
         <div>
           <label className="label" htmlFor="mov-motivo">

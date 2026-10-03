@@ -10,6 +10,8 @@ export type InsumoRow = {
   umbral_pocos: number;
   costo_unitario: number;
   activo: boolean;
+  proveedor_preferido?: string | null;
+  proveedor_preferido_id?: string | null;
 };
 
 /** Mapeo UI Nest-compat (centavos en costoUnitario). */
@@ -30,6 +32,9 @@ export function mapInsumoUi(i: InsumoRow) {
     bajoMinimo: stock <= min,
     pocos: stock <= min,
     activo: i.activo,
+    proveedorPreferido: i.proveedor_preferido ?? null,
+    proveedorPreferidoId: i.proveedor_preferido_id ?? null,
+    ubicacion: null as string | null,
   };
 }
 
@@ -55,6 +60,8 @@ export async function createInsumo(input: {
   stock?: number;
   umbral_pocos?: number;
   costo_unitario?: number;
+  proveedor_preferido_id?: string | null;
+  proveedor_preferido?: string | null;
 }) {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -66,6 +73,8 @@ export async function createInsumo(input: {
       umbral_pocos: input.umbral_pocos ?? 0,
       costo_unitario: input.costo_unitario ?? 0,
       activo: true,
+      proveedor_preferido_id: input.proveedor_preferido_id ?? null,
+      proveedor_preferido: input.proveedor_preferido ?? null,
     })
     .select("*")
     .single();
@@ -82,6 +91,8 @@ export async function updateInsumo(
     umbral_pocos: number;
     costo_unitario: number;
     activo: boolean;
+    proveedor_preferido_id: string | null;
+    proveedor_preferido: string | null;
   }>
 ) {
   const supabase = createClient();
@@ -140,12 +151,14 @@ export async function deleteInsumo(
   return "hard";
 }
 
-/** Movimiento de almacén: ajusta stock (+/-) y opcional costo. */
+/** Movimiento de almacén: ajusta stock (+/-) y opcional costo / proveedor. */
 export async function moverStock(input: {
   insumoId: string;
   tipo: string;
   cantidad: number;
   costoPesos?: number | null;
+  proveedorId?: string | null;
+  proveedorNombre?: string | null;
 }) {
   const supabase = createClient();
   const { data: row, error: e1 } = await supabase
@@ -166,6 +179,8 @@ export async function moverStock(input: {
     stock: number;
     updated_at: string;
     costo_unitario?: number;
+    proveedor_preferido_id?: string | null;
+    proveedor_preferido?: string | null;
   } = {
     stock: next,
     updated_at: new Date().toISOString(),
@@ -176,6 +191,10 @@ export async function moverStock(input: {
     Number.isFinite(Number(input.costoPesos))
   ) {
     patch.costo_unitario = Math.round(Number(input.costoPesos) * 100);
+  }
+  if (input.tipo === "entrada" && input.proveedorId) {
+    patch.proveedor_preferido_id = input.proveedorId;
+    patch.proveedor_preferido = input.proveedorNombre?.trim() || null;
   }
 
   const { data, error } = await supabase

@@ -1,0 +1,15 @@
+-- Applied via Supabase MCP apply_migration: tiendas_proveedor_schema
+-- Project: yoxsldirdgdpsabsivac (2026-10-03)
+-- Catálogo de tiendas/proveedores para Compras y Almacén
+
+-- Tabla public.tiendas_proveedor
+--   id uuid PK, nombre text NOT NULL, contacto text, notas text,
+--   activo boolean DEFAULT true, created_at, updated_at
+--   UNIQUE (lower(btrim(nombre)))
+-- RLS: authenticated staff ALL (is_staff)
+--
+-- compras.tienda_proveedor_id → tiendas_proveedor (tienda texto se conserva legacy)
+-- gastos.tienda_proveedor_id → tiendas_proveedor
+-- insumos.proveedor_preferido_id → tiendas_proveedor
+-- insumos.proveedor_preferido text (legacy)
+-- Backfill: DISTINCT tienda/proveedor texto → filas + FK

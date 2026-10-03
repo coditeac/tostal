@@ -5,8 +5,9 @@ import { useState } from "react";
 import PersonalPanel from "@/components/personal-panel";
 import ConfigPanel from "@/components/config-panel";
 import ZonasPanel from "@/components/zonas-panel";
+import TiendasProveedorPanel from "@/components/tiendas-proveedor-panel";
 
-type Tab = "personal" | "config" | "zonas";
+type Tab = "personal" | "config" | "zonas" | "tiendas";
 
 export default function AjustesPage() {
   const [tab, setTab] = useState<Tab>("personal");
@@ -16,16 +17,17 @@ export default function AjustesPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Ajustes</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Personal, zonas de envío y configuración — fuera de los 6 módulos de
-          operación
+          Personal, zonas, tiendas de proveedor y configuración — fuera de los 6
+          módulos de operación
         </p>
       </div>
 
-      <div className="flex gap-4 border-b border-border text-sm">
+      <div className="flex flex-wrap gap-4 border-b border-border text-sm">
         {(
           [
             { id: "personal", label: "Personal" },
             { id: "zonas", label: "Zonas de envío" },
+            { id: "tiendas", label: "Tiendas" },
             { id: "config", label: "Config" },
           ] as const
         ).map((t) => (
@@ -48,6 +50,8 @@ export default function AjustesPage() {
         <PersonalPanel />
       ) : tab === "zonas" ? (
         <ZonasPanel />
+      ) : tab === "tiendas" ? (
+        <TiendasProveedorPanel />
       ) : (
         <ConfigPanel />
       )}

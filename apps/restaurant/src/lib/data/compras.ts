@@ -2,8 +2,9 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { listInsumos, mapInsumoUi, createInsumo } from "./insumos";
+import { listTiendasProveedor } from "./tiendas-proveedor";
 
-export async function loadComprasSugerencia(_tienda?: string) {
+export async function loadComprasSugerencia(_tiendaId?: string) {
   const insumos = await listInsumos();
   const mapped = insumos.map(mapInsumoUi);
   const sugerencia = mapped
@@ -15,28 +16,24 @@ export async function loadComprasSugerencia(_tienda?: string) {
       stockActual: i.stockActual,
       stockMinimo: i.stockMinimo,
       cantidadSugerida: Math.max(1, i.stockMinimo - i.stockActual),
-      proveedor: null as string | null,
+      proveedor: i.proveedorPreferido as string | null,
+      proveedorId: i.proveedorPreferidoId as string | null,
       motivo: "Stock bajo el umbral",
       costoUnitario: i.costoUnitario,
       paraTienda: true,
     }));
 
-  const supabase = createClient();
-  const { data: compras } = await supabase
-    .from("compras")
-    .select("tienda")
-    .order("created_at", { ascending: false })
-    .limit(40);
-  const seen = new Set<string>();
-  const tiendas: Array<{ nombre: string }> = [];
-  for (const c of compras || []) {
-    const n = (c.tienda || "").trim();
-    if (!n || seen.has(n.toLowerCase())) continue;
-    seen.add(n.toLowerCase());
-    tiendas.push({ nombre: n });
-  }
+  const tiendas = await listTiendasProveedor({ soloActivas: true });
 
-  return { sugerencia, tiendas, insumos: mapped };
+  return {
+    sugerencia,
+    tiendas: tiendas.map((t) => ({
+      id: t.id,
+      nombre: t.nombre,
+      preferido: false,
+    })),
+    insumos: mapped,
+  };
 }
 
 export async function altaInsumoCompra(input: {
@@ -45,20 +42,30 @@ export async function altaInsumoCompra(input: {
   cantidad: number;
   costoPesos: number;
   stockMinimo?: number;
+  proveedorPreferidoId?: string | null;
 }) {
   const costoCentavos = Math.round(Number(input.costoPesos) * 100);
+  let proveedorNombre: string | null = null;
+  if (input.proveedorPreferidoId) {
+    const tiendas = await listTiendasProveedor({ soloActivas: false });
+    proveedorNombre =
+      tiendas.find((t) => t.id === input.proveedorPreferidoId)?.nombre ?? null;
+  }
   const row = await createInsumo({
     nombre: input.nombre.trim(),
     unidad: input.unidad || "u",
     stock: 0,
     umbral_pocos: Number(input.stockMinimo) || 0,
     costo_unitario: costoCentavos,
+    proveedor_preferido_id: input.proveedorPreferidoId ?? null,
+    proveedor_preferido: proveedorNombre,
   });
   return mapInsumoUi(row);
 }
 
 export async function cerrarCompra(input: {
-  tienda: string;
+  tiendaId: string;
+  tiendaNombre: string;
   lineas: Array<{
     insumoId: string;
     nombre: string;
@@ -70,6 +77,12 @@ export async function cerrarCompra(input: {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  const tiendaNombre = input.tiendaNombre.trim();
+  const tiendaId = input.tiendaId.trim();
+  if (!tiendaId || !tiendaNombre) {
+    throw new Error("Selecciona una tienda de proveedor.");
+  }
 
   const lineas = input.lineas.filter(
     (l) => l.insumoId && Number(l.cantidad) > 0
@@ -83,7 +96,8 @@ export async function cerrarCompra(input: {
   const { data: compra, error: e1 } = await supabase
     .from("compras")
     .insert({
-      tienda: input.tienda.trim(),
+      tienda: tiendaNombre,
+      tienda_proveedor_id: tiendaId,
       estado: "abierta",
       created_by: user?.id ?? null,
     })
@@ -110,18 +124,29 @@ export async function cerrarCompra(input: {
   for (const l of lineas) {
     const { data: insumo, error } = await supabase
       .from("insumos")
-      .select("id, stock, costo_unitario")
+      .select("id, stock, costo_unitario, proveedor_preferido_id")
       .eq("id", l.insumoId)
       .single();
     if (error || !insumo) throw new Error(error?.message || "Insumo faltante");
     const costo = Math.round(Number(l.costoPesos) * 100);
+    const patch: {
+      stock: number;
+      costo_unitario: number;
+      updated_at: string;
+      proveedor_preferido_id?: string;
+      proveedor_preferido?: string;
+    } = {
+      stock: Number(insumo.stock) + Number(l.cantidad),
+      costo_unitario: costo,
+      updated_at: new Date().toISOString(),
+    };
+    if (!insumo.proveedor_preferido_id) {
+      patch.proveedor_preferido_id = tiendaId;
+      patch.proveedor_preferido = tiendaNombre;
+    }
     const { error: eUp } = await supabase
       .from("insumos")
-      .update({
-        stock: Number(insumo.stock) + Number(l.cantidad),
-        costo_unitario: costo,
-        updated_at: new Date().toISOString(),
-      })
+      .update(patch)
       .eq("id", l.insumoId);
     if (eUp) throw new Error(eUp.message);
   }
@@ -129,9 +154,10 @@ export async function cerrarCompra(input: {
   const { data: gasto, error: e3 } = await supabase
     .from("gastos")
     .insert({
-      concepto: `Compra ${input.tienda.trim()}`,
+      concepto: `Compra ${tiendaNombre}`,
       monto: totalCentavos,
-      tienda: input.tienda.trim(),
+      tienda: tiendaNombre,
+      tienda_proveedor_id: tiendaId,
       categoria: "compras",
       created_by: user?.id ?? null,
     })
@@ -155,6 +181,7 @@ export async function cerrarCompra(input: {
 export type CompraReciente = {
   id: string;
   tienda: string;
+  tienda_proveedor_id: string | null;
   estado: string;
   gasto_id: string | null;
   closed_at: string | null;
@@ -169,7 +196,7 @@ export async function listComprasRecientes(
   const supabase = createClient();
   const { data: compras, error } = await supabase
     .from("compras")
-    .select("id, tienda, estado, gasto_id, closed_at, created_at")
+    .select("id, tienda, tienda_proveedor_id, estado, gasto_id, closed_at, created_at")
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw new Error(error.message);
@@ -191,6 +218,7 @@ export async function listComprasRecientes(
   return compras.map((c) => ({
     id: c.id,
     tienda: c.tienda || "",
+    tienda_proveedor_id: c.tienda_proveedor_id,
     estado: c.estado || "",
     gasto_id: c.gasto_id,
     closed_at: c.closed_at,

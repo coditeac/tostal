@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   altaInsumoCompra,
   anularCompra,
@@ -22,6 +23,7 @@ type Insumo = {
   stockMinimo: number;
   costoUnitario: number;
   proveedorPreferido?: string | null;
+  proveedorPreferidoId?: string | null;
   bajoMinimo?: boolean;
 };
 
@@ -33,12 +35,13 @@ type Sugerido = {
   stockMinimo: number;
   cantidadSugerida: number;
   proveedor: string | null;
+  proveedorId?: string | null;
   motivo: string;
   costoUnitario: number;
   paraTienda?: boolean;
 };
 
-type Tienda = { id?: string; nombre: string; preferido?: boolean };
+type Tienda = { id: string; nombre: string; preferido?: boolean };
 
 type Linea = {
   key: string;
@@ -54,7 +57,7 @@ type Linea = {
  * Compras: tienda → recomendaciones → autocomplete / alta → cerrar_compra → gasto.
  */
 export default function ComprasPage() {
-  const [tienda, setTienda] = useState("");
+  const [tiendaId, setTiendaId] = useState("");
   const [tiendas, setTiendas] = useState<Tienda[]>([]);
   const [sugerencia, setSugerencia] = useState<Sugerido[]>([]);
   const [lineas, setLineas] = useState<Linea[]>([]);
@@ -76,6 +79,9 @@ export default function ComprasPage() {
   const [anularTarget, setAnularTarget] = useState<CompraReciente | null>(null);
   const [anulando, setAnulando] = useState(false);
 
+  const tiendaNombre =
+    tiendas.find((t) => t.id === tiendaId)?.nombre?.trim() || "";
+
   async function load(tiendaCtx?: string) {
     setLoading(true);
     setError(null);
@@ -85,8 +91,13 @@ export default function ComprasPage() {
         listComprasRecientes(15),
       ]);
       setSugerencia(data.sugerencia || []);
-      setTiendas(data.tiendas || []);
+      const list = (data.tiendas || []) as Tienda[];
+      setTiendas(list);
       setRecientes(hist);
+      setTiendaId((prev) => {
+        if (prev && list.some((t) => t.id === prev)) return prev;
+        return list[0]?.id || "";
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -97,14 +108,6 @@ export default function ComprasPage() {
   useEffect(() => {
     void load();
   }, []);
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      void load(tienda);
-    }, 350);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tienda]);
 
   useEffect(() => {
     const q = query.trim();
@@ -127,15 +130,20 @@ export default function ComprasPage() {
   }, [query, lineas]);
 
   const recomendados = useMemo(() => {
-    if (!tienda.trim()) return sugerencia;
+    if (!tiendaId) return sugerencia;
     return sugerencia.filter(
       (s) =>
         s.paraTienda !== false &&
-        (!s.proveedor ||
-          s.proveedor.toLowerCase().includes(tienda.trim().toLowerCase()) ||
-          tienda.trim().toLowerCase().includes(s.proveedor.toLowerCase()))
+        (!s.proveedorId ||
+          s.proveedorId === tiendaId ||
+          !s.proveedor ||
+          (tiendaNombre &&
+            (s.proveedor.toLowerCase().includes(tiendaNombre.toLowerCase()) ||
+              tiendaNombre
+                .toLowerCase()
+                .includes(s.proveedor.toLowerCase()))))
     );
-  }, [sugerencia, tienda]);
+  }, [sugerencia, tiendaId, tiendaNombre]);
 
   function addInsumo(i: Insumo, cantidad?: number) {
     setLineas((prev) => [
@@ -186,6 +194,7 @@ export default function ComprasPage() {
         cantidad: Number(nuevo.cantidad),
         costoPesos: Number(nuevo.costoPesos),
         stockMinimo: Number(nuevo.stockMinimo || 0),
+        proveedorPreferidoId: tiendaId || null,
       })) as Insumo;
       setLineas((prev) => [
         ...prev,
@@ -221,8 +230,8 @@ export default function ComprasPage() {
   }, 0);
 
   async function confirmarCompra() {
-    if (!tienda.trim()) {
-      setError("Indica en qué tienda estás.");
+    if (!tiendaId || !tiendaNombre) {
+      setError("Selecciona la tienda de proveedor.");
       return;
     }
     const validas = lineas.filter(
@@ -237,7 +246,8 @@ export default function ComprasPage() {
     setOkMsg(null);
     try {
       const markData = await cerrarCompra({
-        tienda: tienda.trim(),
+        tiendaId,
+        tiendaNombre,
         lineas: validas.map((l) => ({
           insumoId: l.insumoId!,
           nombre: l.nombre,
@@ -249,10 +259,10 @@ export default function ComprasPage() {
       setLineas([]);
       setOkMsg(
         gastoMonto != null
-          ? `Compra cerrada en ${tienda.trim()} · gasto ${formatoMoneda(gastoMonto)} en Finanzas`
-          : `Compra cerrada en ${tienda.trim()} · stock y gasto registrados`
+          ? `Compra cerrada en ${tiendaNombre} · gasto ${formatoMoneda(gastoMonto)} en Finanzas`
+          : `Compra cerrada en ${tiendaNombre} · stock y gasto registrados`
       );
-      await load(tienda);
+      await load(tiendaId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -293,26 +303,36 @@ export default function ComprasPage() {
         <label className="label" htmlFor="tienda">
           ¿En qué tienda estás?
         </label>
-        <input
-          id="tienda"
-          className="field"
-          placeholder="Ej. Costco, Central de Abastos…"
-          value={tienda}
-          onChange={(e) => setTienda(e.target.value)}
-          list="tiendas-conocidas"
-        />
-        <datalist id="tiendas-conocidas">
-          {tiendas.map((t) => (
-            <option key={t.id || t.nombre} value={t.nombre} />
-          ))}
-        </datalist>
+        {tiendas.length === 0 ? (
+          <p className="empty-state" role="status">
+            Agrega tiendas en{" "}
+            <Link href="/ajustes" className="font-semibold text-miel">
+              Configuración
+            </Link>
+            .
+          </p>
+        ) : (
+          <select
+            id="tienda"
+            className="field"
+            value={tiendaId}
+            onChange={(e) => setTiendaId(e.target.value)}
+            required
+          >
+            {tiendas.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.nombre}
+              </option>
+            ))}
+          </select>
+        )}
       </section>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Recomendaciones aquí</h2>
-        {!tienda.trim() ? (
+        {!tiendaId ? (
           <p className="text-sm text-muted-foreground">
-            Escribe la tienda para filtrar qué conviene comprar ahí.
+            Selecciona la tienda para filtrar qué conviene comprar ahí.
           </p>
         ) : recomendados.length === 0 ? (
           <p className="empty-state">
@@ -553,7 +573,7 @@ export default function ComprasPage() {
         <Button
           type="button"
           className="w-full"
-          disabled={busy || lineas.length === 0}
+          disabled={busy || lineas.length === 0 || !tiendaId}
           onClick={() => void confirmarCompra()}
         >
           {busy ? "Cerrando…" : "Cerrar compra y registrar gasto"}
@@ -619,7 +639,7 @@ export default function ComprasPage() {
           try {
             await anularCompra(anularTarget.id);
             setAnularTarget(null);
-            await load(tienda || undefined);
+            await load(tiendaId || undefined);
           } catch (e) {
             setError(e instanceof Error ? e.message : "Error al anular");
           } finally {
