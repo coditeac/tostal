@@ -39,6 +39,8 @@ export async function loadFinanzas() {
     fecha: (i.created_at || "").slice(0, 10),
     metodoPago: null as string | null,
     notas: i.concepto,
+    pedidoId: i.pedido_id,
+    reservaId: i.reserva_id,
   }));
 
   const totalGastos = gastosUi.reduce((a, g) => a + g.monto, 0);

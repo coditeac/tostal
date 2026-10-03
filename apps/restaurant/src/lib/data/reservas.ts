@@ -3,6 +3,7 @@
 import type { InsumoNecesario, ReservaCola } from "@/lib/reservas-types";
 import type { EstadoFlujo } from "@/lib/estados";
 import { createClient } from "@/lib/supabase/client";
+import { ensureIngresoReservaEntregada } from "@/lib/data/ingreso-entrega";
 
 export type { InsumoNecesario, ReservaCola };
 
@@ -171,6 +172,25 @@ export async function updateReservaEstado(
     usuario_id: user?.id ?? null,
     motivo: motivo ?? null,
   });
+
+  if (estado === "entregado") {
+    try {
+      await ensureIngresoReservaEntregada(
+        supabase,
+        {
+          id: data.id,
+          codigo: data.codigo,
+          total: data.total,
+          anticipo: data.anticipo,
+          estado_anticipo: data.estado_anticipo,
+          metodo_pago: data.metodo_pago,
+        },
+        user?.id ?? null
+      );
+    } catch (e) {
+      console.error("[finanzas:ingreso_reserva_client]", e);
+    }
+  }
 
   return data;
 }

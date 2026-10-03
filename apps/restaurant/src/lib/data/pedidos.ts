@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import type { EstadoFlujo } from "@/lib/estados";
+import { ensureIngresoPedidoEntregado } from "@/lib/data/ingreso-entrega";
 
 export type PedidoUi = {
   id: string;
@@ -131,6 +132,26 @@ export async function updatePedidoEstado(
     usuario_id: user?.id ?? null,
     motivo: motivo ?? null,
   });
+
+  if (estado === "entregado") {
+    try {
+      await ensureIngresoPedidoEntregado(
+        supabase,
+        {
+          id: data.id,
+          codigo: data.codigo,
+          total: data.total,
+          subtotal: data.subtotal,
+          costo_envio: data.costo_envio,
+          estado_pago: data.estado_pago,
+          metodo_pago: data.metodo_pago,
+        },
+        user?.id ?? null
+      );
+    } catch (e) {
+      console.error("[finanzas:ingreso_pedido_client]", e);
+    }
+  }
 
   const { data: items } = await supabase
     .from("pedido_items")
