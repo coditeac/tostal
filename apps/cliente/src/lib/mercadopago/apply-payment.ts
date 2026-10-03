@@ -8,7 +8,9 @@ export type ApplyPaymentResult = {
   error?: string;
 };
 
-function mapMpStatus(status: string): "pagado" | "pendiente" | "fallido" | null {
+function mapMpStatus(
+  status: string
+): "pagado" | "pendiente" | "fallido" | null {
   switch (status) {
     case "approved":
       return "pagado";
@@ -20,9 +22,7 @@ function mapMpStatus(status: string): "pagado" | "pendiente" | "fallido" | null 
     case "cancelled":
     case "refunded":
     case "charged_back":
-      return status === "refunded" || status === "charged_back"
-        ? "fallido"
-        : "fallido";
+      return "fallido";
     default:
       return null;
   }
@@ -60,78 +60,78 @@ export async function applyMpPaymentStatus(input: {
   const mapped = mapMpStatus(input.status);
 
   if (input.tipo === "pedido") {
-    const patch: Record<string, unknown> = {
-      mp_payment_id: input.paymentId,
-      updated_at: new Date().toISOString(),
-    };
-    if (input.preferenceId) patch.mp_preference_id = input.preferenceId;
-    if (mapped === "pagado") patch.estado_pago = "pagado";
-    else if (mapped === "fallido") patch.estado_pago = "fallido";
-    // pendiente: no pisar si ya estaba pagado
-    if (mapped === "pagado" || mapped === "fallido") {
-      const { data: row } = await admin
+    let row = (
+      await admin
         .from("pedidos")
         .select("id, estado_pago")
         .eq("id", input.entidadId)
-        .maybeSingle();
-      if (!row) {
-        // intentar por codigo si external usó uuid limpio raro
-        const { data: byCode } = await admin
+        .maybeSingle()
+    ).data;
+    if (!row) {
+      row = (
+        await admin
           .from("pedidos")
           .select("id, estado_pago")
           .eq("codigo", input.entidadId)
-          .maybeSingle();
-        if (!byCode) {
-          return { ok: false, error: "Pedido no encontrado" };
-        }
-        if (byCode.estado_pago === "pagado" && mapped !== "pagado") {
-          // no degradar
-        } else {
-          await admin.from("pedidos").update(patch).eq("id", byCode.id);
-        }
-      } else if (!(row.estado_pago === "pagado" && mapped !== "pagado")) {
-        await admin.from("pedidos").update(patch).eq("id", row.id);
-      }
-    } else if (input.preferenceId) {
-      await admin
+          .maybeSingle()
+      ).data;
+    }
+    if (!row) return { ok: false, error: "Pedido no encontrado" };
+
+    const shouldUpdateEstado =
+      mapped === "pagado" ||
+      (mapped === "fallido" && row.estado_pago !== "pagado");
+
+    if (shouldUpdateEstado || input.preferenceId) {
+      const { error } = await admin
         .from("pedidos")
         .update({
-          mp_preference_id: input.preferenceId,
           mp_payment_id: input.paymentId,
+          ...(input.preferenceId
+            ? { mp_preference_id: input.preferenceId }
+            : {}),
+          ...(shouldUpdateEstado && mapped
+            ? { estado_pago: mapped }
+            : {}),
           updated_at: new Date().toISOString(),
         })
-        .eq("id", input.entidadId);
+        .eq("id", row.id);
+      if (error) return { ok: false, error: error.message };
     }
   } else {
-    const patch: Record<string, unknown> = {
-      mp_payment_id: input.paymentId,
-      updated_at: new Date().toISOString(),
-    };
-    if (input.preferenceId) patch.mp_preference_id = input.preferenceId;
-    if (mapped === "pagado") patch.estado_anticipo = "pagado";
-    else if (mapped === "fallido") {
-      // mantener pendiente si falló; staff puede reintentar
-    }
-
-    const { data: row } = await admin
-      .from("reservas")
-      .select("id, estado_anticipo")
-      .eq("id", input.entidadId)
-      .maybeSingle();
-
-    if (!row) {
-      const { data: byCode } = await admin
+    let row = (
+      await admin
         .from("reservas")
         .select("id, estado_anticipo")
-        .eq("codigo", input.entidadId)
-        .maybeSingle();
-      if (!byCode) return { ok: false, error: "Reserva no encontrada" };
-      if (!(byCode.estado_anticipo === "pagado" && mapped !== "pagado")) {
-        await admin.from("reservas").update(patch).eq("id", byCode.id);
-      }
-    } else if (!(row.estado_anticipo === "pagado" && mapped !== "pagado")) {
-      await admin.from("reservas").update(patch).eq("id", row.id);
+        .eq("id", input.entidadId)
+        .maybeSingle()
+    ).data;
+    if (!row) {
+      row = (
+        await admin
+          .from("reservas")
+          .select("id, estado_anticipo")
+          .eq("codigo", input.entidadId)
+          .maybeSingle()
+      ).data;
     }
+    if (!row) return { ok: false, error: "Reserva no encontrada" };
+
+    const markPaid =
+      mapped === "pagado" && row.estado_anticipo !== "pagado";
+
+    const { error } = await admin
+      .from("reservas")
+      .update({
+        mp_payment_id: input.paymentId,
+        ...(input.preferenceId
+          ? { mp_preference_id: input.preferenceId }
+          : {}),
+        ...(markPaid ? { estado_anticipo: "pagado" } : {}),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", row.id);
+    if (error) return { ok: false, error: error.message };
   }
 
   await admin.from("mp_webhook_events").upsert(
