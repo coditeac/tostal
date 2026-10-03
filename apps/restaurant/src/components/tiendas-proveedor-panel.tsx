@@ -36,7 +36,11 @@ export default function TiendasProveedorPanel() {
   const [deleteTarget, setDeleteTarget] = useState<TiendaProveedorRow | null>(
     null
   );
+  const [archiveTarget, setArchiveTarget] = useState<TiendaProveedorRow | null>(
+    null
+  );
   const [deleting, setDeleting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -102,13 +106,21 @@ export default function TiendasProveedorPanel() {
     }
   }
 
-  async function toggleActiva(t: TiendaProveedorRow) {
+  async function onArchiveConfirmed() {
+    if (!archiveTarget) return;
+    setArchiving(true);
     setError(null);
     try {
-      await updateTiendaProveedor({ id: t.id, activo: !t.activo });
+      await updateTiendaProveedor({
+        id: archiveTarget.id,
+        activo: !archiveTarget.activo,
+      });
+      setArchiveTarget(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al actualizar");
+    } finally {
+      setArchiving(false);
     }
   }
 
@@ -261,7 +273,12 @@ export default function TiendasProveedorPanel() {
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => void toggleActiva(t)}
+                  aria-label={
+                    t.activo
+                      ? `Desactivar tienda ${t.nombre}`
+                      : `Activar tienda ${t.nombre}`
+                  }
+                  onClick={() => setArchiveTarget(t)}
                 >
                   {t.activo ? "Desactivar" : "Activar"}
                 </Button>
@@ -279,6 +296,29 @@ export default function TiendasProveedorPanel() {
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={!!archiveTarget}
+        onOpenChange={(open) => {
+          if (!open) setArchiveTarget(null);
+        }}
+        title={
+          archiveTarget?.activo
+            ? "¿Desactivar tienda?"
+            : "¿Activar tienda?"
+        }
+        description={
+          archiveTarget
+            ? archiveTarget.activo
+              ? `«${archiveTarget.nombre}» dejará de aparecer en Compras y Almacén. El historial se conserva.`
+              : `«${archiveTarget.nombre}» volverá a mostrarse en Compras y Almacén.`
+            : ""
+        }
+        confirmLabel={archiveTarget?.activo ? "Desactivar" : "Activar"}
+        destructive={!!archiveTarget?.activo}
+        busy={archiving}
+        onConfirm={() => void onArchiveConfirmed()}
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}

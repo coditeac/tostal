@@ -37,7 +37,9 @@ export default function ZonasPanel() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ZonaEnvioRow | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<ZonaEnvioRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -109,13 +111,18 @@ export default function ZonasPanel() {
     }
   }
 
-  async function toggleActiva(z: ZonaEnvioRow) {
+  async function onArchiveConfirmed() {
+    if (!archiveTarget) return;
+    setArchiving(true);
     setError(null);
     try {
-      await updateZona({ id: z.id, activa: !z.activa });
+      await updateZona({ id: archiveTarget.id, activa: !archiveTarget.activa });
+      setArchiveTarget(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al actualizar");
+    } finally {
+      setArchiving(false);
     }
   }
 
@@ -283,7 +290,12 @@ export default function ZonasPanel() {
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => void toggleActiva(z)}
+                  aria-label={
+                    z.activa
+                      ? `Desactivar zona ${z.nombre}`
+                      : `Activar zona ${z.nombre}`
+                  }
+                  onClick={() => setArchiveTarget(z)}
                 >
                   {z.activa ? "Desactivar" : "Activar"}
                 </Button>
@@ -301,6 +313,29 @@ export default function ZonasPanel() {
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={!!archiveTarget}
+        onOpenChange={(open) => {
+          if (!open) setArchiveTarget(null);
+        }}
+        title={
+          archiveTarget?.activa
+            ? "¿Desactivar zona de envío?"
+            : "¿Activar zona de envío?"
+        }
+        description={
+          archiveTarget
+            ? archiveTarget.activa
+              ? `«${archiveTarget.nombre}» dejará de aparecer en el checkout. Los pedidos históricos se conservan.`
+              : `«${archiveTarget.nombre}» volverá a mostrarse en el checkout del Cliente.`
+            : ""
+        }
+        confirmLabel={archiveTarget?.activa ? "Desactivar" : "Activar"}
+        destructive={!!archiveTarget?.activa}
+        busy={archiving}
+        onConfirm={() => void onArchiveConfirmed()}
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}

@@ -23,7 +23,8 @@ export type ConfirmDialogProps = {
 };
 
 /**
- * Confirmación accesible (teclado + labels) para eliminar / anular.
+ * Confirmación accesible (teclado + labels) para eliminar / anular / archivar.
+ * Siempre: título, consecuencia breve, Cancelar + acción destructiva.
  */
 export function ConfirmDialog({
   open,
