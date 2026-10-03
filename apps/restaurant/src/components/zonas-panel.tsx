@@ -11,6 +11,7 @@ import {
 import { formatoMoneda } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type FormState = {
   nombre: string;
@@ -35,6 +36,8 @@ export default function ZonasPanel() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ZonaEnvioRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -116,20 +119,18 @@ export default function ZonasPanel() {
     }
   }
 
-  async function onDelete(z: ZonaEnvioRow) {
-    if (
-      !window.confirm(
-        `¿Eliminar la zona «${z.nombre}»? Si ya se usó en pedidos, se desactivará.`
-      )
-    ) {
-      return;
-    }
+  async function onDeleteConfirmed() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     setError(null);
     try {
-      await deleteZona(z.id);
+      await deleteZona(deleteTarget.id);
+      setDeleteTarget(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al eliminar");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -290,7 +291,8 @@ export default function ZonasPanel() {
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => void onDelete(z)}
+                  aria-label={`Eliminar zona ${z.nombre}`}
+                  onClick={() => setDeleteTarget(z)}
                 >
                   Eliminar
                 </Button>
@@ -299,6 +301,22 @@ export default function ZonasPanel() {
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="¿Eliminar zona de envío?"
+        description={
+          deleteTarget
+            ? `«${deleteTarget.nombre}» se eliminará. Si ya se usó en pedidos, se desactivará en su lugar para no romper el historial.`
+            : ""
+        }
+        confirmLabel="Eliminar"
+        busy={deleting}
+        onConfirm={() => void onDeleteConfirmed()}
+      />
     </div>
   );
 }

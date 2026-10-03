@@ -81,13 +81,19 @@ async function explodeInsumos(
   return result;
 }
 
-export async function listReservasCola(): Promise<ReservaCola[]> {
+export async function listReservasCola(opts?: {
+  incluirAnuladas?: boolean;
+}): Promise<ReservaCola[]> {
   const supabase = createClient();
-  const { data: reservas, error } = await supabase
+  let q = supabase
     .from("reservas")
     .select("*")
     .order("fecha_reserva", { ascending: true })
     .limit(100);
+  if (!opts?.incluirAnuladas) {
+    q = q.neq("estado", "cancelado");
+  }
+  const { data: reservas, error } = await q;
   if (error) throw new Error(error.message);
   if (!reservas?.length) return [];
 

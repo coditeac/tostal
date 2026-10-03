@@ -70,13 +70,20 @@ function mapPedido(
   };
 }
 
-export async function listPedidosByFecha(fecha: string): Promise<PedidoUi[]> {
+export async function listPedidosByFecha(
+  fecha: string,
+  opts?: { incluirAnulados?: boolean }
+): Promise<PedidoUi[]> {
   const supabase = createClient();
-  const { data: pedidos, error } = await supabase
+  let q = supabase
     .from("pedidos")
     .select("*")
     .eq("fecha_entrega", fecha)
     .order("created_at", { ascending: false });
+  if (!opts?.incluirAnulados) {
+    q = q.neq("estado", "cancelado");
+  }
+  const { data: pedidos, error } = await q;
   if (error) throw new Error(error.message);
   if (!pedidos?.length) return [];
 

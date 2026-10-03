@@ -1,9 +1,16 @@
 "use client";
 
-import { createInsumo, listInsumos, mapInsumoUi, updateInsumo } from "@/lib/data/insumos";
+import {
+  createInsumo,
+  deleteInsumo,
+  listInsumos,
+  mapInsumoUi,
+  updateInsumo,
+} from "@/lib/data/insumos";
 
 import { useEffect, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type Insumo = {
   id: string;
@@ -32,6 +39,8 @@ export function InsumosCatalogo() {
     proveedorPreferido: "",
   });
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Insumo | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -251,17 +260,58 @@ export function InsumosCatalogo() {
                   Costo {formatoMoneda(i.costoUnitario)} / {i.unidad}
                 </p>
               </div>
-              <button
-                type="button"
-                className="text-sm font-semibold text-miel-dark"
-                onClick={() => startEdit(i)}
-              >
-                Editar
-              </button>
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                <button
+                  type="button"
+                  className="min-h-[var(--tap)] text-sm font-semibold text-miel-dark"
+                  aria-label={`Editar ${i.nombre}`}
+                  onClick={() => startEdit(i)}
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  className="min-h-[var(--tap)] text-sm font-semibold text-error"
+                  aria-label={`Eliminar ${i.nombre}`}
+                  onClick={() => setDeleteTarget(i)}
+                >
+                  Eliminar
+                </button>
+              </div>
             </li>
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="¿Eliminar insumo?"
+        description={
+          deleteTarget
+            ? `«${deleteTarget.nombre}» se eliminará del almacén. Si forma parte de una receta o compra, se archivará (activo=false) para no romper el historial.`
+            : ""
+        }
+        confirmLabel="Eliminar"
+        busy={deleting}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          setDeleting(true);
+          setError(null);
+          try {
+            await deleteInsumo(deleteTarget.id);
+            setDeleteTarget(null);
+            if (editId === deleteTarget.id) setEditId(null);
+            await load();
+          } catch (e) {
+            setError(e instanceof Error ? e.message : "Error al eliminar");
+          } finally {
+            setDeleting(false);
+          }
+        }}
+      />
     </div>
   );
 }

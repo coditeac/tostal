@@ -35,6 +35,28 @@ export async function updateStaffProfile(input: {
   activo?: boolean;
 }) {
   const supabase = createClient();
+
+  if (input.activo === false) {
+    const { data: target, error: e0 } = await supabase
+      .from("profiles")
+      .select("id, rol, activo")
+      .eq("id", input.id)
+      .single();
+    if (e0 || !target) throw new Error(e0?.message || "Usuario no encontrado");
+    if (target.rol === "superadmin") {
+      const { count } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("rol", "superadmin")
+        .eq("activo", true);
+      if ((count ?? 0) <= 1) {
+        throw new Error(
+          "No se puede desactivar el único superadmin activo."
+        );
+      }
+    }
+  }
+
   const patch: {
     updated_at: string;
     nombre?: string;
@@ -56,6 +78,12 @@ export async function updateStaffProfile(input: {
     .update(patch)
     .eq("id", input.id);
   if (error) throw new Error(error.message);
+}
+
+/** Soft-delete staff: `activo=false` (nunca hard-delete Auth). */
+export async function deleteStaffUser(id: string): Promise<"soft"> {
+  await updateStaffProfile({ id, activo: false });
+  return "soft";
 }
 
 /**
