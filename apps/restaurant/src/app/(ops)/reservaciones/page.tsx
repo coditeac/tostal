@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { EstadoAcciones } from "@/components/estado-acciones";
 import { formatoMoneda, labelFecha } from "@/lib/format";
 import { patchEstadoReserva } from "@/app/actions/estados";
+import { verificarAnticipoReserva } from "@/app/actions/verificar-pago";
 import {
   normalizarEstado,
   type EstadoFlujo,
@@ -71,6 +72,20 @@ export default function ReservasPage() {
       if (!result.ok) throw new Error(result.error);
       if (result.reserva?.id) mergeReserva(result.reserva);
       else await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function verificarAnticipo(id: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const result = await verificarAnticipoReserva(id);
+      if (!result.ok) throw new Error(result.error);
+      await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -180,6 +195,35 @@ export default function ReservasPage() {
                     )}
                   </div>
                 </button>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant={
+                      r.estadoAnticipo === "pagado"
+                        ? "success-light"
+                        : "warning-light"
+                    }
+                    radius="default"
+                  >
+                    {r.estadoAnticipo === "pagado"
+                      ? "Anticipo pagado"
+                      : r.estadoAnticipo === "pendiente_verificacion"
+                        ? "Anticipo pendiente de verificación"
+                        : `Anticipo: ${r.estadoAnticipo || "pendiente"}`}
+                  </Badge>
+                  {(r.estadoAnticipo === "pendiente_verificacion" ||
+                    r.estadoAnticipo === "pendiente") && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busyId === r.id}
+                      onClick={() => void verificarAnticipo(r.id)}
+                    >
+                      Marcar anticipo verificado
+                    </Button>
+                  )}
+                </div>
 
                 <EstadoAcciones
                   estado={estadoUi}

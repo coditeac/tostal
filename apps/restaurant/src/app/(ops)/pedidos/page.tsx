@@ -8,6 +8,7 @@ import {
   type PedidoUi,
 } from "@/lib/data/pedidos";
 import { patchEstadoPedido } from "@/app/actions/estados";
+import { verificarPagoPedido } from "@/app/actions/verificar-pago";
 import {
   normalizarEstado,
   type EstadoFlujo,
@@ -15,6 +16,7 @@ import {
 import { EstadoAcciones } from "@/components/estado-acciones";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -83,6 +85,36 @@ export default function PedidosPage() {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function verificarPago(id: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const result = await verificarPagoPedido(id);
+      if (!result.ok) throw new Error(result.error);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function labelPago(estadoPago: string): string {
+    switch (estadoPago) {
+      case "pagado":
+        return "Pagado";
+      case "pendiente_verificacion":
+        return "Pendiente de verificación";
+      case "contra_entrega":
+        return "Contra entrega";
+      case "rechazado":
+      case "fallido":
+        return "Pago fallido";
+      default:
+        return "Pago pendiente";
     }
   }
 
@@ -162,6 +194,31 @@ export default function PedidosPage() {
                   .map((l) => `${l.cantidad}× ${l.productoNombre}`)
                   .join(" · ")}
               </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  variant={
+                    p.estadoPago === "pagado"
+                      ? "success-light"
+                      : p.estadoPago === "pendiente_verificacion"
+                        ? "warning-light"
+                        : "secondary"
+                  }
+                  size="sm"
+                >
+                  {labelPago(p.estadoPago)}
+                </Badge>
+                {p.estadoPago === "pendiente_verificacion" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busyId === p.id}
+                    onClick={() => void verificarPago(p.id)}
+                  >
+                    Marcar transferencia verificada
+                  </Button>
+                )}
+              </div>
               <EstadoAcciones
                 estado={p.estado}
                 modoEntrega={p.modoEntrega}

@@ -225,6 +225,11 @@ export default function ReservasPage() {
           cantidad: l.cantidad,
         })),
       });
+      if (data.reserva.checkoutUrl) {
+        setLineas([]);
+        window.location.href = data.reserva.checkoutUrl;
+        return;
+      }
       setExito({
         codigo: data.reserva.codigo,
         anticipo: data.reserva.anticipoMonto,
@@ -232,10 +237,19 @@ export default function ReservasPage() {
         fecha: data.reserva.fechaEntrega,
       });
       setLineas([]);
-      if (data.reserva.checkoutUrl) {
-        window.location.href = data.reserva.checkoutUrl;
+      if (
+        data.reserva.codigo === "PENDIENTE" &&
+        typeof data.reserva.id === "string" &&
+        data.reserva.id.length > 8
+      ) {
+        window.location.href = `/checkout/${data.reserva.id}`;
       }
     } catch (e) {
+      const checkoutId = (e as { checkoutId?: string })?.checkoutId;
+      if (checkoutId) {
+        window.location.href = `/checkout/${checkoutId}?pago=error`;
+        return;
+      }
       setError(
         e instanceof Error ? e.message : "No se pudo crear la reserva"
       );

@@ -39,7 +39,16 @@ function mapEstadoPago(p: Record<string, unknown>): string {
   const raw = String(p.estado_pago ?? p.estadoPago ?? "pendiente")
     .trim()
     .toLowerCase();
-  if (raw === "pagado" || raw === "contra_entrega") return raw;
+  if (
+    raw === "pagado" ||
+    raw === "contra_entrega" ||
+    raw === "pendiente_verificacion" ||
+    raw === "fallido" ||
+    raw === "rechazado" ||
+    raw === "reembolsado"
+  ) {
+    return raw;
+  }
   return "pendiente";
 }
 

@@ -1,11 +1,17 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 import type { MpEntidad } from "./external-ref";
+import {
+  markCheckoutRejected,
+  materializeCheckoutFromPending,
+} from "./materialize";
 
 export type ApplyPaymentResult = {
   ok: boolean;
   already?: boolean;
   error?: string;
+  codigo?: string;
+  tipo?: MpEntidad | "checkout";
 };
 
 function mapMpStatus(
@@ -29,10 +35,11 @@ function mapMpStatus(
 }
 
 /**
- * Aplica estado de pago MP a pedido/reserva. Idempotente por payment_id.
+ * Aplica estado de pago MP. Si external_reference es chk_*, materializa
+ * pedido/reserva solo cuando status=approved.
  */
 export async function applyMpPaymentStatus(input: {
-  tipo: MpEntidad;
+  tipo: MpEntidad | "checkout";
   entidadId: string;
   paymentId: string;
   status: string;
@@ -58,6 +65,53 @@ export async function applyMpPaymentStatus(input: {
   }
 
   const mapped = mapMpStatus(input.status);
+
+  if (input.tipo === "checkout") {
+    let result: ApplyPaymentResult = { ok: true, tipo: "checkout" };
+
+    if (mapped === "pagado") {
+      const created = await materializeCheckoutFromPending({
+        checkoutId: input.entidadId,
+        paymentId: input.paymentId,
+        preferenceId: input.preferenceId,
+        markPaid: true,
+      });
+      if (!created.ok) {
+        result = { ok: false, error: created.error, tipo: "checkout" };
+      } else {
+        result = {
+          ok: true,
+          already: created.already,
+          tipo: created.tipo,
+          codigo: created.codigo,
+        };
+      }
+    } else if (mapped === "fallido") {
+      const rejected = await markCheckoutRejected({
+        checkoutId: input.entidadId,
+        paymentId: input.paymentId,
+        status: input.status,
+      });
+      if (!rejected.ok) {
+        result = { ok: false, error: rejected.error, tipo: "checkout" };
+      }
+    }
+
+    await admin.from("mp_webhook_events").upsert(
+      {
+        payment_id: input.paymentId,
+        topic: input.topic || "payment",
+        external_reference: input.externalReference,
+        status: input.status,
+        action: input.action,
+        payload: (input.payload as Json) ?? null,
+        processed_at: new Date().toISOString(),
+      },
+      { onConflict: "payment_id" }
+    );
+
+    return result;
+  }
 
   if (input.tipo === "pedido") {
     let row = (
@@ -91,7 +145,10 @@ export async function applyMpPaymentStatus(input: {
             ? { mp_preference_id: input.preferenceId }
             : {}),
           ...(shouldUpdateEstado && mapped
-            ? { estado_pago: mapped }
+            ? {
+                estado_pago:
+                  mapped === "fallido" ? "rechazado" : mapped,
+              }
             : {}),
           updated_at: new Date().toISOString(),
         })
@@ -119,6 +176,8 @@ export async function applyMpPaymentStatus(input: {
 
     const markPaid =
       mapped === "pagado" && row.estado_anticipo !== "pagado";
+    const markFail =
+      mapped === "fallido" && row.estado_anticipo !== "pagado";
 
     const { error } = await admin
       .from("reservas")
@@ -128,6 +187,7 @@ export async function applyMpPaymentStatus(input: {
           ? { mp_preference_id: input.preferenceId }
           : {}),
         ...(markPaid ? { estado_anticipo: "pagado" } : {}),
+        ...(markFail ? { estado_anticipo: "rechazado" } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq("id", row.id);
@@ -150,7 +210,7 @@ export async function applyMpPaymentStatus(input: {
   return { ok: true };
 }
 
-/** Marca pagado en mock (sin llamar a MP). */
+/** Marca pagado en mock (sin llamar a MP) — solo entidades ya creadas. */
 export async function markPaidMock(input: {
   tipo: MpEntidad;
   id: string;

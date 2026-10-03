@@ -11,3 +11,4 @@ node_modules/
 agent-tools/
 
 apps/api/dist/
+supabase/.temp/

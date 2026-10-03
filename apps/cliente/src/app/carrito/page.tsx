@@ -105,15 +105,30 @@ export default function CarritoPage() {
           cantidad: i.cantidad,
         })),
       });
-      cart.clear();
       if (data.checkoutUrl) {
+        cart.clear();
         window.location.href = data.checkoutUrl;
         return;
       }
-      const q = data.pagoMock ? "?pago=mock" : "";
-      router.push(`/pedido/${data.pedido.codigo}${q}`);
+      cart.clear();
+      if (data.pagoMock && data.pedido?.codigo) {
+        router.push(`/pedido/${data.pedido.codigo}?pago=mock`);
+        return;
+      }
+      if (data.checkoutId) {
+        router.push(`/checkout/${data.checkoutId}`);
+        return;
+      }
+      router.push(`/pedido/${data.pedido.codigo}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo crear el pedido");
+      const msg =
+        e instanceof Error ? e.message : "No se pudo crear el pedido";
+      const checkoutId = (e as { checkoutId?: string })?.checkoutId;
+      if (checkoutId) {
+        router.push(`/checkout/${checkoutId}?pago=error`);
+        return;
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }

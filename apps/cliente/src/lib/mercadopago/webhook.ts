@@ -134,7 +134,11 @@ export async function processMercadoPagoWebhook(input: {
   const metaId = payment.metadata?.entidad_id;
   const tipo =
     parsed?.tipo ||
-    (metaTipo === "pedido" || metaTipo === "reserva" ? metaTipo : null);
+    (metaTipo === "pedido" ||
+    metaTipo === "reserva" ||
+    metaTipo === "checkout"
+      ? metaTipo
+      : null);
   const entidadId =
     parsed?.id || (typeof metaId === "string" ? metaId : null);
 

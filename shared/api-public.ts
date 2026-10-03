@@ -56,6 +56,8 @@ export type CrearPedidoRemotoResponse = {
   checkoutUrl?: string | null;
   /** true si se simuló el pago por falta de MP_ACCESS_TOKEN. */
   pagoMock?: boolean;
+  /** Id de checkout_pendiente (MP antes de crear pedido). */
+  checkoutId?: string | null;
 };
 
 export type GetPedidoPublicoResponse = {

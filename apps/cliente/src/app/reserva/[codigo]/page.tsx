@@ -137,13 +137,18 @@ function ReservaSeguimientoView() {
         </Alert>
       )}
 
-      {anticipo === "pendiente" && (
+      {(anticipo === "pendiente" ||
+        anticipo === "pendiente_verificacion") && (
         <Alert className="mt-4 border-alerta/40 bg-amber-50">
           <AlertDescription className="text-alerta">
-            Anticipo pendiente ({formatoMoneda(reserva.anticipoMonto)})
+            Anticipo{" "}
+            {anticipo === "pendiente_verificacion"
+              ? "pendiente de verificación"
+              : "pendiente"}{" "}
+            ({formatoMoneda(reserva.anticipoMonto)})
             {esMp(reserva.metodoPago)
               ? ". Esperamos la confirmación de Mercado Pago."
-              : ". Te confirmamos cuando lo verifiquemos."}
+              : ". Te confirmamos cuando corroboremos la transferencia."}
           </AlertDescription>
         </Alert>
       )}

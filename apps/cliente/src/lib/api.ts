@@ -24,7 +24,7 @@ import {
   notificarPedidoCreadoAction,
   notificarReservaCreadaAction,
 } from "@/app/actions/mail";
-import { iniciarCheckoutMercadoPago } from "@/app/actions/mercadopago";
+import { iniciarCheckoutPendiente } from "@/app/actions/mercadopago";
 
 function sb() {
   return createClienteBrowserClient();
@@ -79,6 +79,54 @@ function esPagoMercadoPago(metodo: string | null | undefined): boolean {
 export async function crearPedido(
   body: CrearPedidoRemotoBody
 ): Promise<CrearPedidoRemotoResponse> {
+  /** Mercado Pago: no crear pedido hasta pago aprobado. */
+  if (esPagoMercadoPago(body.metodoPago)) {
+    const checkout = await iniciarCheckoutPendiente({
+      tipo: "pedido",
+      body: body as unknown as Record<string, unknown>,
+    });
+    if (!checkout.ok) {
+      const e = new Error(
+        checkout.error || "No se pudo iniciar el pago con Mercado Pago"
+      ) as Error & { status?: number; checkoutId?: string };
+      e.status = 502;
+      e.checkoutId = checkout.checkoutId;
+      throw e;
+    }
+    if (checkout.mock && checkout.codigo) {
+      const created = await fetchPedido(checkout.codigo);
+      return {
+        pedido: created.pedido,
+        checkoutUrl: null,
+        pagoMock: true,
+        checkoutId: checkout.checkoutId,
+      };
+    }
+    return {
+      pedido: {
+        id: checkout.checkoutId || "",
+        codigo: checkout.checkoutId?.slice(0, 8).toUpperCase() || "PENDIENTE",
+        canal: "remoto",
+        estado: "recibido",
+        estadoPago: "pendiente",
+        metodoPago: "mercadopago",
+        modoEntrega: body.modoEntrega,
+        fechaEntrega: body.fechaEntrega,
+        clienteNombre: body.clienteNombre,
+        clienteTelefono: body.clienteTelefono,
+        subtotal: 0,
+        costoEnvio: 0,
+        total: 0,
+        notas: body.notas || null,
+        creadoEn: new Date().toISOString(),
+        lineas: [],
+      },
+      checkoutUrl: checkout.checkoutUrl ?? null,
+      pagoMock: false,
+      checkoutId: checkout.checkoutId,
+    };
+  }
+
   const { data, error } = await sb().rpc("crear_pedido_publico", {
     p_body: body as unknown as Json,
   });
@@ -101,26 +149,6 @@ export async function crearPedido(
     });
   } catch (e) {
     console.error("[mail:pedido_creado]", e);
-  }
-
-  if (esPagoMercadoPago(body.metodoPago)) {
-    const checkout = await iniciarCheckoutMercadoPago({
-      tipo: "pedido",
-      id: result.pedido.id,
-      codigo: result.pedido.codigo,
-      montoCentavos: result.pedido.total,
-      payerEmail: email,
-      payerNombre: body.clienteNombre,
-    });
-    if (!checkout.ok) {
-      const e = new Error(
-        checkout.error || "No se pudo iniciar el pago con Mercado Pago"
-      ) as Error & { status?: number };
-      e.status = 502;
-      throw e;
-    }
-    result.checkoutUrl = checkout.checkoutUrl ?? null;
-    result.pagoMock = Boolean(checkout.mock);
   }
 
   return result;
@@ -199,6 +227,44 @@ export async function fetchReservasProductos(): Promise<ReservaProducto[]> {
 export async function crearReserva(
   body: CrearReservaBody
 ): Promise<CrearReservaResponse> {
+  /** Mercado Pago: no crear reserva hasta anticipo aprobado. */
+  if (esPagoMercadoPago(body.metodoPago)) {
+    const checkout = await iniciarCheckoutPendiente({
+      tipo: "reserva",
+      body: body as unknown as Record<string, unknown>,
+    });
+    if (!checkout.ok) {
+      const e = new Error(
+        checkout.error || "No se pudo iniciar el anticipo con Mercado Pago"
+      ) as Error & { status?: number; checkoutId?: string };
+      e.status = 502;
+      e.checkoutId = checkout.checkoutId;
+      throw e;
+    }
+    if (checkout.mock && checkout.codigo) {
+      const created = await fetchReserva(checkout.codigo);
+      return {
+        reserva: {
+          ...created.reserva,
+          checkoutUrl: null,
+          estadoAnticipo: "pagado",
+        },
+      };
+    }
+    return {
+      reserva: {
+        id: checkout.checkoutId || "",
+        codigo: "PENDIENTE",
+        fechaEntrega: body.fechaEntrega || body.fecha || "",
+        total: 0,
+        anticipoMonto: 0,
+        estado: "recibido",
+        estadoAnticipo: "pendiente",
+        checkoutUrl: checkout.checkoutUrl ?? null,
+      },
+    };
+  }
+
   const { data, error } = await sb().rpc("crear_reserva_publica", {
     p_body: body as unknown as Json,
   });
@@ -214,35 +280,14 @@ export async function crearReserva(
         total: result.reserva.total,
         anticipoMonto: result.reserva.anticipoMonto,
         estado: result.reserva.estado || "recibido",
-        estadoAnticipo: result.reserva.estadoAnticipo || "pendiente",
+        estadoAnticipo:
+          result.reserva.estadoAnticipo || "pendiente_verificacion",
         modoEntrega: body.modoEntrega || "retiro",
       },
       email: body.clienteEmail || null,
     });
   } catch (e) {
     console.error("[mail:reserva_creada]", e);
-  }
-
-  if (esPagoMercadoPago(body.metodoPago)) {
-    const checkout = await iniciarCheckoutMercadoPago({
-      tipo: "reserva",
-      id: result.reserva.id,
-      codigo: result.reserva.codigo,
-      montoCentavos: result.reserva.anticipoMonto,
-      payerEmail: body.clienteEmail || null,
-      payerNombre: body.clienteNombre,
-    });
-    if (!checkout.ok) {
-      const e = new Error(
-        checkout.error || "No se pudo iniciar el anticipo con Mercado Pago"
-      ) as Error & { status?: number };
-      e.status = 502;
-      throw e;
-    }
-    result.reserva.checkoutUrl = checkout.checkoutUrl ?? null;
-    if (checkout.mock) {
-      result.reserva.estadoAnticipo = "pagado";
-    }
   }
 
   return result;

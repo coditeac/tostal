@@ -4,17 +4,24 @@ import {
   getMpAccessToken,
   isMpConfigured,
 } from "./config";
-import { buildExternalReference, type MpEntidad } from "./external-ref";
+import {
+  buildCheckoutExternalReference,
+  buildExternalReference,
+  type MpEntidad,
+} from "./external-ref";
 
 export type CrearPreferenciaInput = {
-  tipo: MpEntidad;
+  tipo: MpEntidad | "checkout";
   id: string;
+  /** Código visible o id corto para back_urls / item id. */
   codigo: string;
   /** Monto a cobrar en centavos (total pedido o anticipo reserva). */
   montoCentavos: number;
   titulo: string;
   payerEmail?: string | null;
   payerNombre?: string | null;
+  /** Si tipo=checkout: pedido|reserva a materializar. */
+  checkoutTipo?: MpEntidad;
 };
 
 export type CrearPreferenciaResult =
@@ -51,12 +58,18 @@ export async function crearPreferenciaCheckoutPro(
     return { ok: false, error: "El monto a cobrar no es válido." };
   }
 
-  const externalReference = buildExternalReference(input.tipo, input.id);
+  const externalReference =
+    input.tipo === "checkout"
+      ? buildCheckoutExternalReference(input.id)
+      : buildExternalReference(input.tipo, input.id);
+
   const origin = getClientePublicOrigin();
   const path =
-    input.tipo === "pedido"
-      ? `/pedido/${encodeURIComponent(input.codigo)}`
-      : `/reserva/${encodeURIComponent(input.codigo)}`;
+    input.tipo === "checkout"
+      ? `/checkout/${encodeURIComponent(input.id)}`
+      : input.tipo === "pedido"
+        ? `/pedido/${encodeURIComponent(input.codigo)}`
+        : `/reserva/${encodeURIComponent(input.codigo)}`;
 
   if (!isMpConfigured()) {
     return {
@@ -76,7 +89,7 @@ export async function crearPreferenciaCheckoutPro(
   const body = {
     items: [
       {
-        id: input.codigo,
+        id: input.codigo.slice(0, 64),
         title: input.titulo.slice(0, 250),
         quantity: 1,
         currency_id: "MXN",
@@ -99,9 +112,10 @@ export async function crearPreferenciaCheckoutPro(
     external_reference: externalReference,
     statement_descriptor: "TOSTAL",
     metadata: {
-      tipo: input.tipo,
+      tipo: input.tipo === "checkout" ? "checkout" : input.tipo,
       codigo: input.codigo,
       entidad_id: input.id,
+      checkout_tipo: input.checkoutTipo || null,
     },
   };
 
