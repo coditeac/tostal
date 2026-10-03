@@ -49,8 +49,8 @@ export default function ReservasPage() {
   const [email, setEmail] = useState("");
   const [notas, setNotas] = useState("");
   const [metodoPago, setMetodoPago] = useState<
-    Extract<MetodoPago, "transferencia">
-  >("transferencia");
+    Extract<MetodoPago, "transferencia" | "mercadopago">
+  >("mercadopago");
   const [enviando, setEnviando] = useState(false);
   const [exito, setExito] = useState<{
     codigo: string;
@@ -490,6 +490,10 @@ export default function ReservasPage() {
                   {(
                     [
                       [
+                        "mercadopago",
+                        "Pagas el anticipo con tarjeta u otros medios en Mercado Pago",
+                      ],
+                      [
                         "transferencia",
                         "Te enviamos los datos; confirmamos el anticipo a mano",
                       ],
@@ -520,29 +524,6 @@ export default function ReservasPage() {
                       </span>
                     </label>
                   ))}
-                  <div
-                    aria-disabled="true"
-                    className="flex cursor-not-allowed items-start gap-3 rounded-lg border border-dashed border-border px-3.5 py-3.5 text-sm opacity-60"
-                  >
-                    <input
-                      type="radio"
-                      name="pago-reserva"
-                      className="mt-1"
-                      disabled
-                    />
-                    <span>
-                      <span className="font-semibold">
-                        {METODO_PAGO.stripe}{" "}
-                        <span className="font-normal text-muted-foreground">
-                          (deshabilitado)
-                        </span>
-                      </span>
-                      <span className="mt-0.5 block text-muted-foreground">
-                        Anticipo con tarjeta aún no disponible. Usa
-                        transferencia.
-                      </span>
-                    </span>
-                  </div>
 
                   <div className="pt-4 text-sm">
                     <div className="flex justify-between">

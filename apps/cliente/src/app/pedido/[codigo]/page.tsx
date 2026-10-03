@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { fetchPedido, formatoMoneda, labelFecha } from "@/lib/api";
 import { usePedidoEvents } from "@/lib/use-pedido-events";
 import {
@@ -17,9 +17,15 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 
+function esMp(metodo: string | null | undefined) {
+  return metodo === "mercadopago" || metodo === "stripe";
+}
+
 function PedidoView() {
   const params = useParams<{ codigo: string }>();
+  const search = useSearchParams();
   const codigo = params.codigo;
+  const pagoHint = search.get("pago");
   const [pedido, setPedido] = useState<PedidoPublico | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,19 +107,45 @@ function PedidoView() {
         {MODO_ENTREGA[pedido.modoEntrega]}
       </p>
 
-      {pedido.metodoPago === "stripe" && pedido.estadoPago === "pendiente" && (
+      {pagoHint === "error" && (
         <Alert className="mt-6 border-alerta/40 bg-amber-50">
           <AlertDescription className="text-alerta">
-            Pago con tarjeta (Stripe) está deshabilitado por ahora. Contacta al
-            restaurante para pagar por transferencia o contra entrega.
+            El pago en Mercado Pago no se completó. Puedes intentar de nuevo o
+            cambiar a transferencia / contra entrega con el restaurante.
           </AlertDescription>
         </Alert>
       )}
 
-      {pedido.metodoPago === "stripe" && pedido.estadoPago === "pagado" && (
+      {pagoHint === "pending" && (
+        <Alert className="mt-6 border-alerta/40 bg-amber-50">
+          <AlertDescription className="text-alerta">
+            Pago en revisión en Mercado Pago. Te actualizamos cuando se
+            confirme.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {pagoHint === "mock" && (
+        <Alert className="mt-6 border-ok/30 bg-emerald-50">
+          <AlertDescription className="text-ok">
+            Pago simulado (modo demo sin clave Mercado Pago). En producción se
+            redirige a Checkout Pro.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {esMp(pedido.metodoPago) && pedido.estadoPago === "pendiente" && (
+        <Alert className="mt-6 border-alerta/40 bg-amber-50">
+          <AlertDescription className="text-alerta">
+            Pago con Mercado Pago pendiente de confirmación.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {esMp(pedido.metodoPago) && pedido.estadoPago === "pagado" && (
         <Alert className="mt-4 border-ok/30 bg-emerald-50">
           <AlertDescription className="text-ok">
-            Pago con tarjeta confirmado.
+            Pago con tarjeta / Mercado Pago confirmado.
           </AlertDescription>
         </Alert>
       )}

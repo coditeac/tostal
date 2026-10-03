@@ -1,5 +1,5 @@
 // Generated via Supabase MCP generate_typescript_types
-// project: yoxsldirdgdpsabsivac · 2026-10-02
+// project: yoxsldirdgdpsabsivac · 2026-10-03 (MP columns)
 export type Json =
   | string
   | number
@@ -427,6 +427,36 @@ export type Database = {
           },
         ]
       }
+      mp_webhook_events: {
+        Row: {
+          action: string | null
+          external_reference: string | null
+          payload: Json | null
+          payment_id: string
+          processed_at: string
+          status: string | null
+          topic: string | null
+        }
+        Insert: {
+          action?: string | null
+          external_reference?: string | null
+          payload?: Json | null
+          payment_id: string
+          processed_at?: string
+          status?: string | null
+          topic?: string | null
+        }
+        Update: {
+          action?: string | null
+          external_reference?: string | null
+          payload?: Json | null
+          payment_id?: string
+          processed_at?: string
+          status?: string | null
+          topic?: string | null
+        }
+        Relationships: []
+      }
       pedidos: {
         Row: {
           canal: string
@@ -444,6 +474,8 @@ export type Database = {
           id: string
           metodo_pago: string | null
           modo_entrega: string
+          mp_payment_id: string | null
+          mp_preference_id: string | null
           notas: string | null
           subtotal: number
           total: number
@@ -466,6 +498,8 @@ export type Database = {
           id?: string
           metodo_pago?: string | null
           modo_entrega?: string
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
           notas?: string | null
           subtotal?: number
           total?: number
@@ -488,6 +522,8 @@ export type Database = {
           id?: string
           metodo_pago?: string | null
           modo_entrega?: string
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
           notas?: string | null
           subtotal?: number
           total?: number
@@ -688,6 +724,8 @@ export type Database = {
           id: string
           metodo_pago: string | null
           modo_entrega: string
+          mp_payment_id: string | null
+          mp_preference_id: string | null
           notas: string | null
           total: number
           updated_at: string
@@ -706,6 +744,8 @@ export type Database = {
           id?: string
           metodo_pago?: string | null
           modo_entrega?: string
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
           notas?: string | null
           total?: number
           updated_at?: string
@@ -724,6 +764,8 @@ export type Database = {
           id?: string
           metodo_pago?: string | null
           modo_entrega?: string
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
           notas?: string | null
           total?: number
           updated_at?: string

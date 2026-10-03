@@ -24,6 +24,8 @@ export type EstadoPago =
 export type MetodoPago =
   | "transferencia"
   | "contra_entrega"
+  | "mercadopago"
+  /** @deprecated usar mercadopago — filas legacy */
   | "stripe"
   | "efectivo_mostrador";
 export type UnidadInsumo = "g" | "ml" | "u";
@@ -66,7 +68,7 @@ export interface Producto {
   fotoUrl: string | null;
   alergenos: string | null;
   orden: number;
-  /** Opciones de duración gestionadas en admin Tostal (JSON). No viven en Stripe. */
+  /** Opciones de duración gestionadas en admin Tostal (JSON). No viven en el procesador de pagos. */
   duraciones?: Array<{
     id: string;
     etiqueta: string;

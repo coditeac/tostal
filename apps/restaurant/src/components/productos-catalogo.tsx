@@ -547,7 +547,7 @@ export function ProductosCatalogo() {
           </div>
           <div>
             <label className="label" htmlFor="prod-duraciones">
-              Duraciones (admin Tostal, no Stripe)
+              Duraciones (admin Tostal)
             </label>
             <input
               id="prod-duraciones"

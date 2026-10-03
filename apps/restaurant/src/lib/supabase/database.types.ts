@@ -1,5 +1,5 @@
 // Generated via Supabase MCP generate_typescript_types
-// project: yoxsldirdgdpsabsivac · 2026-10-02
+// project: yoxsldirdgdpsabsivac · 2026-10-03 (MP columns)
 export type Json =
   | string
   | number
@@ -427,51 +427,108 @@ export type Database = {
           },
         ]
       }
+      mp_webhook_events: {
+        Row: {
+          action: string | null
+          external_reference: string | null
+          payload: Json | null
+          payment_id: string
+          processed_at: string
+          status: string | null
+          topic: string | null
+        }
+        Insert: {
+          action?: string | null
+          external_reference?: string | null
+          payload?: Json | null
+          payment_id: string
+          processed_at?: string
+          status?: string | null
+          topic?: string | null
+        }
+        Update: {
+          action?: string | null
+          external_reference?: string | null
+          payload?: Json | null
+          payment_id?: string
+          processed_at?: string
+          status?: string | null
+          topic?: string | null
+        }
+        Relationships: []
+      }
       pedidos: {
         Row: {
           canal: string
           cliente_email: string | null
           cliente_id: string | null
           cliente_nombre: string | null
+          cliente_telefono: string | null
           codigo: string
           created_at: string
+          costo_envio: number
+          direccion: string | null
           estado: string
+          estado_pago: string
           fecha_entrega: string
           id: string
           metodo_pago: string | null
+          modo_entrega: string
+          mp_payment_id: string | null
+          mp_preference_id: string | null
           notas: string | null
+          subtotal: number
           total: number
           updated_at: string
+          zona_id: string | null
         }
         Insert: {
           canal?: string
           cliente_email?: string | null
           cliente_id?: string | null
           cliente_nombre?: string | null
+          cliente_telefono?: string | null
           codigo: string
           created_at?: string
+          costo_envio?: number
+          direccion?: string | null
           estado?: string
+          estado_pago?: string
           fecha_entrega: string
           id?: string
           metodo_pago?: string | null
+          modo_entrega?: string
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
           notas?: string | null
+          subtotal?: number
           total?: number
           updated_at?: string
+          zona_id?: string | null
         }
         Update: {
           canal?: string
           cliente_email?: string | null
           cliente_id?: string | null
           cliente_nombre?: string | null
+          cliente_telefono?: string | null
           codigo?: string
           created_at?: string
+          costo_envio?: number
+          direccion?: string | null
           estado?: string
+          estado_pago?: string
           fecha_entrega?: string
           id?: string
           metodo_pago?: string | null
+          modo_entrega?: string
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
           notas?: string | null
+          subtotal?: number
           total?: number
           updated_at?: string
+          zona_id?: string | null
         }
         Relationships: [
           {
@@ -479,6 +536,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_envio"
             referencedColumns: ["id"]
           },
         ]
@@ -651,12 +715,15 @@ export type Database = {
           cliente_email: string | null
           cliente_id: string | null
           cliente_nombre: string | null
+          cliente_telefono: string | null
           codigo: string
           created_at: string
           estado: string
+          estado_anticipo: string
           fecha_reserva: string
           id: string
           metodo_pago: string | null
+          modo_entrega: string
           notas: string | null
           total: number
           updated_at: string
@@ -666,12 +733,15 @@ export type Database = {
           cliente_email?: string | null
           cliente_id?: string | null
           cliente_nombre?: string | null
+          cliente_telefono?: string | null
           codigo: string
           created_at?: string
           estado?: string
+          estado_anticipo?: string
           fecha_reserva: string
           id?: string
           metodo_pago?: string | null
+          modo_entrega?: string
           notas?: string | null
           total?: number
           updated_at?: string
@@ -681,12 +751,15 @@ export type Database = {
           cliente_email?: string | null
           cliente_id?: string | null
           cliente_nombre?: string | null
+          cliente_telefono?: string | null
           codigo?: string
           created_at?: string
           estado?: string
+          estado_anticipo?: string
           fecha_reserva?: string
           id?: string
           metodo_pago?: string | null
+          modo_entrega?: string
           notas?: string | null
           total?: number
           updated_at?: string
@@ -746,7 +819,16 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      get_menu_hoy: { Args: never; Returns: Json }
+      get_pedido_publico: { Args: { p_codigo: string }; Returns: Json }
+      get_reserva_publica: { Args: { p_codigo: string }; Returns: Json }
+      crear_pedido_publico: { Args: { p_body: Json }; Returns: Json }
+      crear_reserva_publica: { Args: { p_body: Json }; Returns: Json }
+      list_reservas_productos: { Args: never; Returns: Json }
       list_zonas_activas: { Args: never; Returns: Json }
+      hoy_cdmx: { Args: never; Returns: string }
+      gen_pedido_codigo: { Args: never; Returns: string }
+      gen_reserva_codigo: { Args: never; Returns: string }
     }
     Enums: {
       user_rol: "superadmin" | "admin" | "cocina" | "caja" | "cliente"
