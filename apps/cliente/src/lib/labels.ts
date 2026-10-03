@@ -22,9 +22,11 @@ export { labelEstado, ESTADO_SEGUIMIENTO_LABEL };
 
 export const ESTADO_PAGO: Record<EstadoPago, string> = {
   pendiente: "Pago pendiente",
+  pendiente_verificacion: "Pendiente de verificación",
   pagado: "Pagado",
   contra_entrega: "Se cobra al entregar",
   fallido: "Pago fallido",
+  rechazado: "Pago rechazado",
   reembolsado: "Reembolsado",
 };
 
@@ -56,6 +58,9 @@ export const ESTADO_RESERVA_LABEL: Record<string, string> = {
 
 export const ESTADO_ANTICIPO: Record<string, string> = {
   pendiente: "Anticipo pendiente",
+  pendiente_verificacion: "Anticipo pendiente de verificación",
   pagado: "Anticipo pagado",
+  fallido: "Anticipo fallido",
+  rechazado: "Anticipo rechazado",
   reembolsado: "Anticipo reembolsado",
 };

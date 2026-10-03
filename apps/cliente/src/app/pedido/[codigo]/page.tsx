@@ -150,15 +150,24 @@ function PedidoView() {
         </Alert>
       )}
 
-      {pedido.metodoPago === "transferencia" &&
-        pedido.estadoPago === "pendiente" && (
+      {(pedido.estadoPago === "pendiente_verificacion" ||
+        (pedido.metodoPago === "transferencia" &&
+          pedido.estadoPago === "pendiente")) && (
           <Alert className="mt-4 border-alerta/40 bg-amber-50">
             <AlertDescription className="text-alerta">
-              Transferencia pendiente: te confirmamos el pago cuando lo
-              verifiquemos.
+              Transferencia pendiente de verificación: te confirmamos cuando
+              corroboremos que llegó el pago.
             </AlertDescription>
           </Alert>
         )}
+
+      {pedido.estadoPago === "contra_entrega" && (
+        <Alert className="mt-4 border-alerta/40 bg-amber-50">
+          <AlertDescription className="text-alerta">
+            Pagarás al recibir o retirar. El pedido no figura como pagado todavía.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <EstadoTimeline
         estado={pedido.estado}

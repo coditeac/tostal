@@ -17,9 +17,11 @@ export type EstadoPedido =
   | "en_produccion";
 export type EstadoPago =
   | "pendiente"
+  | "pendiente_verificacion"
   | "pagado"
   | "contra_entrega"
   | "fallido"
+  | "rechazado"
   | "reembolsado";
 export type MetodoPago =
   | "transferencia"

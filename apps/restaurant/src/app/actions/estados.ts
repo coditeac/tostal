@@ -60,6 +60,23 @@ export async function patchEstadoPedido(
       return { ok: false, error: e0?.message || "Pedido no encontrado" };
     }
 
+    const estadosPrep: EstadoFlujo[] = [
+      "preparando",
+      "listo",
+      "en_camino",
+      "entregado",
+    ];
+    if (
+      estadosPrep.includes(estado) &&
+      String(prev.estado_pago) === "pendiente_verificacion"
+    ) {
+      return {
+        ok: false,
+        error:
+          "La transferencia aún está pendiente de verificación. Márcala como verificada antes de preparar.",
+      };
+    }
+
     const { data, error } = await supabase
       .from("pedidos")
       .update({ estado, updated_at: new Date().toISOString() })
@@ -157,6 +174,21 @@ export async function patchEstadoReserva(
       .single();
     if (e0 || !prev) {
       return { ok: false, error: e0?.message || "Reserva no encontrada" };
+    }
+
+    const estadosPrep: EstadoFlujo[] = [
+      "preparando",
+      "listo",
+      "en_camino",
+      "entregado",
+    ];
+    const anticipoOk = String(prev.estado_anticipo || "") === "pagado";
+    if (estadosPrep.includes(estado) && !anticipoOk) {
+      return {
+        ok: false,
+        error:
+          "El anticipo debe estar autorizado/pagado antes de preparar la reserva.",
+      };
     }
 
     const { data, error } = await supabase

@@ -1,5 +1,5 @@
 // Generated via Supabase MCP generate_typescript_types
-// project: yoxsldirdgdpsabsivac · 2026-10-03 (MP columns)
+// project: yoxsldirdgdpsabsivac · 2026-10-03 (checkout_pendiente)
 export type Json =
   | string
   | number
@@ -16,6 +16,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      checkout_pendiente: {
+        Row: {
+          cliente_email: string | null
+          codigo: string | null
+          created_at: string
+          entidad_id: string | null
+          error_msg: string | null
+          estado: string
+          expires_at: string
+          id: string
+          moneda: string
+          monto_centavos: number
+          mp_payment_id: string | null
+          mp_preference_id: string | null
+          payload: Json
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          cliente_email?: string | null
+          codigo?: string | null
+          created_at?: string
+          entidad_id?: string | null
+          error_msg?: string | null
+          estado?: string
+          expires_at?: string
+          id?: string
+          moneda?: string
+          monto_centavos: number
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
+          payload: Json
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          cliente_email?: string | null
+          codigo?: string | null
+          created_at?: string
+          entidad_id?: string | null
+          error_msg?: string | null
+          estado?: string
+          expires_at?: string
+          id?: string
+          moneda?: string
+          monto_centavos?: number
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
+          payload?: Json
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       compra_items: {
         Row: {
           cantidad: number
@@ -848,6 +902,8 @@ export type Database = {
       get_menu_hoy: { Args: never; Returns: Json }
       get_pedido_publico: { Args: { p_codigo: string }; Returns: Json }
       get_reserva_publica: { Args: { p_codigo: string }; Returns: Json }
+      cotizar_pedido_publico: { Args: { p_body: Json }; Returns: Json }
+      cotizar_reserva_publica: { Args: { p_body: Json }; Returns: Json }
       crear_pedido_publico: { Args: { p_body: Json }; Returns: Json }
       crear_reserva_publica: { Args: { p_body: Json }; Returns: Json }
       list_reservas_productos: { Args: never; Returns: Json }
