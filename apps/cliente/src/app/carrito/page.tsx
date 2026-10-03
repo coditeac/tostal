@@ -38,7 +38,7 @@ export default function CarritoPage() {
   const [modo, setModo] = useState<ModoEntrega>("retiro");
   const [zonaId, setZonaId] = useState("");
   const [metodoPago, setMetodoPago] = useState<
-    Extract<MetodoPago, "transferencia" | "contra_entrega">
+    Extract<MetodoPago, "transferencia" | "contra_entrega" | "mercadopago">
   >("transferencia");
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -106,7 +106,12 @@ export default function CarritoPage() {
         })),
       });
       cart.clear();
-      router.push(`/pedido/${data.pedido.codigo}`);
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+      const q = data.pagoMock ? "?pago=mock" : "";
+      router.push(`/pedido/${data.pedido.codigo}${q}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo crear el pedido");
     } finally {
@@ -328,6 +333,10 @@ export default function CarritoPage() {
         <h2 className="section-title">Pago</h2>
         {(
           [
+            [
+              "mercadopago",
+              "Pagas con tarjeta u otros medios en Mercado Pago",
+            ],
             ["transferencia", "Te enviamos los datos; confirmamos a mano"],
             ["contra_entrega", "Pagas al recibir o retirar"],
           ] as const
@@ -353,24 +362,6 @@ export default function CarritoPage() {
             </span>
           </label>
         ))}
-        <div
-          aria-disabled="true"
-          className="flex cursor-not-allowed items-start gap-3 rounded-lg border border-dashed border-border px-3.5 py-3.5 text-sm opacity-60"
-        >
-          <input type="radio" name="pago" className="mt-1" disabled />
-          <span>
-            <span className="font-semibold">
-              {METODO_PAGO.stripe}{" "}
-              <span className="font-normal text-muted-foreground">
-                (deshabilitado)
-              </span>
-            </span>
-            <span className="mt-0.5 block text-muted-foreground">
-              Pago con tarjeta aún no disponible. Usa transferencia o contra
-              entrega.
-            </span>
-          </span>
-        </div>
         <div className="pt-4 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Subtotal</span>

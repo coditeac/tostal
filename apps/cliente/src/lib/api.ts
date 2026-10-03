@@ -24,6 +24,7 @@ import {
   notificarPedidoCreadoAction,
   notificarReservaCreadaAction,
 } from "@/app/actions/mail";
+import { iniciarCheckoutMercadoPago } from "@/app/actions/mercadopago";
 
 function sb() {
   return createClienteBrowserClient();
@@ -71,6 +72,10 @@ export async function fetchMenu(fecha?: string): Promise<MenuHoy> {
   return fetchMenuHoy();
 }
 
+function esPagoMercadoPago(metodo: string | null | undefined): boolean {
+  return metodo === "mercadopago" || metodo === "stripe";
+}
+
 export async function crearPedido(
   body: CrearPedidoRemotoBody
 ): Promise<CrearPedidoRemotoResponse> {
@@ -97,6 +102,27 @@ export async function crearPedido(
   } catch (e) {
     console.error("[mail:pedido_creado]", e);
   }
+
+  if (esPagoMercadoPago(body.metodoPago)) {
+    const checkout = await iniciarCheckoutMercadoPago({
+      tipo: "pedido",
+      id: result.pedido.id,
+      codigo: result.pedido.codigo,
+      montoCentavos: result.pedido.total,
+      payerEmail: email,
+      payerNombre: body.clienteNombre,
+    });
+    if (!checkout.ok) {
+      const e = new Error(
+        checkout.error || "No se pudo iniciar el pago con Mercado Pago"
+      ) as Error & { status?: number };
+      e.status = 502;
+      throw e;
+    }
+    result.checkoutUrl = checkout.checkoutUrl ?? null;
+    result.pagoMock = Boolean(checkout.mock);
+  }
+
   return result;
 }
 
@@ -196,6 +222,29 @@ export async function crearReserva(
   } catch (e) {
     console.error("[mail:reserva_creada]", e);
   }
+
+  if (esPagoMercadoPago(body.metodoPago)) {
+    const checkout = await iniciarCheckoutMercadoPago({
+      tipo: "reserva",
+      id: result.reserva.id,
+      codigo: result.reserva.codigo,
+      montoCentavos: result.reserva.anticipoMonto,
+      payerEmail: body.clienteEmail || null,
+      payerNombre: body.clienteNombre,
+    });
+    if (!checkout.ok) {
+      const e = new Error(
+        checkout.error || "No se pudo iniciar el anticipo con Mercado Pago"
+      ) as Error & { status?: number };
+      e.status = 502;
+      throw e;
+    }
+    result.reserva.checkoutUrl = checkout.checkoutUrl ?? null;
+    if (checkout.mock) {
+      result.reserva.estadoAnticipo = "pagado";
+    }
+  }
+
   return result;
 }
 

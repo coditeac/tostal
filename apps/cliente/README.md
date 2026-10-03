@@ -27,9 +27,11 @@ Railway `tostal-cliente` ya lleva esas vars.
 
 1. **Menú de hoy** (CDMX) desde `menu_dia` + `productos.imagen_url` (Storage `productos`).
 2. Carrito → pedido (`crear_pedido_publico`) con hora límite.
-3. **Reservas** (`list_reservas_productos` / `crear_reserva_publica`).
-4. Seguimiento `/pedido/[codigo]` y `/reserva/[codigo]` vía RPC + Realtime (polling fallback).
-5. Cuenta opcional: Auth email/password Supabase.
+3. **Pago:** transferencia, contra entrega o **Mercado Pago** (Checkout Pro). Sin `MP_ACCESS_TOKEN` el pago con tarjeta se simula.
+4. **Reservas** (`list_reservas_productos` / `crear_reserva_publica`) con anticipo (MP o transferencia).
+5. Seguimiento `/pedido/[codigo]` y `/reserva/[codigo]` vía RPC + Realtime (polling fallback).
+6. Webhook MP: `/api/webhooks/mercadopago` → actualiza `estado_pago` / `estado_anticipo`.
+7. Cuenta opcional: Auth email/password Supabase.
 
 ## Rutas
 

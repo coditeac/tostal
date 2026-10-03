@@ -78,7 +78,7 @@ export type CrearReservaBody = {
   clienteNombre: string;
   clienteTelefono: string;
   clienteEmail?: string | null;
-  metodoPago: Extract<MetodoPago, "transferencia" | "stripe">;
+  metodoPago: Extract<MetodoPago, "transferencia" | "mercadopago" | "stripe">;
   notas?: string | null;
   lineas: Array<{
     productoId: string;

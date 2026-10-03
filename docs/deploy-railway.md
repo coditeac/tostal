@@ -54,10 +54,10 @@ Root Directory: monorepo `""` (incluye `shared/`).
 
 Opcional residual a limpiar en Railway si aún existe: `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_TOSTAL_API_URL`.
 
-### Email / Stripe (pendiente)
+### Email / Mercado Pago
 
-- Resend: re-cablear en Restaurant Route Handlers o Edge Function (P0). Vars: `RESEND_*`, `MAIL_MOCK`.
-- Stripe: **UI deshabilitada**; no implementar Checkout en esta pasada.
+- Resend: vars `RESEND_*`, `MAIL_MOCK` (cliente + restaurant).
+- Mercado Pago (Checkout Pro): en **`tostal-cliente`** — `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, opcional `NEXT_PUBLIC_MP_PUBLIC_KEY`. Webhook: `https://tostal.cafe/api/webhooks/mercadopago`. Guía: store `docs/mercadopago-setup.md`.
 
 ## URLs
 

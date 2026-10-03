@@ -52,6 +52,10 @@ export type CrearPedidoRemotoBody = {
 
 export type CrearPedidoRemotoResponse = {
   pedido: import("./types").PedidoPublico;
+  /** Checkout Pro Mercado Pago (si metodoPago = mercadopago). */
+  checkoutUrl?: string | null;
+  /** true si se simuló el pago por falta de MP_ACCESS_TOKEN. */
+  pagoMock?: boolean;
 };
 
 export type GetPedidoPublicoResponse = {

@@ -31,7 +31,8 @@ export const ESTADO_PAGO: Record<EstadoPago, string> = {
 export const METODO_PAGO: Record<MetodoPago, string> = {
   transferencia: "Transferencia",
   contra_entrega: "Contra entrega",
-  stripe: "Tarjeta en línea",
+  mercadopago: "Tarjeta / Mercado Pago",
+  stripe: "Tarjeta / Mercado Pago",
   efectivo_mostrador: "Efectivo en caja",
 };
 

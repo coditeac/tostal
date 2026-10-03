@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { fetchReserva, formatoMoneda, labelFecha } from "@/lib/api";
 import { useReservaEvents } from "@/lib/use-reserva-events";
 import {
@@ -26,9 +26,15 @@ function modoLabel(m: string): string {
   return MODO_ENTREGA[m as ModoEntrega] || m;
 }
 
-export default function ReservaSeguimientoPage() {
+function esMp(m: string) {
+  return m === "mercadopago" || m === "stripe";
+}
+
+function ReservaSeguimientoView() {
   const params = useParams<{ codigo: string }>();
+  const search = useSearchParams();
   const codigo = params.codigo;
+  const pagoHint = search.get("pago");
   const [reserva, setReserva] = useState<ReservaPublicaSeguimiento | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -114,11 +120,38 @@ export default function ReservaSeguimientoPage() {
         {modoLabel(reserva.modoEntrega)}
       </p>
 
+      {pagoHint === "error" && (
+        <Alert className="mt-4 border-alerta/40 bg-amber-50">
+          <AlertDescription className="text-alerta">
+            El anticipo en Mercado Pago no se completó. Puedes reintentar o
+            pagar por transferencia.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {pagoHint === "ok" && anticipo === "pagado" && (
+        <Alert className="mt-4 border-ok/30 bg-emerald-50">
+          <AlertDescription className="text-ok">
+            Anticipo confirmado con Mercado Pago.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {anticipo === "pendiente" && (
         <Alert className="mt-4 border-alerta/40 bg-amber-50">
           <AlertDescription className="text-alerta">
-            Anticipo pendiente ({formatoMoneda(reserva.anticipoMonto)}). Te
-            confirmamos cuando lo verifiquemos.
+            Anticipo pendiente ({formatoMoneda(reserva.anticipoMonto)})
+            {esMp(reserva.metodoPago)
+              ? ". Esperamos la confirmación de Mercado Pago."
+              : ". Te confirmamos cuando lo verifiquemos."}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {anticipo === "pagado" && !pagoHint && (
+        <Alert className="mt-4 border-ok/30 bg-emerald-50">
+          <AlertDescription className="text-ok">
+            Anticipo pagado.
           </AlertDescription>
         </Alert>
       )}
@@ -182,5 +215,20 @@ export default function ReservaSeguimientoPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+export default function ReservaSeguimientoPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-lg space-y-3 px-4 py-10">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-24 w-full rounded-xl" />
+        </div>
+      }
+    >
+      <ReservaSeguimientoView />
+    </Suspense>
   );
 }
