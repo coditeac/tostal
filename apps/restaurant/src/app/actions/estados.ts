@@ -1,5 +1,9 @@
 "use server";
 
+import {
+  ensureIngresoPedidoEntregado,
+  ensureIngresoReservaEntregada,
+} from "@/lib/data/ingreso-entrega";
 import type { PedidoUi } from "@/lib/data/pedidos";
 import type { EstadoFlujo } from "@/lib/estados";
 import { notifyEstadoPedido, notifyEstadoReserva } from "@/lib/mail";
@@ -74,6 +78,23 @@ export async function patchEstadoPedido(
       usuario_id: session.id,
       motivo: motivo ?? null,
     });
+
+    if (estado === "entregado") {
+      try {
+        const row = data as {
+          id: string;
+          codigo: string;
+          total: number;
+          subtotal: number;
+          costo_envio: number;
+          estado_pago: string;
+          metodo_pago: string | null;
+        };
+        await ensureIngresoPedidoEntregado(supabase, row, session.id);
+      } catch (e) {
+        console.error("[finanzas:estado_pedido]", e);
+      }
+    }
 
     const { data: items } = await supabase
       .from("pedido_items")
@@ -156,6 +177,22 @@ export async function patchEstadoReserva(
       usuario_id: session.id,
       motivo: motivo ?? null,
     });
+
+    if (estado === "entregado") {
+      try {
+        const row = data as {
+          id: string;
+          codigo: string;
+          total: number;
+          anticipo: number;
+          estado_anticipo: string;
+          metodo_pago: string | null;
+        };
+        await ensureIngresoReservaEntregada(supabase, row, session.id);
+      } catch (e) {
+        console.error("[finanzas:estado_reserva]", e);
+      }
+    }
 
     try {
       const row = data as unknown as {

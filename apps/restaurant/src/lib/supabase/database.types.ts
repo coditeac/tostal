@@ -262,6 +262,8 @@ export type Database = {
           fuente: string | null
           id: string
           monto: number
+          pedido_id: string | null
+          reserva_id: string | null
         }
         Insert: {
           concepto: string
@@ -270,6 +272,8 @@ export type Database = {
           fuente?: string | null
           id?: string
           monto: number
+          pedido_id?: string | null
+          reserva_id?: string | null
         }
         Update: {
           concepto?: string
@@ -278,6 +282,8 @@ export type Database = {
           fuente?: string | null
           id?: string
           monto?: number
+          pedido_id?: string | null
+          reserva_id?: string | null
         }
         Relationships: [
           {
@@ -285,6 +291,20 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingresos_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingresos_reserva_id_fkey"
+            columns: ["reserva_id"]
+            isOneToOne: false
+            referencedRelation: "reservas"
             referencedColumns: ["id"]
           },
         ]
