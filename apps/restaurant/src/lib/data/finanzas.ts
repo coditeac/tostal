@@ -111,12 +111,21 @@ export async function createIngreso(input: {
   return data;
 }
 
+/**
+ * Hard delete de gasto manual. Si una compra apunta al gasto,
+ * se desvincula (gasto_id → null) para no dejar FK rota.
+ */
 export async function deleteGasto(id: string) {
   const supabase = createClient();
+  await supabase.from("compras").update({ gasto_id: null }).eq("gasto_id", id);
   const { error } = await supabase.from("gastos").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Hard delete de ingreso manual. Los ligados a pedido/reserva
+ * conservan el pedido (ON DELETE SET NULL en FK).
+ */
 export async function deleteIngreso(id: string) {
   const supabase = createClient();
   const { error } = await supabase.from("ingresos").delete().eq("id", id);

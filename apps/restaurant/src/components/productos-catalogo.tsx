@@ -2,6 +2,7 @@
 
 import { listInsumos } from "@/lib/data/insumos";
 import {
+  deleteProducto,
   listProductosConReceta,
   upsertProducto,
 } from "@/lib/data/productos";
@@ -15,6 +16,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
 import { Switch } from "@/components/ui/switch";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type LineaRecetaUi = {
   id: string;
@@ -95,6 +97,8 @@ export function ProductosCatalogo() {
     Array<{ insumoId: string; cantidad: string }>
   >([]);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Producto | null>(null);
+  const [deleting, setDeleting] = useState(false);
   /** Preview local (object URL) o URL remota al editar. */
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [fotoRemota, setFotoRemota] = useState<string | null>(null);
@@ -903,18 +907,58 @@ export function ProductosCatalogo() {
                     .join(" · ")}
                 </p>
               )}
-              <button
-                type="button"
-                className="mt-3 min-h-[var(--tap)] text-sm font-semibold text-miel-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                aria-label={`Editar ${p.nombre}`}
-                onClick={() => startEdit(p)}
-              >
-                Editar
-              </button>
+              <div className="mt-3 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  className="min-h-[var(--tap)] text-sm font-semibold text-miel-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  aria-label={`Editar ${p.nombre}`}
+                  onClick={() => startEdit(p)}
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  className="min-h-[var(--tap)] text-sm font-semibold text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  aria-label={`Eliminar ${p.nombre}`}
+                  onClick={() => setDeleteTarget(p)}
+                >
+                  Eliminar
+                </button>
+              </div>
             </li>
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="¿Eliminar producto?"
+        description={
+          deleteTarget
+            ? `«${deleteTarget.nombre}» se ocultará del catálogo y del menú del día. Los pedidos y reservas históricos se conservan.`
+            : ""
+        }
+        confirmLabel="Eliminar"
+        busy={deleting}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          setDeleting(true);
+          setError(null);
+          try {
+            await deleteProducto(deleteTarget.id);
+            setDeleteTarget(null);
+            if (editId === deleteTarget.id) setEditId(null);
+            await load();
+          } catch (e) {
+            setError(e instanceof Error ? e.message : "Error al eliminar");
+          } finally {
+            setDeleting(false);
+          }
+        }}
+      />
     </div>
   );
 }

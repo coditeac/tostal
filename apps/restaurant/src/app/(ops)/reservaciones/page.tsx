@@ -185,6 +185,7 @@ export default function ReservasPage() {
                   estado={estadoUi}
                   modoEntrega={"retiro"}
                   busy={busyId === r.id}
+                  entidadLabel={`la reservación ${r.codigo || r.id.slice(0, 8)}`}
                   onCambiar={(estado) => void cambiarEstado(r.id, estado)}
                 />
 

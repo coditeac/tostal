@@ -95,6 +95,51 @@ export async function updateInsumo(
   return data as InsumoRow;
 }
 
+/**
+ * Elimina insumo: hard delete si no está en recetas/compras;
+ * soft (`activo=false`) si hay uso histórico.
+ */
+export async function deleteInsumo(
+  id: string
+): Promise<"hard" | "soft"> {
+  const supabase = createClient();
+
+  const [{ count: recetaCount }, { count: compraCount }] = await Promise.all([
+    supabase
+      .from("producto_insumos")
+      .select("id", { count: "exact", head: true })
+      .eq("insumo_id", id),
+    supabase
+      .from("compra_items")
+      .select("id", { count: "exact", head: true })
+      .eq("insumo_id", id),
+  ]);
+
+  const enUso = (recetaCount ?? 0) > 0 || (compraCount ?? 0) > 0;
+  if (enUso) {
+    const { error } = await supabase
+      .from("insumos")
+      .update({ activo: false, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+    return "soft";
+  }
+
+  const { error } = await supabase.from("insumos").delete().eq("id", id);
+  if (error) {
+    if (/foreign key|violates/i.test(error.message)) {
+      const { error: e2 } = await supabase
+        .from("insumos")
+        .update({ activo: false, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (e2) throw new Error(e2.message);
+      return "soft";
+    }
+    throw new Error(error.message);
+  }
+  return "hard";
+}
+
 /** Movimiento de almacén: ajusta stock (+/-) y opcional costo. */
 export async function moverStock(input: {
   insumoId: string;

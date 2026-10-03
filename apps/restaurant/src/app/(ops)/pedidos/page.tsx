@@ -166,6 +166,7 @@ export default function PedidosPage() {
                 estado={p.estado}
                 modoEntrega={p.modoEntrega}
                 busy={busyId === p.id}
+                entidadLabel={`el pedido ${p.codigo}`}
                 onCambiar={(estado) => void cambiarEstado(p.id, estado)}
               />
             </li>

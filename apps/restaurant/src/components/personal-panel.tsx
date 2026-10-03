@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import {
   createStaffUser,
+  deleteStaffUser,
   listStaff,
   updateStaffProfile,
   type StaffUser,
 } from "@/lib/data/usuarios";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type User = StaffUser;
 
@@ -26,6 +28,8 @@ export default function PersonalPanel() {
     rol: "caja" as User["rol"],
   });
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -97,8 +101,28 @@ export default function PersonalPanel() {
   }
 
   async function toggleActivo(u: User) {
-    await updateStaffProfile({ id: u.id, activo: !u.activo });
-    await load();
+    setError(null);
+    try {
+      await updateStaffProfile({ id: u.id, activo: !u.activo });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error");
+    }
+  }
+
+  async function onDeleteConfirmed() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteStaffUser(deleteTarget.id);
+      setDeleteTarget(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al eliminar");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -151,20 +175,55 @@ export default function PersonalPanel() {
                   Editar
                 </Button>
                 {u.rol !== "superadmin" && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => void toggleActivo(u)}
-                  >
-                    {u.activo ? "Desactivar" : "Activar"}
-                  </Button>
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      aria-label={
+                        u.activo
+                          ? `Desactivar ${u.nombre}`
+                          : `Activar ${u.nombre}`
+                      }
+                      onClick={() => void toggleActivo(u)}
+                    >
+                      {u.activo ? "Desactivar" : "Activar"}
+                    </Button>
+                    {u.activo ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-error"
+                        aria-label={`Eliminar ${u.nombre}`}
+                        onClick={() => setDeleteTarget(u)}
+                      >
+                        Eliminar
+                      </Button>
+                    ) : null}
+                  </>
                 )}
               </div>
             </li>
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="¿Eliminar cuenta staff?"
+        description={
+          deleteTarget
+            ? `«${deleteTarget.nombre}» (${deleteTarget.email}) se desactivará. No se borra el usuario de Auth; no podrá iniciar sesión. No se puede eliminar el único superadmin.`
+            : ""
+        }
+        confirmLabel="Eliminar"
+        busy={deleting}
+        onConfirm={() => void onDeleteConfirmed()}
+      />
 
       {editId && (
         <form onSubmit={onSave} className="space-y-3 border-t border-border pt-4">

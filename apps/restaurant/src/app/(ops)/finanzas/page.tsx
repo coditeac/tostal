@@ -9,6 +9,7 @@ import {
 } from "@/lib/data/finanzas";
 import { useEffect, useState } from "react";
 import { formatoMoneda, hoyISO } from "@/lib/format";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type Gasto = {
   id: string;
@@ -66,6 +67,12 @@ export default function FinanzasPage() {
     notas: "",
   });
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    tipo: "gasto" | "ingreso";
+    id: string;
+    label: string;
+  } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -136,14 +143,20 @@ export default function FinanzasPage() {
     }
   }
 
-  async function borrarGasto(id: string) {
-    await deleteGasto(id);
-    await load();
-  }
-
-  async function borrarIngreso(id: string) {
-    await deleteIngreso(id);
-    await load();
+  async function confirmarBorrado() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      if (deleteTarget.tipo === "gasto") await deleteGasto(deleteTarget.id);
+      else await deleteIngreso(deleteTarget.id);
+      setDeleteTarget(null);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error al eliminar");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   if (loading) {
@@ -381,10 +394,16 @@ export default function FinanzasPage() {
                       <button
                         type="button"
                         className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-                        aria-label={`Borrar ingreso ${g.categoria} del ${g.fecha}`}
-                        onClick={() => void borrarIngreso(g.id)}
+                        aria-label={`Eliminar ingreso ${g.categoria} del ${g.fecha}`}
+                        onClick={() =>
+                          setDeleteTarget({
+                            tipo: "ingreso",
+                            id: g.id,
+                            label: `${g.categoria} · ${g.fecha}`,
+                          })
+                        }
                       >
-                        Borrar
+                        Eliminar
                       </button>
                     </div>
                   </li>
@@ -517,10 +536,16 @@ export default function FinanzasPage() {
                       <button
                         type="button"
                         className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-                        aria-label={`Borrar gasto ${g.categoria} del ${g.fecha}`}
-                        onClick={() => void borrarGasto(g.id)}
+                        aria-label={`Eliminar gasto ${g.categoria} del ${g.fecha}`}
+                        onClick={() =>
+                          setDeleteTarget({
+                            tipo: "gasto",
+                            id: g.id,
+                            label: `${g.categoria} · ${g.fecha}`,
+                          })
+                        }
                       >
-                        Borrar
+                        Eliminar
                       </button>
                     </div>
                   </li>
@@ -530,6 +555,26 @@ export default function FinanzasPage() {
           </section>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title={
+          deleteTarget?.tipo === "gasto"
+            ? "¿Eliminar gasto?"
+            : "¿Eliminar ingreso?"
+        }
+        description={
+          deleteTarget
+            ? `Se borrará permanentemente «${deleteTarget.label}». Esta acción no se puede deshacer.`
+            : ""
+        }
+        confirmLabel="Eliminar"
+        busy={deleting}
+        onConfirm={() => void confirmarBorrado()}
+      />
     </div>
   );
 }

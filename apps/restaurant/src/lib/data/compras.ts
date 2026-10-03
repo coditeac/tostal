@@ -151,3 +151,71 @@ export async function cerrarCompra(input: {
 
   return { compra, gasto };
 }
+
+export type CompraReciente = {
+  id: string;
+  tienda: string;
+  estado: string;
+  gasto_id: string | null;
+  closed_at: string | null;
+  created_at: string;
+  total: number;
+};
+
+/** Últimas compras cerradas/anuladas para listado en panel. */
+export async function listComprasRecientes(
+  limit = 20
+): Promise<CompraReciente[]> {
+  const supabase = createClient();
+  const { data: compras, error } = await supabase
+    .from("compras")
+    .select("id, tienda, estado, gasto_id, closed_at, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  if (!compras?.length) return [];
+
+  const ids = compras.map((c) => c.id);
+  const { data: items } = await supabase
+    .from("compra_items")
+    .select("compra_id, subtotal")
+    .in("compra_id", ids);
+  const totals = new Map<string, number>();
+  for (const it of items || []) {
+    totals.set(
+      it.compra_id,
+      (totals.get(it.compra_id) || 0) + (Number(it.subtotal) || 0)
+    );
+  }
+
+  return compras.map((c) => ({
+    id: c.id,
+    tienda: c.tienda || "",
+    estado: c.estado || "",
+    gasto_id: c.gasto_id,
+    closed_at: c.closed_at,
+    created_at: c.created_at,
+    total: totals.get(c.id) || 0,
+  }));
+}
+
+/**
+ * Anula compra: conserva historial; no revierte stock.
+ * El gasto vinculado se puede borrar aparte en Finanzas.
+ */
+export async function anularCompra(id: string): Promise<void> {
+  const supabase = createClient();
+  const { data: row, error: e0 } = await supabase
+    .from("compras")
+    .select("id, estado")
+    .eq("id", id)
+    .single();
+  if (e0 || !row) throw new Error(e0?.message || "Compra no encontrada");
+  if (row.estado === "anulada") return;
+
+  const { error } = await supabase
+    .from("compras")
+    .update({ estado: "anulada" })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+}

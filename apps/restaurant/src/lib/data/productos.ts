@@ -37,11 +37,18 @@ function costoCalculado(
   }, 0);
 }
 
-export async function listProductosConReceta() {
+export async function listProductosConReceta(opts?: {
+  /** Por defecto solo activos (excluye soft-delete). */
+  incluirInactivos?: boolean;
+}) {
   const supabase = createClient();
+  let productosQ = supabase.from("productos").select("*").order("nombre");
+  if (!opts?.incluirInactivos) {
+    productosQ = productosQ.eq("activo", true);
+  }
   const [{ data: productos, error: e1 }, { data: recetas, error: e2 }] =
     await Promise.all([
-      supabase.from("productos").select("*").order("nombre"),
+      productosQ,
       supabase
         .from("producto_insumos")
         .select("*, insumos(id, nombre, unidad, costo_unitario)"),
@@ -161,4 +168,24 @@ export async function upsertProducto(input: {
     if (error) throw new Error(error.message);
   }
   return productoId!;
+}
+
+/**
+ * Soft-delete: oculta del catálogo y del menú del día.
+ * Conserva historial de pedidos/reservas (FK sin CASCADE hacia items).
+ */
+export async function deleteProducto(id: string): Promise<"soft"> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("productos")
+    .update({ activo: false, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+
+  await supabase
+    .from("menu_dia_productos")
+    .update({ activo: false })
+    .eq("producto_id", id);
+
+  return "soft";
 }

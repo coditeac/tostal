@@ -2,13 +2,17 @@
 
 import {
   altaInsumoCompra,
+  anularCompra,
   cerrarCompra,
+  listComprasRecientes,
   loadComprasSugerencia,
+  type CompraReciente,
 } from "@/lib/data/compras";
 import { listInsumos, mapInsumoUi } from "@/lib/data/insumos";
 import { useEffect, useMemo, useState } from "react";
 import { formatoMoneda } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type Insumo = {
   id: string;
@@ -68,14 +72,21 @@ export default function ComprasPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [recientes, setRecientes] = useState<CompraReciente[]>([]);
+  const [anularTarget, setAnularTarget] = useState<CompraReciente | null>(null);
+  const [anulando, setAnulando] = useState(false);
 
   async function load(tiendaCtx?: string) {
     setLoading(true);
     setError(null);
     try {
-      const data = await loadComprasSugerencia(tiendaCtx);
+      const [data, hist] = await Promise.all([
+        loadComprasSugerencia(tiendaCtx),
+        listComprasRecientes(15),
+      ]);
       setSugerencia(data.sugerencia || []);
       setTiendas(data.tiendas || []);
+      setRecientes(hist);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -548,6 +559,74 @@ export default function ComprasPage() {
           {busy ? "Cerrando…" : "Cerrar compra y registrar gasto"}
         </Button>
       </section>
+
+      <section className="space-y-3 border-t border-border pt-4">
+        <h2 className="text-sm font-semibold">Compras recientes</h2>
+        {recientes.length === 0 ? (
+          <p className="empty-state">Sin compras registradas.</p>
+        ) : (
+          <ul className="divide-y divide-border border-y border-border">
+            {recientes.map((c) => (
+              <li
+                key={c.id}
+                className="flex items-center justify-between gap-2 py-3 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium truncate">
+                    {c.tienda || "Sin tienda"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {(c.closed_at || c.created_at || "").slice(0, 10)} ·{" "}
+                    {c.estado}
+                    {c.total > 0 ? ` · ${formatoMoneda(c.total)}` : ""}
+                  </p>
+                </div>
+                {c.estado !== "anulada" ? (
+                  <button
+                    type="button"
+                    className="min-h-[var(--tap)] shrink-0 text-xs font-semibold text-error"
+                    aria-label={`Anular compra en ${c.tienda}`}
+                    onClick={() => setAnularTarget(c)}
+                  >
+                    Anular
+                  </button>
+                ) : (
+                  <span className="text-xs text-muted-foreground">Anulada</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <ConfirmDialog
+        open={!!anularTarget}
+        onOpenChange={(open) => {
+          if (!open) setAnularTarget(null);
+        }}
+        title="¿Anular compra?"
+        description={
+          anularTarget
+            ? `La compra en «${anularTarget.tienda}» se marcará como anulada. El stock ya ingresado y el gasto en Finanzas no se revierten automáticamente; puedes eliminar el gasto aparte si aplica.`
+            : ""
+        }
+        confirmLabel="Anular"
+        busy={anulando}
+        onConfirm={async () => {
+          if (!anularTarget) return;
+          setAnulando(true);
+          setError(null);
+          try {
+            await anularCompra(anularTarget.id);
+            setAnularTarget(null);
+            await load(tienda || undefined);
+          } catch (e) {
+            setError(e instanceof Error ? e.message : "Error al anular");
+          } finally {
+            setAnulando(false);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -112,17 +112,29 @@ export function accionesDesdeEstado(
   switch (estado) {
     case "recibido":
       add("aceptado", { primaria: true });
-      add("cancelado");
+      acciones.push({
+        estado: "cancelado",
+        label: "Anular",
+        variante: "destructive",
+      });
       break;
     case "aceptado":
       add("preparando", { primaria: true });
       add("recibido", { variante: "secondary" });
-      add("cancelado");
+      acciones.push({
+        estado: "cancelado",
+        label: "Anular",
+        variante: "destructive",
+      });
       break;
     case "preparando":
       add("listo", { primaria: true });
       add("aceptado", { variante: "secondary" });
-      add("cancelado");
+      acciones.push({
+        estado: "cancelado",
+        label: "Anular",
+        variante: "destructive",
+      });
       break;
     case "listo":
       if (esEnvio) {
@@ -132,12 +144,20 @@ export function accionesDesdeEstado(
         add("entregado", { primaria: true });
       }
       add("preparando", { variante: "secondary" });
-      add("cancelado");
+      acciones.push({
+        estado: "cancelado",
+        label: "Anular",
+        variante: "destructive",
+      });
       break;
     case "en_camino":
       add("entregado", { primaria: true });
       add("listo", { variante: "secondary" });
-      add("cancelado");
+      acciones.push({
+        estado: "cancelado",
+        label: "Anular",
+        variante: "destructive",
+      });
       break;
     case "entregado":
     case "cancelado":
